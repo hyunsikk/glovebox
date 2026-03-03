@@ -14,11 +14,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.teamam.glovebox",
-      "buildNumber": "1",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Glovebox needs access to your photos to attach images to vehicle profiles and service records.",
-        "NSCameraUsageDescription": "Glovebox needs camera access to take photos of your vehicle and service receipts."
-      }
+        "NSCameraUsageDescription": "Glovebox needs camera access to take photos of your vehicle and service receipts.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "newArchEnabled": false
     },
     "android": {
       "adaptiveIcon": {
@@ -36,6 +37,14 @@
       "expo-font",
       "expo-sharing"
     ],
-    "scheme": "glovebox"
+    "scheme": "glovebox",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fcec4e74-061f-4696-8b5d-5a0921fdf7bb"
+      }
+    },
+    "owner": "hsikk",
+    "newArchEnabled": false
   }
 }

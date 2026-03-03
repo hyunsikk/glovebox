@@ -205,7 +205,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
   const loadServiceTypes = (vehicle) => {
     // Get service types from manufacturer data
-    const manufacturerServices = getVehicleSchedule(vehicle.make, vehicle.model, vehicle.years);
+    const { schedule: manufacturerServices } = getVehicleSchedule(vehicle.make, vehicle.model, vehicle.years);
     
     // Add common custom services
     const customServices = [

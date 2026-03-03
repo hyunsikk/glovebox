@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
-import manufacturerDB from '../content/v1/vehicles.json';
+import { getVehicleSchedule } from '../lib/vehicleDB';
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -32,11 +32,7 @@ export const generateReport = async (vehicleId) => {
   const upcomingServices = await ServiceDue.getUpcomingServices(vehicleId, 365);
 
   // Get manufacturer schedule
-  const mfgData = manufacturerDB.vehicles.find(
-    v => v.make.toLowerCase() === vehicle.make.toLowerCase() &&
-         v.model.toLowerCase() === vehicle.model.toLowerCase()
-  );
-  const schedule = mfgData ? mfgData.schedule : [];
+    const { schedule } = getVehicleSchedule(vehicle.make, vehicle.model);
 
   // Build schedule status
   const scheduleStatus = schedule.map((item) => {

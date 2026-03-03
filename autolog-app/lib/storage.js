@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   SERVICES: '@autolog_services',
   USER_SETTINGS: '@autolog_user_settings',
   IMAGES: '@autolog_images',
+  DOCUMENTS: '@autolog_documents',
 };
 
 // Utility functions
@@ -408,6 +409,73 @@ export const ImageStorage = {
   },
 };
 
+// Document Storage Functions
+export const DocumentStorage = {
+  getAll: async () => {
+    try {
+      const docs = await AsyncStorage.getItem(STORAGE_KEYS.DOCUMENTS);
+      return docs ? JSON.parse(docs) : [];
+    } catch (error) {
+      console.error('Error getting documents:', error);
+      return [];
+    }
+  },
+
+  add: async (docData) => {
+    try {
+      const docs = await DocumentStorage.getAll();
+      const newDoc = {
+        id: generateId(),
+        ...docData,
+        createdAt: getCurrentDate(),
+        updatedAt: getCurrentDate(),
+      };
+      docs.push(newDoc);
+      await AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(docs));
+      return newDoc;
+    } catch (error) {
+      console.error('Error adding document:', error);
+      throw error;
+    }
+  },
+
+  update: async (id, updates) => {
+    try {
+      const docs = await DocumentStorage.getAll();
+      const index = docs.findIndex(d => d.id === id);
+      if (index === -1) throw new Error('Document not found');
+      docs[index] = { ...docs[index], ...updates, updatedAt: getCurrentDate() };
+      await AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(docs));
+      return docs[index];
+    } catch (error) {
+      console.error('Error updating document:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const docs = await DocumentStorage.getAll();
+      const filtered = docs.filter(d => d.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.DOCUMENTS, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw error;
+    }
+  },
+
+  getByVehicleId: async (vehicleId) => {
+    try {
+      const docs = await DocumentStorage.getAll();
+      return docs.filter(d => d.vehicleId === vehicleId);
+    } catch (error) {
+      console.error('Error getting documents by vehicle:', error);
+      return [];
+    }
+  },
+};
+
 // Utility functions for data operations
 export const DataUtils = {
   // Clear all app data
@@ -499,5 +567,6 @@ export default {
   ServiceStorage,
   SettingsStorage,
   ImageStorage,
+  DocumentStorage,
   DataUtils,
 };

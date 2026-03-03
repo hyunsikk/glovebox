@@ -14,11 +14,12 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
-import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
+import { VehicleStorage, ServiceStorage, ImageStorage, DocumentStorage } from '../lib/storage';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
 import { pickImageAsync, convertToBase64 } from '../lib/imageUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import manufacturerDB from '../content/v1/vehicles.json';
+import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
 
 // Document types with their icons and typical expiry periods
@@ -671,6 +672,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   const [vehicleData, setVehicleData] = useState(null);
   const [services, setServices] = useState([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState([]);
+  const [isGenericSchedule, setIsGenericSchedule] = useState(false);
   const [snoozeData, setSnoozeData] = useState({});
   const [healthScore, setHealthScore] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
@@ -763,26 +765,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       const vehicleServices = await ServiceStorage.getByVehicleId(vehicle.id);
       setServices(vehicleServices);
 
-      // Load documents (using mock data for now)
-      const mockDocuments = [
-        {
-          id: '1',
-          vehicleId: vehicle.id,
-          type: 'insurance',
-          expiryDate: '2024-08-15',
-          notes: 'State Farm Policy #12345',
-          photoUri: null,
-        },
-        {
-          id: '2', 
-          vehicleId: vehicle.id,
-          type: 'registration',
-          expiryDate: '2024-12-31',
-          notes: 'Valid through 2024',
-          photoUri: null,
-        },
-      ];
-      setVehicleDocuments(mockDocuments);
+      // Load documents from storage
+      const docs = await DocumentStorage.getByVehicleId(vehicle.id);
+      setVehicleDocuments(docs);
 
       // Load photos for all services
       const photosMap = {};
@@ -798,16 +783,18 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
         setReminders(remRaw ? JSON.parse(remRaw) : []);
       } catch { setReminders([]); }
 
-      // Load manufacturer maintenance schedule
-      const manufacturerData = manufacturerDB.vehicles.find(
-        v => v.make.toLowerCase() === freshVehicle.make.toLowerCase() && 
-             v.model.toLowerCase() === freshVehicle.model.toLowerCase()
+      // Load maintenance schedule (manufacturer-specific or generic fallback)
+      const { schedule: vehicleSchedule, isGeneric } = getVehicleSchedule(
+        freshVehicle.make,
+        freshVehicle.model,
+        null
       );
+      setIsGenericSchedule(isGeneric);
       
-      if (manufacturerData) {
+      if (vehicleSchedule.length > 0) {
         // Calculate status for each scheduled service
         const scheduleWithStatus = await Promise.all(
-          manufacturerData.schedule.map(async (scheduleItem) => {
+          vehicleSchedule.map(async (scheduleItem) => {
             const lastService = vehicleServices
               .filter(s => s.serviceType === scheduleItem.service)
               .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
@@ -1074,44 +1061,58 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     setShowAddDocumentModal(true);
   };
 
+  const handleSaveDocument = async (docData) => {
+    try {
+      await DocumentStorage.add({
+        ...docData,
+        vehicleId: vehicle.id,
+      });
+      const docs = await DocumentStorage.getByVehicleId(vehicle.id);
+      setVehicleDocuments(docs);
+      setShowAddDocumentModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error saving document:', error);
+      Alert.alert('Error', 'Failed to save document');
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    const doDelete = Platform.OS === 'web'
+      ? window.confirm('Delete this document?')
+      : await new Promise(resolve => {
+          Alert.alert('Delete Document', 'Are you sure?', [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+    if (!doDelete) return;
+    try {
+      await DocumentStorage.delete(docId);
+      const docs = await DocumentStorage.getByVehicleId(vehicle.id);
+      setVehicleDocuments(docs);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error deleting document:', error);
+    }
+  };
+
   const handleDocumentPress = (document) => {
     Haptics.selectionAsync();
-    
-    const confirmAction = Platform.OS === 'web' 
-      ? (message, options) => {
-          const action = window.prompt(message + '\nType: view, edit, or delete');
-          return new Promise(resolve => resolve(action?.toLowerCase()));
-        }
-      : (message, options) => {
-          return new Promise(resolve => {
-            Alert.alert(
-              'Document Options',
-              `What would you like to do with this ${DOCUMENT_TYPES[document.type]?.name || 'document'}?`,
-              [
-                { text: 'View', style: 'default', onPress: () => resolve('view') },
-                { text: 'Edit', style: 'default', onPress: () => resolve('edit') },
-                { text: 'Delete', style: 'destructive', onPress: () => resolve('delete') },
-                { text: 'Cancel', style: 'cancel', onPress: () => resolve('cancel') },
-              ]
-            );
-          });
-        };
-
-    confirmAction().then(action => {
-      switch(action) {
-        case 'view':
-          // TODO: Implement view document
-          break;
-        case 'edit':
-          // TODO: Implement edit document
-          break;
-        case 'delete':
-          // TODO: Implement delete document
-          break;
-        default:
-          break;
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete "' + (DOCUMENT_TYPES[document.type]?.name || 'Document') + '"?')) {
+        handleDeleteDocument(document.id);
       }
-    });
+    } else {
+      Alert.alert(
+        DOCUMENT_TYPES[document.type]?.name || 'Document',
+        (document.notes || 'No notes') + (document.expiryDate ? '\nExpires: ' + new Date(document.expiryDate).toLocaleDateString() : ''),
+        [
+          { text: 'Close', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => handleDeleteDocument(document.id) },
+        ]
+      );
+    }
   };
 
   if (!vehicleData) {
@@ -1404,7 +1405,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           color: Colors.textTertiary, 
                           marginTop: overdueCount > 0 || dueSoonCount > 0 ? 0 : Spacing.sm,
                         }]}>
-                          {services.length} service{services.length !== 1 ? 's' : ''} logged • based on manufacturer schedule
+                          {services.length} service{services.length !== 1 ? 's' : ''} logged • {isGenericSchedule ? 'based on standard schedule' : 'based on manufacturer schedule'}
                         </Text>
                       </View>
                     );
@@ -1653,7 +1654,25 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   </Text>
                   
                   {maintenanceSchedule.length > 0 ? (
-                    maintenanceSchedule.map((scheduleItem, index) => (
+                    <>
+                      {isGenericSchedule && (
+                        <View style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: Colors.steelBlue + '15',
+                          borderRadius: 8,
+                          padding: Spacing.md,
+                          marginBottom: Spacing.md,
+                          borderWidth: 1,
+                          borderColor: Colors.steelBlue + '25',
+                        }}>
+                          <Text style={{ fontSize: 14, marginRight: Spacing.sm }}>📋</Text>
+                          <Text style={[Typography.caption, { color: Colors.steelBlue, flex: 1, fontFamily: 'Nunito_400Regular' }]}>
+                            Standard maintenance schedule (not model-specific)
+                          </Text>
+                        </View>
+                      )}
+                    {maintenanceSchedule.map((scheduleItem, index) => (
                       <MaintenanceScheduleItem
                         key={index}
                         scheduleItem={scheduleItem}
@@ -1664,7 +1683,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                         onSnooze={handleSnooze}
                         onQuickLog={handleQuickLog}
                       />
-                    ))
+                    ))}
+                    </>
                   ) : (
                     <View style={{
                       backgroundColor: Colors.surface,
@@ -2027,8 +2047,164 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
               </View>
             </KeyboardAvoidingView>
           </Modal>
+
+          {/* Add Document Modal */}
+          <Modal
+            visible={showAddDocumentModal}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setShowAddDocumentModal(false)}
+          >
+            <AddDocumentForm
+              onSave={handleSaveDocument}
+              onCancel={() => setShowAddDocumentModal(false)}
+            />
+          </Modal>
         </View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+// Inline Add Document Form
+function AddDocumentForm({ onSave, onCancel }) {
+  const [docType, setDocType] = useState('insurance');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [photoUri, setPhotoUri] = useState(null);
+
+  const docTypeKeys = Object.keys(DOCUMENT_TYPES);
+
+  const handlePickPhoto = async () => {
+    try {
+      const result = await pickImageAsync();
+      if (result) {
+        const base64 = await convertToBase64(result);
+        setPhotoUri(base64 || result);
+      }
+    } catch (e) {
+      console.error('Photo pick error:', e);
+    }
+  };
+
+  const handleSave = () => {
+    if (!docType) return;
+    onSave({
+      type: docType,
+      expiryDate: expiryDate || null,
+      notes: notes.trim(),
+      photoUri,
+    });
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.horizontalLarge }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingBottom: 16 }}>
+        <TouchableOpacity onPress={onCancel}>
+          <Ionicons name="close" size={28} color={Colors.textSecondary} />
+        </TouchableOpacity>
+        <Text style={[Typography.heading, { fontSize: 18 }]}>Add Document</Text>
+        <TouchableOpacity onPress={handleSave}>
+          <Text style={{ color: Colors.primary, fontSize: 16, fontWeight: '700' }}>Save</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Document Type */}
+        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Type</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {docTypeKeys.map(key => {
+            const dt = DOCUMENT_TYPES[key];
+            const selected = docType === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setDocType(key)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: selected ? Colors.primary + '22' : Colors.surface,
+                  borderWidth: 1,
+                  borderColor: selected ? Colors.primary : 'rgba(255,255,255,0.06)',
+                }}
+              >
+                <Text style={{ color: selected ? Colors.primary : Colors.textSecondary, fontSize: 14 }}>
+                  {dt.emoji} {dt.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Expiry Date */}
+        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Expiry Date (YYYY-MM-DD)</Text>
+        <TextInput
+          style={{
+            backgroundColor: Colors.surface,
+            color: Colors.textPrimary,
+            borderRadius: 12,
+            padding: 14,
+            fontSize: 16,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.06)',
+            marginBottom: 20,
+          }}
+          placeholder="2026-12-31"
+          placeholderTextColor={Colors.textSecondary + '80'}
+          value={expiryDate}
+          onChangeText={setExpiryDate}
+        />
+
+        {/* Notes */}
+        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Notes</Text>
+        <TextInput
+          style={{
+            backgroundColor: Colors.surface,
+            color: Colors.textPrimary,
+            borderRadius: 12,
+            padding: 14,
+            fontSize: 16,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.06)',
+            marginBottom: 20,
+            minHeight: 80,
+          }}
+          placeholder="Policy number, details, etc."
+          placeholderTextColor={Colors.textSecondary + '80'}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+        />
+
+        {/* Photo */}
+        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Photo (optional)</Text>
+        <TouchableOpacity
+          onPress={handlePickPhoto}
+          style={{
+            backgroundColor: Colors.surface,
+            borderRadius: 12,
+            padding: 20,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.06)',
+            borderStyle: 'dashed',
+            marginBottom: 20,
+          }}
+        >
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={{ width: 200, height: 150, borderRadius: 8 }} resizeMode="cover" />
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <Ionicons name="camera-outline" size={32} color={Colors.textSecondary} />
+              <Text style={{ color: Colors.textSecondary, marginTop: 8 }}>Tap to add photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </View>
   );
 }

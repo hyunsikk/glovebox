@@ -93,6 +93,27 @@ export function searchVehicles(query) {
  * @param {string} years - Vehicle years (e.g., "2019-2023")
  * @returns {Array} Maintenance schedule array, or empty array if not found
  */
+const GENERIC_SCHEDULE = [
+  { service: 'Oil Change', mileInterval: 5000, monthInterval: 6, estimatedCost: [30, 75], category: 'engine', description: 'Oil and filter replacement' },
+  { service: 'Tire Rotation', mileInterval: 7500, monthInterval: 6, estimatedCost: [20, 50], category: 'tires', description: 'Rotate tires for even wear' },
+  { service: 'Multi-Point Inspection', mileInterval: 15000, monthInterval: 12, estimatedCost: [0, 50], category: 'inspection', description: 'Comprehensive vehicle inspection' },
+  { service: 'Brake Inspection', mileInterval: 20000, monthInterval: 12, estimatedCost: [0, 50], category: 'brakes', description: 'Inspect brake pads, rotors, and lines' },
+  { service: 'Air Filter', mileInterval: 20000, monthInterval: 12, estimatedCost: [15, 40], category: 'engine', description: 'Engine air filter replacement' },
+  { service: 'Cabin Air Filter', mileInterval: 20000, monthInterval: 12, estimatedCost: [15, 40], category: 'cabin', description: 'Cabin air filter replacement' },
+  { service: 'Battery Check', mileInterval: 30000, monthInterval: 24, estimatedCost: [0, 25], category: 'electrical', description: 'Test battery health and terminals' },
+  { service: 'Brake Fluid', mileInterval: 30000, monthInterval: 24, estimatedCost: [70, 120], category: 'brakes', description: 'Brake fluid flush and replacement' },
+  { service: 'Transmission Fluid', mileInterval: 60000, monthInterval: 48, estimatedCost: [80, 200], category: 'transmission', description: 'Transmission fluid change' },
+  { service: 'Coolant', mileInterval: 60000, monthInterval: 48, estimatedCost: [50, 150], category: 'engine', description: 'Coolant flush and replacement' },
+  { service: 'Spark Plugs', mileInterval: 60000, monthInterval: 48, estimatedCost: [60, 200], category: 'engine', description: 'Spark plug replacement' },
+];
+
+/**
+ * Get the full maintenance schedule for a specific vehicle
+ * @param {string} make - Vehicle make (e.g., "Toyota")
+ * @param {string} model - Vehicle model (e.g., "RAV4")
+ * @param {string} years - Vehicle years (e.g., "2019-2023")
+ * @returns {{ schedule: Array, isGeneric: boolean }} Maintenance schedule and whether it's generic
+ */
 export function getVehicleSchedule(make, model, years) {
   const data = getData();
   
@@ -102,5 +123,8 @@ export function getVehicleSchedule(make, model, years) {
          (years ? v.years === years : true) // Handle case where years might be optional
   );
 
-  return vehicleInfo ? vehicleInfo.schedule : [];
+  if (vehicleInfo) {
+    return { schedule: vehicleInfo.schedule, isGeneric: false };
+  }
+  return { schedule: GENERIC_SCHEDULE, isGeneric: true };
 }

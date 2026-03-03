@@ -1,13 +1,10 @@
 import { VehicleStorage, ServiceStorage } from './storage';
-import vehicleData from '../content/v1/vehicles.json';
+import { getVehicleSchedule } from './vehicleDB';
 
-// Load manufacturer maintenance schedules
+// Load manufacturer maintenance schedules (with generic fallback)
 const getMaintenanceSchedule = (make, model) => {
-  const vehicle = vehicleData.vehicles.find(
-    v => v.make.toLowerCase() === make.toLowerCase() && 
-         v.model.toLowerCase() === model.toLowerCase()
-  );
-  return vehicle ? vehicle.schedule : [];
+  const { schedule } = getVehicleSchedule(make, model);
+  return schedule;
 };
 
 // Calculate days between dates
