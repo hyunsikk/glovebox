@@ -1,0 +1,2034 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  Modal, 
+  ScrollView, 
+  TouchableOpacity, 
+  TextInput, 
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Colors, Typography, Spacing, Shared } from '../theme';
+import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
+import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
+import { pickImageAsync, convertToBase64 } from '../lib/imageUtils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import manufacturerDB from '../content/v1/vehicles.json';
+import { generateReport } from './ReportGenerator';
+
+// Document types with their icons and typical expiry periods
+const DOCUMENT_TYPES = {
+  insurance: {
+    name: 'Insurance',
+    icon: 'shield-checkmark',
+    color: Colors.primary,
+    emoji: '🛡️',
+    defaultValidityMonths: 12,
+  },
+  registration: {
+    name: 'Registration',
+    icon: 'document-text',
+    color: Colors.success,
+    emoji: '📋',
+    defaultValidityMonths: 12,
+  },
+  title: {
+    name: 'Title',
+    icon: 'certificate',
+    color: Colors.warning,
+    emoji: '📜',
+    defaultValidityMonths: null, // Usually permanent
+  },
+  inspection: {
+    name: 'Inspection',
+    icon: 'checkmark-circle',
+    color: Colors.primary,
+    emoji: '✅',
+    defaultValidityMonths: 12,
+  },
+  emissions: {
+    name: 'Emissions',
+    icon: 'leaf',
+    color: Colors.success,
+    emoji: '🌱',
+    defaultValidityMonths: 24,
+  },
+};
+
+const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
+  const [previewImage, setPreviewImage] = useState(null);
+  const getServiceIcon = (serviceType) => {
+    const iconMap = {
+      'Oil Change': 'car-cog',
+      'Tire Rotation': 'tire',
+      'Brake Inspection': 'car-brake-alert',
+      'Multi-Point Inspection': 'clipboard-check',
+      'Air Filter': 'air-filter',
+      'Engine Air Filter': 'air-filter',
+      'Cabin Filter': 'air-filter',
+      'Cabin Air Filter': 'air-filter',
+      'Transmission Fluid': 'car-shift-pattern',
+      'Transmission Service': 'car-shift-pattern',
+      'CVT Fluid': 'car-shift-pattern',
+      'Coolant Flush': 'coolant-temperature',
+      'Coolant': 'coolant-temperature',
+      'Spark Plugs': 'spark-plug',
+      'Battery Check': 'car-battery',
+      'Brake Fluid': 'car-brake-fluid',
+      'AWD Service': 'car-4wd',
+      'Differential Service': 'car-4wd',
+      'A/C Service': 'air-conditioner',
+      'A/C Desiccant': 'air-conditioner',
+      'Battery Coolant': 'battery-charging',
+      'Inspection I': 'clipboard-check',
+      'Inspection II': 'clipboard-check',
+    };
+    
+    return iconMap[serviceType] || 'wrench';
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      style={[Shared.card, { marginBottom: Spacing.md }]}
+      onPress={() => onEdit && onEdit(service)}
+      activeOpacity={0.9}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{
+          backgroundColor: Colors.surface,
+          borderRadius: 16,
+          padding: 6,
+          marginRight: Spacing.md,
+        }}>
+          <MaterialCommunityIcons
+            name={getServiceIcon(service.serviceType)}
+            size={20}
+            color={Colors.steelBlue}
+          />
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.body, { color: Colors.text }]}>
+            {service.serviceType}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {formatDate(service.date)} • {service.mileage?.toLocaleString() || '---'} miles
+          </Text>
+        </View>
+
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[Typography.body, { color: Colors.forestGreen }]}>
+            ${service.cost?.toFixed(2) || '---'}
+          </Text>
+          {service.vendor && (
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+              {service.vendor}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Shop Review Stars / DIY Badge */}
+      {(service.shopReview || service.diyLog) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm, gap: Spacing.sm }}>
+          {service.shopReview && service.shopReview.rating > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Ionicons
+                  key={s}
+                  name={s <= service.shopReview.rating ? 'star' : 'star-outline'}
+                  size={14}
+                  color={Colors.warning}
+                />
+              ))}
+            </View>
+          )}
+          {service.diyLog && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: Spacing.sm + 2,
+              paddingVertical: 2,
+              borderRadius: 10,
+              backgroundColor: service.diyLog.difficulty === 'Hard' ? Colors.deepRed + '20'
+                : service.diyLog.difficulty === 'Medium' ? Colors.warning + '20'
+                : Colors.forestGreen + '20',
+            }}>
+              <MaterialCommunityIcons name="wrench" size={12} color={
+                service.diyLog.difficulty === 'Hard' ? Colors.deepRed
+                  : service.diyLog.difficulty === 'Medium' ? Colors.warning
+                  : Colors.forestGreen
+              } style={{ marginRight: 3 }} />
+              <Text style={[Typography.small, { color:
+                service.diyLog.difficulty === 'Hard' ? Colors.deepRed
+                  : service.diyLog.difficulty === 'Medium' ? Colors.warning
+                  : Colors.forestGreen
+              }]}>
+                DIY{service.diyLog.difficulty ? ` · ${service.diyLog.difficulty}` : ''}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {service.notes && (
+        <View style={{
+          marginTop: Spacing.sm,
+          padding: Spacing.sm,
+          backgroundColor: Colors.surface,
+          borderRadius: 6,
+        }}>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {service.notes}
+          </Text>
+        </View>
+      )}
+
+      {servicePhotos.length > 0 && (
+        <View style={{ flexDirection: 'row', marginTop: Spacing.sm, gap: Spacing.xs }}>
+          {servicePhotos.map((photo) => (
+            <TouchableOpacity 
+              key={photo.id} 
+              onPress={() => setPreviewImage(photo.uri || photo.base64)}
+              activeOpacity={0.8}
+            >
+              <Image
+                source={{ uri: photo.uri || photo.base64 }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: Colors.glassBorder,
+                }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={previewImage !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          activeOpacity={1}
+          onPress={() => setPreviewImage(null)}
+        >
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 60, right: 20, zIndex: 10, padding: 8 }}
+            onPress={() => setPreviewImage(null)}
+          >
+            <Ionicons name="close-circle" size={32} color={Colors.pearlWhite} />
+          </TouchableOpacity>
+          {previewImage && (
+            <Image
+              source={{ uri: previewImage }}
+              style={{ width: '90%', height: '70%', borderRadius: 12 }}
+              resizeMode="contain"
+            />
+          )}
+        </TouchableOpacity>
+      </Modal>
+    </TouchableOpacity>
+  );
+};
+
+const DocumentCard = ({ document, vehicle, onPress }) => {
+  const docType = DOCUMENT_TYPES[document.type] || DOCUMENT_TYPES.insurance;
+  
+  const getExpiryStatus = () => {
+    if (!document.expiryDate) return null;
+    
+    const today = new Date();
+    const expiry = new Date(document.expiryDate);
+    const daysUntil = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil < 0) {
+      return { 
+        text: 'expired', 
+        color: Colors.danger || Colors.deepRed, 
+        days: Math.abs(daysUntil),
+        status: 'expired'
+      };
+    } else if (daysUntil <= 30) {
+      return { 
+        text: `expires in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`, 
+        color: Colors.warning || Colors.amberAlert,
+        days: daysUntil,
+        status: 'soon'
+      };
+    } else {
+      return { 
+        text: `expires in ${daysUntil} days`, 
+        color: Colors.success || Colors.forestGreen,
+        days: daysUntil,
+        status: 'valid'
+      };
+    }
+  };
+
+  const expiryStatus = getExpiryStatus();
+
+  return (
+    <TouchableOpacity
+      style={[Shared.card, { marginBottom: Spacing.md }]}
+      onPress={() => onPress(document)}
+      activeOpacity={0.9}
+    >
+      {/* Document Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+        <View style={{
+          backgroundColor: docType.color + '20',
+          borderRadius: 24,
+          padding: 12,
+          marginRight: Spacing.md,
+          borderWidth: 1,
+          borderColor: docType.color + '30',
+        }}>
+          <Text style={{ fontSize: 24 }}>{docType.emoji}</Text>
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary || Colors.text }]}>
+            {docType.name}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {vehicle?.nickname || `${vehicle?.year} ${vehicle?.make} ${vehicle?.model}`}
+          </Text>
+        </View>
+
+        {/* Photo indicator */}
+        {document.photoUri && (
+          <View style={{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: Colors.primary + '20',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: Spacing.sm,
+          }}>
+            <Ionicons name="camera" size={12} color={Colors.primary} />
+          </View>
+        )}
+
+        {/* Expiry status badge */}
+        {expiryStatus && (
+          <View style={{
+            backgroundColor: expiryStatus.color + '20',
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: expiryStatus.color + '40',
+          }}>
+            <Text style={[Typography.small, { 
+              color: expiryStatus.color,
+              fontFamily: 'Nunito_600SemiBold',
+            }]}>
+              {expiryStatus.status === 'expired' ? 'EXPIRED' : 
+               expiryStatus.status === 'soon' ? `${expiryStatus.days}d` :
+               'VALID'}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Document Details */}
+      <View style={{
+        backgroundColor: Colors.surface1 + '60',
+        padding: Spacing.md,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
+      }}>
+        {document.expiryDate && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
+            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+              expiry date
+            </Text>
+            <Text style={[Typography.body, { color: Colors.textPrimary || Colors.text }]}>
+              {new Date(document.expiryDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </Text>
+          </View>
+        )}
+        
+        {expiryStatus && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
+            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+              status
+            </Text>
+            <Text style={[Typography.body, { color: expiryStatus.color }]}>
+              {expiryStatus.text}
+            </Text>
+          </View>
+        )}
+
+        {document.notes && (
+          <View style={{ marginTop: Spacing.sm }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+              {document.notes}
+            </Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDate, onSnooze, onQuickLog, snoozedUntil }) => {
+  const [showActions, setShowActions] = useState(false);
+  const getServiceIcon = (serviceType) => {
+    const iconMap = {
+      'Oil Change': 'car-cog',
+      'Tire Rotation': 'tire',
+      'Brake Inspection': 'car-brake-alert',
+      'Multi-Point Inspection': 'clipboard-check',
+      'Air Filter': 'air-filter',
+      'Engine Air Filter': 'air-filter',
+      'Cabin Filter': 'air-filter',
+      'Cabin Air Filter': 'air-filter',
+      'Transmission Fluid': 'car-shift-pattern',
+      'Transmission Service': 'car-shift-pattern',
+      'CVT Fluid': 'car-shift-pattern',
+      'Coolant Flush': 'coolant-temperature',
+      'Coolant': 'coolant-temperature',
+      'Spark Plugs': 'spark-plug',
+      'Battery Check': 'car-battery',
+      'Brake Fluid': 'car-brake-fluid',
+      'AWD Service': 'car-4wd',
+      'Differential Service': 'car-4wd',
+      'A/C Service': 'air-conditioner',
+      'A/C Desiccant': 'air-conditioner',
+      'Battery Coolant': 'battery-charging',
+      'Inspection I': 'clipboard-check',
+      'Inspection II': 'clipboard-check',
+    };
+    
+    return iconMap[serviceType] || 'wrench';
+  };
+
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'completed': return '✅';
+      case 'due_soon': return '⚠️';
+      case 'overdue': return '🔴';
+      default: return '⏳';
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (status) {
+      case 'completed': return Colors.forestGreen;
+      case 'due_soon': return Colors.amberAlert;
+      case 'overdue': return Colors.deepRed;
+      default: return Colors.steelBlue;
+    }
+  };
+
+  const formatInterval = () => {
+    const miles = scheduleItem.mileInterval.toLocaleString();
+    const months = scheduleItem.monthInterval;
+    return `Every ${miles} miles or ${months} months`;
+  };
+
+  const formatDueDate = () => {
+    if (!nextDueDate) return '';
+    const date = new Date(nextDueDate);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const isSnoozed = snoozedUntil && new Date(snoozedUntil) > new Date();
+  const effectiveStatus = isSnoozed ? 'snoozed' : status;
+
+  const effectiveStatusColor = () => {
+    if (isSnoozed) return Colors.arcticSilver;
+    return getStatusColor();
+  };
+
+  return (
+    <TouchableOpacity 
+      style={{
+        backgroundColor: Colors.surface,
+        borderRadius: 8,
+        padding: Spacing.lg,
+        marginBottom: Spacing.md,
+        borderLeftWidth: 4,
+        borderLeftColor: effectiveStatusColor(),
+        opacity: isSnoozed ? 0.6 : 1,
+      }}
+      onPress={() => setShowActions(!showActions)}
+      activeOpacity={0.8}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
+        <View style={{
+          backgroundColor: Colors.elevated,
+          borderRadius: 16,
+          padding: 6,
+          marginRight: Spacing.md,
+        }}>
+          <MaterialCommunityIcons
+            name={getServiceIcon(scheduleItem.service)}
+            size={20}
+            color={effectiveStatusColor()}
+          />
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={[Typography.body, { color: Colors.text, flex: 1 }]}>
+              {scheduleItem.service}
+            </Text>
+            {isSnoozed ? (
+              <Ionicons name="notifications-off-outline" size={16} color={Colors.arcticSilver} />
+            ) : (
+              <Text style={{ fontSize: 16, marginLeft: Spacing.sm }}>
+                {getStatusIcon()}
+              </Text>
+            )}
+          </View>
+          
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {formatInterval()}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View>
+          {lastService && (
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+              Last: {new Date(lastService.date).toLocaleDateString()}
+            </Text>
+          )}
+          {isSnoozed && (
+            <Text style={[Typography.caption, { color: Colors.arcticSilver }]}>
+              Snoozed until {new Date(snoozedUntil).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+
+        {!isSnoozed && nextDueDate && status !== 'completed' && (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[Typography.caption, { color: getStatusColor() }]}>
+              {status === 'overdue' ? 'Overdue' : 'Due ' + formatDueDate()}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Action buttons — shown on tap */}
+      {showActions && (
+        <View style={{ 
+          flexDirection: 'row', 
+          marginTop: Spacing.md, 
+          paddingTop: Spacing.md,
+          borderTopWidth: 1,
+          borderTopColor: Colors.glassBorder,
+        }}>
+          {/* Quick Log */}
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: Colors.forestGreen + '20',
+              borderRadius: 10,
+              paddingVertical: 8,
+              marginRight: Spacing.sm,
+              borderWidth: 1,
+              borderColor: Colors.forestGreen + '30',
+            }}
+            onPress={() => {
+              Haptics.selectionAsync();
+              onQuickLog && onQuickLog(scheduleItem.service);
+            }}
+          >
+            <Ionicons name="checkmark-circle-outline" size={16} color={Colors.forestGreen} />
+            <Text style={[Typography.caption, { color: Colors.forestGreen, marginLeft: 4, fontFamily: 'Nunito_600SemiBold' }]}>
+              Log Done
+            </Text>
+          </TouchableOpacity>
+
+          {/* Snooze — only for overdue or due_soon */}
+          {(status === 'overdue' || status === 'due_soon') && (
+            <>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: Colors.surface2 || Colors.elevated,
+                  borderRadius: 10,
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  marginRight: Spacing.sm,
+                  borderWidth: 1,
+                  borderColor: Colors.glassBorder,
+                }}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  onSnooze && onSnooze(scheduleItem.service, 7);
+                }}
+              >
+                <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
+                  1w
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: Colors.surface2 || Colors.elevated,
+                  borderRadius: 10,
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderWidth: 1,
+                  borderColor: Colors.glassBorder,
+                }}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  onSnooze && onSnooze(scheduleItem.service, 30);
+                }}
+              >
+                <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
+                  1mo
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* Unsnooze */}
+          {isSnoozed && (
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: Colors.surface2 || Colors.elevated,
+                borderRadius: 10,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderWidth: 1,
+                borderColor: Colors.glassBorder,
+              }}
+              onPress={() => {
+                Haptics.selectionAsync();
+                onSnooze && onSnooze(scheduleItem.service, 0);
+              }}
+            >
+              <Ionicons name="notifications-outline" size={14} color={Colors.textSecondary} />
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
+                Unsnooze
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService }) {
+  const [vehicleData, setVehicleData] = useState(null);
+  const [services, setServices] = useState([]);
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState([]);
+  const [snoozeData, setSnoozeData] = useState({});
+  const [healthScore, setHealthScore] = useState(0);
+  const [totalCost, setTotalCost] = useState(0);
+  const [costPerMile, setCostPerMile] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nickname: '',
+    currentMileage: '',
+    vin: '',
+    location: '',
+  });
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    conditionWhenPurchased: '',
+    purchasePrice: '',
+    knownIssues: '',
+    accidentHistory: '',
+    modifications: '',
+    smokerVehicle: '',
+    petsTransported: '',
+    primaryUse: [],
+  });
+  const [servicePhotosMap, setServicePhotosMap] = useState({});
+  const [reminders, setReminders] = useState([]);
+  const [editingService, setEditingService] = useState(null);
+  const [editServicePhotos, setEditServicePhotos] = useState([]);
+  const [serviceEditForm, setServiceEditForm] = useState({
+    date: '',
+    mileage: '',
+    cost: '',
+    vendor: '',
+    notes: '',
+  });
+  const [vehicleDocuments, setVehicleDocuments] = useState([]);
+  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+
+  useEffect(() => {
+    if (visible && vehicle) {
+      loadVehicleData();
+    }
+  }, [visible, vehicle]);
+
+  const loadSnoozeData = async (vehicleId) => {
+    try {
+      const raw = await AsyncStorage.getItem(`snooze_${vehicleId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+
+  const handleSnooze = async (serviceName, days) => {
+    try {
+      const key = `snooze_${vehicle.id}`;
+      const current = await loadSnoozeData(vehicle.id);
+      
+      if (days === 0) {
+        delete current[serviceName];
+      } else {
+        const snoozeUntil = new Date();
+        snoozeUntil.setDate(snoozeUntil.getDate() + days);
+        current[serviceName] = snoozeUntil.toISOString();
+      }
+      
+      await AsyncStorage.setItem(key, JSON.stringify(current));
+      setSnoozeData(current);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error saving snooze:', error);
+    }
+  };
+
+  const handleQuickLog = (serviceName) => {
+    // Close detail modal and open log service modal pre-filled
+    onLogService && onLogService(vehicleData, serviceName);
+  };
+
+  const loadVehicleData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load snooze data
+      const snoozed = await loadSnoozeData(vehicle.id);
+      setSnoozeData(snoozed);
+      
+      // Load fresh vehicle data
+      const freshVehicle = await VehicleStorage.getById(vehicle.id);
+      setVehicleData(freshVehicle);
+      
+      // Load services
+      const vehicleServices = await ServiceStorage.getByVehicleId(vehicle.id);
+      setServices(vehicleServices);
+
+      // Load documents (using mock data for now)
+      const mockDocuments = [
+        {
+          id: '1',
+          vehicleId: vehicle.id,
+          type: 'insurance',
+          expiryDate: '2024-08-15',
+          notes: 'State Farm Policy #12345',
+          photoUri: null,
+        },
+        {
+          id: '2', 
+          vehicleId: vehicle.id,
+          type: 'registration',
+          expiryDate: '2024-12-31',
+          notes: 'Valid through 2024',
+          photoUri: null,
+        },
+      ];
+      setVehicleDocuments(mockDocuments);
+
+      // Load photos for all services
+      const photosMap = {};
+      for (const svc of vehicleServices) {
+        const photos = await ImageStorage.getByServiceId(svc.id);
+        if (photos.length > 0) photosMap[svc.id] = photos;
+      }
+      setServicePhotosMap(photosMap);
+
+      // Load reminders
+      try {
+        const remRaw = await AsyncStorage.getItem(`reminders_${vehicle.id}`);
+        setReminders(remRaw ? JSON.parse(remRaw) : []);
+      } catch { setReminders([]); }
+
+      // Load manufacturer maintenance schedule
+      const manufacturerData = manufacturerDB.vehicles.find(
+        v => v.make.toLowerCase() === freshVehicle.make.toLowerCase() && 
+             v.model.toLowerCase() === freshVehicle.model.toLowerCase()
+      );
+      
+      if (manufacturerData) {
+        // Calculate status for each scheduled service
+        const scheduleWithStatus = await Promise.all(
+          manufacturerData.schedule.map(async (scheduleItem) => {
+            const lastService = vehicleServices
+              .filter(s => s.serviceType === scheduleItem.service)
+              .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+            let status = 'upcoming';
+            let nextDueDate = null;
+
+            if (lastService) {
+              // Calculate next due date using actual driving pattern
+              const lastServiceDate = new Date(lastService.date);
+              const milesDriven = freshVehicle.currentMileage - (freshVehicle.initialMileage || 0);
+              const daysSinceCreated = Math.max(1, Math.ceil((new Date() - new Date(freshVehicle.createdAt)) / (24*60*60*1000)));
+              const dailyMiles = milesDriven > 0 ? milesDriven / daysSinceCreated : 37;
+              const mileageDue = new Date();
+              mileageDue.setDate(lastServiceDate.getDate() + 
+                Math.round(scheduleItem.mileInterval / dailyMiles));
+              
+              const timeDue = new Date(lastServiceDate);
+              timeDue.setMonth(timeDue.getMonth() + scheduleItem.monthInterval);
+              
+              nextDueDate = mileageDue < timeDue ? mileageDue : timeDue;
+              
+              const daysUntilDue = Math.ceil((nextDueDate - new Date()) / (24 * 60 * 60 * 1000));
+              
+              if (daysUntilDue < 0) {
+                status = 'overdue';
+              } else if (daysUntilDue <= 30) {
+                status = 'due_soon';
+              } else {
+                status = 'completed';
+              }
+            }
+
+            return {
+              ...scheduleItem,
+              status,
+              lastService,
+              nextDueDate,
+            };
+          })
+        );
+        
+        setMaintenanceSchedule(scheduleWithStatus);
+      }
+
+      // Calculate analytics
+      const [score, cost, costPM] = await Promise.all([
+        HealthScore.calculate(freshVehicle.id),
+        CostAnalytics.getTotalCost(freshVehicle.id),
+        CostAnalytics.getCostPerMile(freshVehicle.id),
+      ]);
+      
+      setHealthScore(score);
+      setTotalCost(cost);
+      setCostPerMile(costPM);
+
+      // Set edit form data
+      setEditForm({
+        nickname: freshVehicle.nickname || '',
+        currentMileage: freshVehicle.currentMileage.toString(),
+        vin: freshVehicle.vin || '',
+        location: freshVehicle.location || '',
+      });
+      setProfileForm({
+        conditionWhenPurchased: freshVehicle.conditionWhenPurchased || '',
+        purchasePrice: freshVehicle.purchasePrice?.toString() || '',
+        knownIssues: freshVehicle.knownIssues || '',
+        accidentHistory: freshVehicle.accidentHistory || '',
+        modifications: freshVehicle.modifications || '',
+        smokerVehicle: freshVehicle.smokerVehicle || '',
+        petsTransported: freshVehicle.petsTransported || '',
+        primaryUse: freshVehicle.primaryUse || [],
+      });
+
+    } catch (error) {
+      console.error('Error loading vehicle data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = () => {
+    setEditMode(true);
+    Haptics.selectionAsync();
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const mileage = parseInt(editForm.currentMileage);
+      if (isNaN(mileage) || mileage < 0) {
+        Alert.alert('Error', 'Please enter a valid mileage');
+        return;
+      }
+
+      const updates = {
+        nickname: editForm.nickname.trim() || undefined,
+        currentMileage: mileage,
+        vin: editForm.vin.trim() || undefined,
+        location: editForm.location.trim() || undefined,
+      };
+
+      await VehicleStorage.update(vehicleData.id, updates);
+      
+      setEditMode(false);
+      loadVehicleData(); // Refresh data
+      onVehicleUpdated && onVehicleUpdated();
+      
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error updating vehicle:', error);
+      Alert.alert('Error', 'Failed to update vehicle');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setEditForm({
+      nickname: vehicleData?.nickname || '',
+      currentMileage: vehicleData?.currentMileage.toString() || '',
+    });
+  };
+
+  const handleLogService = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onLogService && onLogService(vehicleData);
+  };
+
+  const handleEditService = async (service) => {
+    setEditingService(service);
+    setServiceEditForm({
+      date: service.date ? service.date.split('T')[0] : '',
+      mileage: service.mileage?.toString() || '',
+      cost: service.cost?.toString() || '',
+      vendor: service.vendor || '',
+      notes: service.notes || '',
+    });
+    // Load existing photos for this service
+    try {
+      const photos = await ImageStorage.getByServiceId(service.id);
+      setEditServicePhotos(photos || []);
+    } catch { setEditServicePhotos([]); }
+    Haptics.selectionAsync();
+  };
+
+  const handleSaveServiceEdit = async () => {
+    try {
+      const mileage = parseInt(serviceEditForm.mileage);
+      const cost = parseFloat(serviceEditForm.cost);
+      
+      if (!serviceEditForm.date) {
+        Alert.alert('Error', 'Please enter a valid date');
+        return;
+      }
+
+      const updates = {
+        date: serviceEditForm.date,
+        mileage: isNaN(mileage) ? undefined : mileage,
+        cost: isNaN(cost) ? undefined : cost,
+        vendor: serviceEditForm.vendor.trim() || undefined,
+        notes: serviceEditForm.notes.trim() || undefined,
+      };
+
+      await ServiceStorage.update(editingService.id, updates);
+      setEditingService(null);
+      loadVehicleData();
+      onVehicleUpdated && onVehicleUpdated();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error updating service:', error);
+      Alert.alert('Error', 'Failed to update service');
+    }
+  };
+
+  const handleAddServicePhoto = async () => {
+    if (editServicePhotos.length >= 5) return;
+    try {
+      Haptics.selectionAsync();
+      const imageData = await pickImageAsync();
+      if (imageData) {
+        const base64 = await convertToBase64(imageData.uri);
+        const photoRecord = {
+          uri: base64 || imageData.uri,
+          serviceId: editingService.id,
+          vehicleId: vehicleData.id,
+        };
+        const saved = await ImageStorage.add(photoRecord);
+        setEditServicePhotos(prev => [...prev, saved]);
+      }
+    } catch (error) {
+      console.error('Error adding photo:', error);
+    }
+  };
+
+  const handleRemoveServicePhoto = async (photoId) => {
+    try {
+      Haptics.selectionAsync();
+      await ImageStorage.delete(photoId);
+      setEditServicePhotos(prev => prev.filter(p => p.id !== photoId));
+    } catch (error) {
+      console.error('Error removing photo:', error);
+    }
+  };
+
+  const handleDeleteService = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Delete this ${editingService.serviceType} record?`)
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Delete Service',
+            `Are you sure you want to delete this ${editingService.serviceType} record?`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      await ServiceStorage.delete(editingService.id);
+      setEditingService(null);
+      loadVehicleData();
+      onVehicleUpdated && onVehicleUpdated();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      Alert.alert('Error', 'Failed to delete service');
+    }
+  };
+
+  const handleDeleteVehicle = async () => {
+    const name = vehicleData.nickname || `${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`;
+    
+    // Use window.confirm on web (Alert with destructive buttons doesn't work reliably on web)
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Delete "${name}" and all its service records? This cannot be undone.`)
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Delete Vehicle',
+            `Are you sure you want to delete "${name}" and all its service records? This cannot be undone.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      await VehicleStorage.delete(vehicleData.id);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      onClose();
+      onVehicleUpdated && onVehicleUpdated();
+    } catch (error) {
+      console.error('Error deleting vehicle:', error);
+      Alert.alert('Error', 'Failed to delete vehicle');
+    }
+  };
+
+  const handleAddDocument = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowAddDocumentModal(true);
+  };
+
+  const handleDocumentPress = (document) => {
+    Haptics.selectionAsync();
+    
+    const confirmAction = Platform.OS === 'web' 
+      ? (message, options) => {
+          const action = window.prompt(message + '\nType: view, edit, or delete');
+          return new Promise(resolve => resolve(action?.toLowerCase()));
+        }
+      : (message, options) => {
+          return new Promise(resolve => {
+            Alert.alert(
+              'Document Options',
+              `What would you like to do with this ${DOCUMENT_TYPES[document.type]?.name || 'document'}?`,
+              [
+                { text: 'View', style: 'default', onPress: () => resolve('view') },
+                { text: 'Edit', style: 'default', onPress: () => resolve('edit') },
+                { text: 'Delete', style: 'destructive', onPress: () => resolve('delete') },
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve('cancel') },
+              ]
+            );
+          });
+        };
+
+    confirmAction().then(action => {
+      switch(action) {
+        case 'view':
+          // TODO: Implement view document
+          break;
+        case 'edit':
+          // TODO: Implement edit document
+          break;
+        case 'delete':
+          // TODO: Implement delete document
+          break;
+        default:
+          break;
+      }
+    });
+  };
+
+  if (!vehicleData) {
+    return null;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={{ 
+          flex: 1, 
+          backgroundColor: Colors.background,
+          paddingHorizontal: Spacing.horizontalLarge,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: Spacing.xl,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.surface,
+            marginBottom: Spacing.xl,
+          }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <Text style={[Typography.h2, { color: Colors.text }]}>
+              Vehicle Details
+            </Text>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+              {!editMode && (
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    generateReport(vehicle.id);
+                  }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="share-outline" size={22} color={Colors.steelBlue} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={editMode ? handleSaveEdit : handleEdit}
+                style={{ padding: 4 }}
+              >
+                <Ionicons 
+                  name={editMode ? "checkmark" : "create-outline"} 
+                  size={24} 
+                  color={editMode ? Colors.forestGreen : Colors.steelBlue} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Vehicle Header */}
+            <View style={[Shared.card, { marginBottom: Spacing.xl }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const imageData = await pickImageAsync();
+                    if (imageData) {
+                      try {
+                        const base64Uri = await convertToBase64(imageData.uri);
+                        await VehicleStorage.update(vehicleData.id, { photoUri: base64Uri });
+                        setVehicleData(prev => ({ ...prev, photoUri: base64Uri }));
+                        onVehicleUpdated && onVehicleUpdated();
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      } catch (e) {
+                        console.error('Error saving photo:', e);
+                      }
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  style={{ marginRight: Spacing.lg }}
+                >
+                  {vehicleData.photoUri ? (
+                    <Image
+                      source={{ uri: vehicleData.photoUri }}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 16,
+                        borderWidth: 1,
+                        borderColor: Colors.glassBorder,
+                      }}
+                    />
+                  ) : (
+                    <View style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: 16,
+                      backgroundColor: Colors.surface1,
+                      borderWidth: 1,
+                      borderColor: Colors.glassBorder,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <Ionicons name="camera-outline" size={28} color={Colors.textTertiary} />
+                      <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: 2 }]}>
+                        Add Photo
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                
+                <View style={{ flex: 1 }}>
+                  {editMode ? (
+                    <>
+                      <TextInput
+                        style={[Shared.input, { marginBottom: Spacing.md }]}
+                        placeholder="Nickname (optional)"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={editForm.nickname}
+                        onChangeText={(value) => setEditForm(prev => ({ ...prev, nickname: value }))}
+                      />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+                        <TextInput
+                          style={[Shared.input, { flex: 1, marginRight: Spacing.sm }]}
+                          placeholder="Current mileage"
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={editForm.currentMileage}
+                          onChangeText={(value) => setEditForm(prev => ({ ...prev, currentMileage: value }))}
+                          keyboardType="numeric"
+                        />
+                        <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                          miles
+                        </Text>
+                      </View>
+                      <TextInput
+                        style={[Shared.input, { marginBottom: Spacing.md }]}
+                        placeholder="VIN (optional)"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={editForm.vin}
+                        onChangeText={(value) => setEditForm(prev => ({ ...prev, vin: value.toUpperCase() }))}
+                        autoCapitalize="characters"
+                        maxLength={17}
+                      />
+                      <TextInput
+                        style={[Shared.input]}
+                        placeholder="Location (e.g. Home garage)"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={editForm.location}
+                        onChangeText={(value) => setEditForm(prev => ({ ...prev, location: value }))}
+                        autoCapitalize="sentences"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[Typography.h1, { color: Colors.text }]}>
+                        {vehicleData.nickname || `${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`}
+                      </Text>
+                      {vehicleData.nickname && (
+                        <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+                          {vehicleData.year} {vehicleData.make} {vehicleData.model}
+                        </Text>
+                      )}
+                      {vehicleData.trim && (
+                        <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                          {vehicleData.trim}
+                        </Text>
+                      )}
+                      <Text style={[Typography.h2, { color: Colors.steelBlue, marginTop: Spacing.sm }]}>
+                        {vehicleData.currentMileage?.toLocaleString() || '---'} miles
+                      </Text>
+                      {vehicleData.vin && (
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 4 }]}>
+                          VIN: {vehicleData.vin}
+                        </Text>
+                      )}
+                      {vehicleData.location && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                          <Ionicons name="location-outline" size={12} color={Colors.textSecondary} />
+                          <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
+                            {vehicleData.location}
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
+              </View>
+
+              {editMode && (
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm }}>
+                  <TouchableOpacity
+                    style={[Shared.buttonSecondary, { flex: 0, paddingHorizontal: Spacing.lg }]}
+                    onPress={handleCancelEdit}
+                  >
+                    <Text style={[Typography.body, { color: Colors.steelBlue }]}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[Shared.buttonPrimary, { flex: 0, paddingHorizontal: Spacing.xl }]}
+                    onPress={handleSaveEdit}
+                  >
+                    <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                      Save
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {!editMode && (
+                <>
+                  {/* Service Status Summary */}
+                  {(() => {
+                    const overdueItems = maintenanceSchedule.filter(s => s.status === 'overdue');
+                    const dueSoonItems = maintenanceSchedule.filter(s => s.status === 'due_soon');
+                    const overdueCount = overdueItems.length;
+                    const dueSoonCount = dueSoonItems.length;
+                    const statusColor = overdueCount > 0 ? Colors.deepRed : dueSoonCount > 0 ? Colors.amberAlert : Colors.forestGreen;
+                    
+                    return (
+                      <View style={{ 
+                        marginBottom: Spacing.lg,
+                        backgroundColor: Colors.surface1,
+                        borderRadius: 16,
+                        padding: Spacing.lg,
+                        borderWidth: 1,
+                        borderColor: statusColor + '30',
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: overdueCount > 0 || dueSoonCount > 0 ? Spacing.md : 0 }}>
+                          {overdueCount > 0 ? (
+                            <View style={{
+                              width: 48, height: 48, borderRadius: 24,
+                              backgroundColor: Colors.deepRed + '20',
+                              justifyContent: 'center', alignItems: 'center',
+                              marginRight: Spacing.md,
+                            }}>
+                              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 22, color: Colors.deepRed }}>
+                                {overdueCount}
+                              </Text>
+                            </View>
+                          ) : dueSoonCount > 0 ? (
+                            <View style={{
+                              width: 48, height: 48, borderRadius: 24,
+                              backgroundColor: Colors.amberAlert + '20',
+                              justifyContent: 'center', alignItems: 'center',
+                              marginRight: Spacing.md,
+                            }}>
+                              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 22, color: Colors.amberAlert }}>
+                                {dueSoonCount}
+                              </Text>
+                            </View>
+                          ) : (
+                            <View style={{
+                              width: 48, height: 48, borderRadius: 24,
+                              backgroundColor: Colors.forestGreen + '20',
+                              justifyContent: 'center', alignItems: 'center',
+                              marginRight: Spacing.md,
+                            }}>
+                              <Ionicons name="checkmark" size={24} color={Colors.forestGreen} />
+                            </View>
+                          )}
+                          
+                          <View style={{ flex: 1 }}>
+                            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+                              {overdueCount > 0 
+                                ? `${overdueCount} service${overdueCount > 1 ? 's' : ''} overdue`
+                                : dueSoonCount > 0
+                                  ? `${dueSoonCount} service${dueSoonCount > 1 ? 's' : ''} due soon`
+                                  : 'All caught up'}
+                            </Text>
+                            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                              {overdueCount > 0 
+                                ? overdueItems.map(s => s.service).join(', ')
+                                : dueSoonCount > 0
+                                  ? dueSoonItems.map(s => s.service).join(', ')
+                                  : 'No maintenance needed right now'}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <Text style={[Typography.small, { 
+                          color: Colors.textTertiary, 
+                          marginTop: overdueCount > 0 || dueSoonCount > 0 ? 0 : Spacing.sm,
+                        }]}>
+                          {services.length} service{services.length !== 1 ? 's' : ''} logged • based on manufacturer schedule
+                        </Text>
+                      </View>
+                    );
+                  })()}
+
+                  {/* Cost Summary */}
+                  <View style={{ 
+                    flexDirection: 'row', 
+                    justifyContent: 'space-around',
+                    paddingTop: Spacing.lg,
+                    borderTopWidth: 1,
+                    borderTopColor: Colors.surface,
+                  }}>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[Typography.h2, { color: Colors.forestGreen }]}>
+                        ${totalCost.toFixed(2)}
+                      </Text>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                        Total Cost
+                      </Text>
+                    </View>
+                    
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
+                        ${costPerMile.toFixed(3)}
+                      </Text>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                        Cost/Mile
+                      </Text>
+                    </View>
+                    
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[Typography.h2, { color: Colors.amberAlert }]}>
+                        {services.length}
+                      </Text>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                        Services
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {!editMode && (
+              <>
+                {/* Vehicle Profile Section */}
+                {(() => {
+                  const v = vehicleData;
+                  const hasProfile = v.conditionWhenPurchased || v.purchasePrice || v.knownIssues || v.accidentHistory || v.modifications || v.smokerVehicle || v.petsTransported || (v.primaryUse && v.primaryUse.length > 0);
+                  if (!hasProfile && !editingProfile) return null;
+
+                  const ProfilePill = ({ label, value, options, onSelect }) => (
+                    <View style={{ marginBottom: Spacing.md }}>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>{label}</Text>
+                      {editingProfile ? (
+                        <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                          {options.map((opt) => (
+                            <TouchableOpacity key={opt} onPress={() => { Haptics.selectionAsync(); onSelect(value === opt ? '' : opt); }}
+                              style={{ paddingHorizontal: Spacing.lg, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: value === opt ? Colors.steelBlue : Colors.surface1, borderWidth: 1, borderColor: value === opt ? Colors.steelBlue : Colors.glassBorder }}>
+                              <Text style={[Typography.caption, { color: value === opt ? Colors.pearlWhite : Colors.textSecondary }]}>{opt}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={[Typography.body, { color: Colors.text }]}>{value || '—'}</Text>
+                      )}
+                    </View>
+                  );
+
+                  return (
+                    <View style={[Shared.card, { marginBottom: Spacing.xl }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.h2, { color: Colors.text }]}>Vehicle Profile</Text>
+                        <TouchableOpacity onPress={async () => {
+                          if (editingProfile) {
+                            try {
+                              const updates = {
+                                conditionWhenPurchased: profileForm.conditionWhenPurchased || undefined,
+                                purchasePrice: profileForm.purchasePrice ? parseFloat(profileForm.purchasePrice) : undefined,
+                                knownIssues: profileForm.knownIssues.trim() || undefined,
+                                accidentHistory: profileForm.accidentHistory || undefined,
+                                modifications: profileForm.modifications.trim() || undefined,
+                                smokerVehicle: profileForm.smokerVehicle || undefined,
+                                petsTransported: profileForm.petsTransported || undefined,
+                                primaryUse: profileForm.primaryUse.length > 0 ? profileForm.primaryUse : undefined,
+                              };
+                              await VehicleStorage.update(vehicleData.id, updates);
+                              setEditingProfile(false);
+                              loadVehicleData();
+                              onVehicleUpdated && onVehicleUpdated();
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            } catch (e) { console.error('Error saving profile:', e); }
+                          } else {
+                            setEditingProfile(true);
+                            Haptics.selectionAsync();
+                          }
+                        }} style={{ padding: 4 }}>
+                          <Ionicons name={editingProfile ? 'checkmark' : 'create-outline'} size={20} color={editingProfile ? Colors.forestGreen : Colors.steelBlue} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <ProfilePill label="Condition" value={profileForm.conditionWhenPurchased} options={['New', 'Used']} onSelect={(val) => setProfileForm(p => ({ ...p, conditionWhenPurchased: val }))} />
+
+                      {(editingProfile || v.purchasePrice) && (
+                        <View style={{ marginBottom: Spacing.md }}>
+                          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>Purchase Price</Text>
+                          {editingProfile ? (
+                            <TextInput style={Shared.input} placeholder="25000" placeholderTextColor={Colors.arcticSilver} value={profileForm.purchasePrice} onChangeText={(val) => setProfileForm(p => ({ ...p, purchasePrice: val }))} keyboardType="numeric" />
+                          ) : (
+                            <Text style={[Typography.body, { color: Colors.text }]}>${Number(v.purchasePrice).toLocaleString()}</Text>
+                          )}
+                        </View>
+                      )}
+
+                      <ProfilePill label="Accident History" value={profileForm.accidentHistory} options={['None', 'Minor', 'Major']} onSelect={(val) => setProfileForm(p => ({ ...p, accidentHistory: val }))} />
+
+                      {(editingProfile || v.knownIssues) && (
+                        <View style={{ marginBottom: Spacing.md }}>
+                          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>Known Issues</Text>
+                          {editingProfile ? (
+                            <TextInput style={[Shared.input, { height: 70, textAlignVertical: 'top', paddingTop: Spacing.md }]} placeholder="Any known issues?" placeholderTextColor={Colors.arcticSilver} value={profileForm.knownIssues} onChangeText={(val) => setProfileForm(p => ({ ...p, knownIssues: val }))} multiline />
+                          ) : (
+                            <Text style={[Typography.body, { color: Colors.text }]}>{v.knownIssues}</Text>
+                          )}
+                        </View>
+                      )}
+
+                      {(editingProfile || v.modifications) && (
+                        <View style={{ marginBottom: Spacing.md }}>
+                          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>Modifications</Text>
+                          {editingProfile ? (
+                            <TextInput style={[Shared.input, { height: 70, textAlignVertical: 'top', paddingTop: Spacing.md }]} placeholder="Aftermarket parts, upgrades..." placeholderTextColor={Colors.arcticSilver} value={profileForm.modifications} onChangeText={(val) => setProfileForm(p => ({ ...p, modifications: val }))} multiline />
+                          ) : (
+                            <Text style={[Typography.body, { color: Colors.text }]}>{v.modifications}</Text>
+                          )}
+                        </View>
+                      )}
+
+                      <ProfilePill label="Smoker Vehicle" value={profileForm.smokerVehicle} options={['Yes', 'No']} onSelect={(val) => setProfileForm(p => ({ ...p, smokerVehicle: val }))} />
+                      <ProfilePill label="Pets Transported" value={profileForm.petsTransported} options={['Yes', 'No']} onSelect={(val) => setProfileForm(p => ({ ...p, petsTransported: val }))} />
+
+                      {/* Primary Use */}
+                      <View style={{ marginBottom: Spacing.md }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>Primary Use</Text>
+                        {editingProfile ? (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+                            {['Daily Commute', 'Weekend', 'Road Trips', 'Work'].map((opt) => {
+                              const sel = profileForm.primaryUse.includes(opt);
+                              return (
+                                <TouchableOpacity key={opt} onPress={() => { Haptics.selectionAsync(); setProfileForm(p => ({ ...p, primaryUse: sel ? p.primaryUse.filter(u => u !== opt) : [...p.primaryUse, opt] })); }}
+                                  style={{ paddingHorizontal: Spacing.lg, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: sel ? Colors.steelBlue : Colors.surface1, borderWidth: 1, borderColor: sel ? Colors.steelBlue : Colors.glassBorder }}>
+                                  <Text style={[Typography.caption, { color: sel ? Colors.pearlWhite : Colors.textSecondary }]}>{opt}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        ) : (
+                          <Text style={[Typography.body, { color: Colors.text }]}>
+                            {v.primaryUse && v.primaryUse.length > 0 ? v.primaryUse.join(', ') : '—'}
+                          </Text>
+                        )}
+                      </View>
+
+                      {editingProfile && (
+                        <TouchableOpacity onPress={() => { setEditingProfile(false); setProfileForm({ conditionWhenPurchased: v.conditionWhenPurchased || '', purchasePrice: v.purchasePrice?.toString() || '', knownIssues: v.knownIssues || '', accidentHistory: v.accidentHistory || '', modifications: v.modifications || '', smokerVehicle: v.smokerVehicle || '', petsTransported: v.petsTransported || '', primaryUse: v.primaryUse || [] }); }}
+                          style={[Shared.buttonSecondary, { marginTop: Spacing.sm }]}>
+                          <Text style={[Typography.body, { color: Colors.steelBlue }]}>Cancel</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })()}
+
+                {/* Log Service Button */}
+                <TouchableOpacity
+                  style={[Shared.buttonPrimary, { marginBottom: Spacing.xl }]}
+                  onPress={handleLogService}
+                  activeOpacity={0.9}
+                >
+                  <Text style={[Typography.h2, { color: Colors.pearlWhite }]}>
+                    📝 Log Service
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Shop Recommendations / Reminders */}
+                {reminders.length > 0 && (
+                  <View style={[Shared.card, { marginBottom: Spacing.xl }]}>
+                    <Text style={[Typography.h2, { color: Colors.text, marginBottom: Spacing.lg }]}>
+                      Shop Recommendations
+                    </Text>
+                    {reminders.map((rem) => {
+                      const daysLeft = Math.ceil((new Date(rem.reminderDate) - new Date()) / (24 * 60 * 60 * 1000));
+                      const urgencyColor = rem.urgency === 'Soon' ? Colors.deepRed
+                        : rem.urgency === 'Next Visit' ? Colors.warning
+                        : Colors.steelBlue;
+                      return (
+                        <View key={rem.id} style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: Spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: Colors.glassBorder,
+                        }}>
+                          <Ionicons name="notifications-outline" size={16} color={urgencyColor} style={{ marginRight: Spacing.sm }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[Typography.body, { color: Colors.text }]}>{rem.service}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                              <View style={{
+                                paddingHorizontal: Spacing.sm,
+                                paddingVertical: 1,
+                                borderRadius: 8,
+                                backgroundColor: urgencyColor + '20',
+                                marginRight: Spacing.sm,
+                              }}>
+                                <Text style={[Typography.small, { color: urgencyColor }]}>{rem.urgency}</Text>
+                              </View>
+                              <Text style={[Typography.small, { color: daysLeft <= 0 ? Colors.deepRed : Colors.textTertiary }]}>
+                                {daysLeft <= 0 ? 'Past due' : `${daysLeft} days left`}
+                              </Text>
+                            </View>
+                          </View>
+                          <TouchableOpacity
+                            onPress={async () => {
+                              Haptics.selectionAsync();
+                              try {
+                                const updated = reminders.filter(r => r.id !== rem.id);
+                                setReminders(updated);
+                                await AsyncStorage.setItem(`reminders_${vehicle.id}`, JSON.stringify(updated));
+                              } catch (e) { console.error(e); }
+                            }}
+                            style={{ padding: 4 }}
+                          >
+                            <Ionicons name="close-circle-outline" size={18} color={Colors.textTertiary} />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Maintenance Schedule Section */}
+                <View style={{ marginBottom: Spacing.section }}>
+                  <Text style={[Typography.h1, { color: Colors.text, marginBottom: Spacing.lg }]}>
+                    Maintenance Schedule
+                  </Text>
+                  
+                  {maintenanceSchedule.length > 0 ? (
+                    maintenanceSchedule.map((scheduleItem, index) => (
+                      <MaintenanceScheduleItem
+                        key={index}
+                        scheduleItem={scheduleItem}
+                        status={scheduleItem.status}
+                        lastService={scheduleItem.lastService}
+                        nextDueDate={scheduleItem.nextDueDate}
+                        snoozedUntil={snoozeData[scheduleItem.service]}
+                        onSnooze={handleSnooze}
+                        onQuickLog={handleQuickLog}
+                      />
+                    ))
+                  ) : (
+                    <View style={{
+                      backgroundColor: Colors.surface,
+                      borderRadius: 8,
+                      padding: Spacing.xl,
+                      alignItems: 'center',
+                    }}>
+                      <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: 'center' }]}>
+                        No manufacturer maintenance schedule available for this vehicle.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Service History Section */}
+                <View style={{ marginBottom: Spacing.xl }}>
+                  <Text style={[Typography.h1, { color: Colors.text, marginBottom: Spacing.lg }]}>
+                    Service History
+                  </Text>
+                  
+                  {services.length > 0 ? (
+                    services.map((service) => (
+                      <ServiceHistoryItem
+                        key={service.id}
+                        service={service}
+                        onEdit={handleEditService}
+                        servicePhotos={servicePhotosMap[service.id] || []}
+                      />
+                    ))
+                  ) : (
+                    <View style={{
+                      backgroundColor: Colors.surface,
+                      borderRadius: 8,
+                      padding: Spacing.xl,
+                      alignItems: 'center',
+                    }}>
+                      <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg }]}>
+                        No service history yet.
+                      </Text>
+                      
+                      <TouchableOpacity
+                        style={Shared.buttonSecondary}
+                        onPress={handleLogService}
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[Typography.body, { color: Colors.steelBlue }]}>
+                          Log First Service
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                {/* Documents Section */}
+                <View style={{ marginBottom: Spacing.section }}>
+                  <Text style={[Typography.h1, { color: Colors.text, marginBottom: Spacing.lg }]}>
+                    📂 Documents
+                  </Text>
+                  
+                  {vehicleDocuments.length > 0 ? (
+                    vehicleDocuments.map((doc) => (
+                      <DocumentCard
+                        key={doc.id}
+                        document={doc}
+                        vehicle={vehicleData}
+                        onPress={() => handleDocumentPress(doc)}
+                      />
+                    ))
+                  ) : (
+                    <View style={[Shared.card, {
+                      alignItems: 'center',
+                      paddingVertical: Spacing.xl,
+                      borderStyle: 'dashed',
+                      borderWidth: 2,
+                      borderColor: Colors.glassBorder,
+                      backgroundColor: 'transparent',
+                    }]}>
+                      <Text style={{ fontSize: 32, marginBottom: Spacing.md }}>📂</Text>
+                      <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: 'center' }]}>
+                        no documents yet
+                      </Text>
+                      <Text style={[Typography.caption, { color: Colors.textTertiary, textAlign: 'center' }]}>
+                        tap the button below to add insurance, registration, or title
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Add Document Button */}
+                  <TouchableOpacity
+                    style={[Shared.buttonSecondary, { marginTop: Spacing.md, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
+                    onPress={() => handleAddDocument()}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons name="folder-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
+                    <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
+                      Add Document
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Generate Report */}
+                <TouchableOpacity
+                  style={[Shared.buttonSecondary, { marginBottom: Spacing.lg, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    generateReport(vehicleData.id);
+                  }}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="document-text-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
+                  <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
+                    Generate Report
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Delete Vehicle */}
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: Spacing.lg,
+                    marginBottom: 100,
+                  }}
+                  onPress={handleDeleteVehicle}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
+                  <Text style={[Typography.body, { color: Colors.deepRed }]}>
+                    Delete Vehicle
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+
+          {/* Edit Service Modal */}
+          <Modal
+            visible={editingService !== null}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setEditingService(null)}
+          >
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              <View style={{
+                flex: 1,
+                backgroundColor: Colors.background,
+                paddingHorizontal: Spacing.horizontalLarge,
+              }}>
+                {/* Header */}
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: Spacing.xl,
+                  borderBottomWidth: 1,
+                  borderBottomColor: Colors.surface,
+                  marginBottom: Spacing.xl,
+                }}>
+                  <TouchableOpacity
+                    onPress={() => setEditingService(null)}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <Text style={[Typography.h2, { color: Colors.text }]}>
+                    Edit Service
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={handleSaveServiceEdit}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="checkmark" size={24} color={Colors.forestGreen} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {editingService && (
+                    <View style={[Shared.card]}>
+                      {/* Service Type (read-only) */}
+                      <View style={{ marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Service Type
+                        </Text>
+                        <View style={{
+                          backgroundColor: Colors.surface,
+                          borderRadius: 16,
+                          height: 48,
+                          paddingHorizontal: Spacing.lg,
+                          justifyContent: 'center',
+                        }}>
+                          <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+                            {editingService.serviceType}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Date */}
+                      <View style={{ marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Date (YYYY-MM-DD)
+                        </Text>
+                        <TextInput
+                          style={Shared.input}
+                          placeholder="2025-01-15"
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={serviceEditForm.date}
+                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, date: v }))}
+                        />
+                      </View>
+
+                      {/* Mileage */}
+                      <View style={{ marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Mileage
+                        </Text>
+                        <TextInput
+                          style={Shared.input}
+                          placeholder="50000"
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={serviceEditForm.mileage}
+                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, mileage: v }))}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      {/* Cost */}
+                      <View style={{ marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Cost ($)
+                        </Text>
+                        <TextInput
+                          style={Shared.input}
+                          placeholder="75.00"
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={serviceEditForm.cost}
+                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, cost: v }))}
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+
+                      {/* Vendor */}
+                      <View style={{ marginBottom: Spacing.lg }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Vendor
+                        </Text>
+                        <TextInput
+                          style={Shared.input}
+                          placeholder="Shop name"
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={serviceEditForm.vendor}
+                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, vendor: v }))}
+                        />
+                      </View>
+
+                      {/* Notes */}
+                      <View style={{ marginBottom: Spacing.xl }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                          Notes
+                        </Text>
+                        <TextInput
+                          style={[Shared.input, { height: 80, textAlignVertical: 'top', paddingTop: Spacing.md }]}
+                          placeholder="Additional notes..."
+                          placeholderTextColor={Colors.arcticSilver}
+                          value={serviceEditForm.notes}
+                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, notes: v }))}
+                          multiline
+                        />
+                      </View>
+
+                      {/* Photos */}
+                      <View style={{ marginBottom: Spacing.xl }}>
+                        <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+                          Photos ({editServicePhotos.length}/5)
+                        </Text>
+                        
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          {editServicePhotos.map((photo) => (
+                            <View key={photo.id} style={{ marginRight: Spacing.sm, position: 'relative' }}>
+                              <Image
+                                source={{ uri: photo.uri }}
+                                style={{
+                                  width: 70,
+                                  height: 70,
+                                  borderRadius: 10,
+                                  borderWidth: 1,
+                                  borderColor: Colors.glassBorder,
+                                }}
+                              />
+                              <TouchableOpacity
+                                style={{
+                                  position: 'absolute',
+                                  top: -6,
+                                  right: -6,
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: 11,
+                                  backgroundColor: Colors.deepRed,
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                                onPress={() => handleRemoveServicePhoto(photo.id)}
+                              >
+                                <Ionicons name="close" size={14} color={Colors.textPrimary} />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          
+                          {editServicePhotos.length < 5 && (
+                            <TouchableOpacity
+                              style={{
+                                width: 70,
+                                height: 70,
+                                borderRadius: 10,
+                                borderWidth: 1,
+                                borderColor: Colors.glassBorder,
+                                borderStyle: 'dashed',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: Colors.surface1,
+                              }}
+                              onPress={handleAddServicePhoto}
+                            >
+                              <Ionicons name="camera-outline" size={22} color={Colors.textSecondary} />
+                              <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: 2 }]}>
+                                Add
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </ScrollView>
+                      </View>
+
+                      {/* Delete Service Button */}
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingVertical: Spacing.lg,
+                          borderTopWidth: 1,
+                          borderTopColor: Colors.surface,
+                          marginTop: Spacing.md,
+                        }}
+                        onPress={handleDeleteService}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
+                        <Text style={[Typography.body, { color: Colors.deepRed }]}>
+                          Delete Service Record
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
