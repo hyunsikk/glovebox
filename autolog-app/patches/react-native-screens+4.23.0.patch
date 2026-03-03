@@ -1,0 +1,29 @@
+diff --git a/node_modules/react-native-screens/RNScreens.podspec b/node_modules/react-native-screens/RNScreens.podspec
+index 968d11b..eb8e2aa 100644
+--- a/node_modules/react-native-screens/RNScreens.podspec
++++ b/node_modules/react-native-screens/RNScreens.podspec
+@@ -52,13 +52,22 @@ Pod::Spec.new do |s|
+   s.project_header_files = "ios/bridging/Swift-Bridging.h"
+   s.requires_arc = true
+ 
++  exclude_patterns = []
++
+   if !gamma_project_enabled
+-    s.exclude_files = "ios/gamma/**/*.#{source_files_exts}"
++    exclude_patterns.push("ios/gamma/**/*.#{source_files_exts}")
+   else
+-    s.exclude_files = "ios/stubs/**/*.#{source_files_exts}"
++    exclude_patterns.push("ios/stubs/**/*.#{source_files_exts}")
+     Pod::UI.puts "[RNScreens] Gamma project enabled. Including source files."
+   end
+ 
++  if !new_arch_enabled
++    exclude_patterns.push("ios/bottom-tabs/**/*.#{source_files_exts}")
++    exclude_patterns.push("ios/conversion/RNSConversions-BottomTabs.mm")
++  end
++
++  s.exclude_files = exclude_patterns
++
+   s.pod_target_xcconfig = rnscreens_config
+ 
+   install_modules_dependencies(s)
