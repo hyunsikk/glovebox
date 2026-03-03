@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { ServiceStorage, VehicleStorage } from '../../lib/storage';
@@ -11,19 +11,19 @@ import EditServiceModal from '../../components/EditServiceModal';
 const ServiceCard = ({ service, vehicle, onEdit }) => {
   const getServiceIcon = (serviceType) => {
     const iconMap = {
-      'Oil Change': 'car-cog',
-      'Tire Rotation': 'tire',
-      'Brake Inspection': 'car-brake-alert',
-      'Multi-Point Inspection': 'clipboard-check',
-      'Air Filter': 'air-filter',
-      'Cabin Filter': 'air-filter',
-      'Transmission Fluid': 'car-shift-pattern',
-      'Coolant Flush': 'coolant-temperature',
-      'Spark Plugs': 'spark-plug',
-      'Battery Check': 'car-battery',
+      'Oil Change': 'construct-outline',
+      'Tire Rotation': 'disc-outline',
+      'Brake Inspection': 'warning-outline',
+      'Multi-Point Inspection': 'clipboard-outline',
+      'Air Filter': 'leaf-outline',
+      'Cabin Filter': 'leaf-outline',
+      'Transmission Fluid': 'water-outline',
+      'Coolant Flush': 'thermometer-outline',
+      'Spark Plugs': 'flash-outline',
+      'Battery Check': 'battery-half-outline',
     };
     
-    return iconMap[serviceType] || 'wrench';
+    return iconMap[serviceType] || 'build-outline';
   };
 
   const getServiceCategoryColor = (serviceType) => {
@@ -75,9 +75,7 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
         backgroundColor: serviceColor,
         borderTopLeftRadius: 20,
         borderBottomLeftRadius: 20,
-      }} />
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+      }} /><View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
         <View style={{
           backgroundColor: serviceColor + '20',
           borderRadius: 24,
@@ -86,23 +84,19 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
           borderWidth: 1,
           borderColor: serviceColor + '30',
         }}>
-          <MaterialCommunityIcons
+          <Ionicons
             name={getServiceIcon(service.serviceType)}
             size={24}
             color={serviceColor}
           />
-        </View>
-        
-        <View style={{ flex: 1 }}>
+        </View><View style={{ flex: 1 }}>
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
             {service.serviceType}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
             {vehicle?.nickname || `${vehicle?.year} ${vehicle?.make} ${vehicle?.model}`}
           </Text>
-        </View>
-
-        {service.photos && service.photos.length > 0 && (
+        </View>{service.photos && service.photos.length > 0 && (
           <View style={{
             width: 24,
             height: 24,
@@ -114,9 +108,7 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
           }}>
             <Ionicons name="camera" size={12} color={Colors.primary} />
           </View>
-        )}
-
-        <View style={{ alignItems: 'flex-end' }}>
+        )}<View style={{ alignItems: 'flex-end' }}>
           <Text style={[Typography.h2, { color: Colors.success, fontSize: 20 }]}>
             {formatCost(service.cost)}
           </Text>
@@ -127,17 +119,13 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
             {formatDate(service.date)}
           </Text>
         </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      </View><View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="speedometer-outline" size={16} color={Colors.textSecondary} />
           <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
             {service.mileage?.toLocaleString() || '---'} miles
           </Text>
-        </View>
-
-        {service.vendor && (
+        </View>{service.vendor && (
           <Text style={[Typography.caption, { 
             color: Colors.textSecondary,
             fontStyle: 'italic',
@@ -145,9 +133,7 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
             {service.vendor}
           </Text>
         )}
-      </View>
-
-      {service.notes && (
+      </View>{service.notes && (
         <View style={{
           marginTop: Spacing.md,
           padding: Spacing.md,
