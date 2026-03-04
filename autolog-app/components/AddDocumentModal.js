@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   TouchableOpacity,
   TextInput,
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Typography, BorderRadius } from '../theme';
+import * as Haptics from 'expo-haptics';
+import { Colors, Spacing, Typography, Shared } from '../theme';
 
 const DOCUMENT_TYPES = {
   insurance: { name: 'Insurance', emoji: '🛡️' },
@@ -22,24 +23,29 @@ const DOCUMENT_TYPES = {
   other: { name: 'Other', emoji: '📄' },
 };
 
-export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, editDocument }) {
+export default function AddDocumentModal({ visible, onClose, onSave, onDelete, vehicleId, editDocument }) {
   const isEditing = !!editDocument;
-  const [type, setType] = useState(editDocument?.type || 'insurance');
-  const [notes, setNotes] = useState(editDocument?.notes || '');
-  const [expiryDate, setExpiryDate] = useState(editDocument?.expiryDate || '');
+  const [type, setType] = useState('insurance');
+  const [notes, setNotes] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
 
-  const resetForm = () => {
-    setType('insurance');
-    setNotes('');
-    setExpiryDate('');
-  };
-
-  const handleClose = () => {
-    if (!isEditing) resetForm();
-    onClose();
-  };
+  // Reset form when modal opens or editDocument changes
+  useEffect(() => {
+    if (visible) {
+      if (editDocument) {
+        setType(editDocument.type || 'insurance');
+        setNotes(editDocument.notes || '');
+        setExpiryDate(editDocument.expiryDate || '');
+      } else {
+        setType('insurance');
+        setNotes('');
+        setExpiryDate('');
+      }
+    }
+  }, [visible, editDocument]);
 
   const handleSave = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const doc = {
       vehicleId,
       type,
@@ -52,30 +58,22 @@ export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, 
     }
 
     onSave(doc);
-    if (!isEditing) resetForm();
     onClose();
   };
 
   const handleDelete = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Delete this document?')) {
-        onSave({ ...editDocument, _delete: true });
-        onClose();
-      }
-    } else {
-      const { Alert } = require('react-native');
-      Alert.alert('Delete Document', 'Are you sure?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onSave({ ...editDocument, _delete: true });
-            onClose();
-          },
+    Alert.alert('Delete Document', 'Are you sure you want to delete this document?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          if (onDelete) onDelete(editDocument.id);
+          onClose();
         },
-      ]);
-    }
+      },
+    ]);
   };
 
   const formatDateInput = (text) => {
@@ -89,32 +87,76 @@ export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, 
     <Modal visible={visible} animationType="slide" transparent>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'flex-end',
+        }}
       >
-        <View style={styles.container}>
+        <View style={{
+          backgroundColor: Colors.surface,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          maxHeight: '80%',
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+        }}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: Spacing.lg,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.glassBorder,
+          }}>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
               <Ionicons name="close" size={24} color={Colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.title}>{isEditing ? 'Edit Document' : 'Add Document'}</Text>
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={styles.saveText}>Save</Text>
+            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+              {isEditing ? 'Edit Document' : 'Add Document'}
+            </Text>
+            <TouchableOpacity onPress={handleSave} style={{ padding: 4 }}>
+              <Text style={[Typography.body, { color: Colors.primary, fontFamily: 'Nunito_700Bold' }]}>
+                Save
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ padding: Spacing.lg }} showsVerticalScrollIndicator={false}>
             {/* Document Type */}
-            <Text style={styles.label}>Type</Text>
-            <View style={styles.typeGrid}>
+            <Text style={[Typography.caption, {
+              color: Colors.textSecondary,
+              marginBottom: Spacing.sm,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }]}>
+              Type
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg }}>
               {Object.entries(DOCUMENT_TYPES).map(([key, val]) => (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.typeChip, type === key && styles.typeChipActive]}
-                  onPress={() => setType(key)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: type === key ? Colors.primary + '20' : Colors.surface1,
+                    paddingHorizontal: Spacing.md,
+                    paddingVertical: Spacing.sm,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: type === key ? Colors.primary + '60' : Colors.glassBorder,
+                  }}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setType(key);
+                  }}
                 >
-                  <Text style={styles.typeEmoji}>{val.emoji}</Text>
-                  <Text style={[styles.typeLabel, type === key && styles.typeLabelActive]}>
+                  <Text style={{ fontSize: 16, marginRight: Spacing.xs }}>{val.emoji}</Text>
+                  <Text style={[Typography.caption, {
+                    color: type === key ? Colors.primary : Colors.textSecondary,
+                    fontFamily: type === key ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
+                  }]}>
                     {val.name}
                   </Text>
                 </TouchableOpacity>
@@ -122,11 +164,18 @@ export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, 
             </View>
 
             {/* Expiry Date */}
-            <Text style={styles.label}>Expiry Date (optional)</Text>
+            <Text style={[Typography.caption, {
+              color: Colors.textSecondary,
+              marginBottom: Spacing.sm,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }]}>
+              Expiry Date (optional)
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[Shared.input, { marginBottom: Spacing.lg }]}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.arcticSilver}
               value={expiryDate}
               onChangeText={(t) => setExpiryDate(formatDateInput(t))}
               keyboardType="number-pad"
@@ -134,11 +183,18 @@ export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, 
             />
 
             {/* Notes */}
-            <Text style={styles.label}>Notes</Text>
+            <Text style={[Typography.caption, {
+              color: Colors.textSecondary,
+              marginBottom: Spacing.sm,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }]}>
+              Notes
+            </Text>
             <TextInput
-              style={[styles.input, styles.notesInput]}
+              style={[Shared.input, { minHeight: 80, textAlignVertical: 'top', paddingTop: Spacing.md, marginBottom: Spacing.lg }]}
               placeholder="Policy number, details, etc."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={Colors.arcticSilver}
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -147,114 +203,27 @@ export default function AddDocumentModal({ visible, onClose, onSave, vehicleId, 
 
             {/* Delete button for editing */}
             {isEditing && (
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={18} color={Colors.danger} />
-                <Text style={styles.deleteText}>Delete Document</Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: Spacing.md,
+                  marginBottom: Spacing.xl,
+                  paddingVertical: Spacing.md,
+                }}
+                onPress={handleDelete}
+              >
+                <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
+                <Text style={[Typography.body, { color: Colors.deepRed }]}>Delete Document</Text>
               </TouchableOpacity>
             )}
+
+            {/* Bottom padding for keyboard */}
+            <View style={{ height: 40 }} />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  container: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    maxHeight: '80%',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  title: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-  },
-  saveText: {
-    ...Typography.body,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  body: {
-    padding: Spacing.md,
-  },
-  label: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  typeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.elevated,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  typeChipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(59,130,246,0.15)',
-  },
-  typeEmoji: {
-    fontSize: 16,
-    marginRight: Spacing.xs,
-  },
-  typeLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-  },
-  typeLabelActive: {
-    color: Colors.primary,
-  },
-  input: {
-    backgroundColor: Colors.elevated,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    color: Colors.textPrimary,
-    ...Typography.body,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  notesInput: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.xl,
-    padding: Spacing.sm,
-  },
-  deleteText: {
-    ...Typography.body,
-    color: Colors.danger,
-    marginLeft: Spacing.xs,
-  },
-});

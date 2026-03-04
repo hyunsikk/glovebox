@@ -83,11 +83,7 @@ const ChartCard = ({ title, data, type = 'bar' }) => {
           {title}
         </Text>
         
-        <TouchableOpacity
-          onPress={() => Alert.alert('Chart Details', 'Detailed chart view coming soon')}
-        >
-          <Ionicons name="expand" size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={{ width: 20 }} />
       </View>
 
       {/* Premium Bar Chart with gradients */}

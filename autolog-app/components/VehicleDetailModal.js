@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
+import AddDocumentModal from './AddDocumentModal';
 
 // Document types with their icons and typical expiry periods
 const DOCUMENT_TYPES = {
@@ -1063,13 +1064,16 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
   const handleSaveDocument = async (docData) => {
     try {
-      await DocumentStorage.add({
-        ...docData,
-        vehicleId: vehicle.id,
-      });
+      if (docData.id) {
+        await DocumentStorage.update(docData.id, docData);
+      } else {
+        await DocumentStorage.add({
+          ...docData,
+          vehicleId: vehicle.id,
+        });
+      }
       const docs = await DocumentStorage.getByVehicleId(vehicle.id);
       setVehicleDocuments(docs);
-      setShowAddDocumentModal(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error saving document:', error);
@@ -2049,162 +2053,23 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
           </Modal>
 
           {/* Add Document Modal */}
-          <Modal
+          <AddDocumentModal
             visible={showAddDocumentModal}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={() => setShowAddDocumentModal(false)}
-          >
-            <AddDocumentForm
-              onSave={handleSaveDocument}
-              onCancel={() => setShowAddDocumentModal(false)}
-            />
-          </Modal>
+            onClose={() => setShowAddDocumentModal(false)}
+            onSave={handleSaveDocument}
+            onDelete={async (docId) => {
+              try {
+                await DocumentStorage.delete(docId);
+                const docs = await DocumentStorage.getByVehicleId(vehicle.id);
+                setVehicleDocuments(docs);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              } catch (e) { console.error('Delete doc error:', e); }
+            }}
+            vehicleId={vehicle?.id}
+          />
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-// Inline Add Document Form
-function AddDocumentForm({ onSave, onCancel }) {
-  const [docType, setDocType] = useState('insurance');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [photoUri, setPhotoUri] = useState(null);
-
-  const docTypeKeys = Object.keys(DOCUMENT_TYPES);
-
-  const handlePickPhoto = async () => {
-    try {
-      const result = await pickImageAsync();
-      if (result) {
-        const base64 = await convertToBase64(result);
-        setPhotoUri(base64 || result);
-      }
-    } catch (e) {
-      console.error('Photo pick error:', e);
-    }
-  };
-
-  const handleSave = () => {
-    if (!docType) return;
-    onSave({
-      type: docType,
-      expiryDate: expiryDate || null,
-      notes: notes.trim(),
-      photoUri,
-    });
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.horizontalLarge }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingBottom: 16 }}>
-        <TouchableOpacity onPress={onCancel}>
-          <Ionicons name="close" size={28} color={Colors.textSecondary} />
-        </TouchableOpacity>
-        <Text style={[Typography.heading, { fontSize: 18 }]}>Add Document</Text>
-        <TouchableOpacity onPress={handleSave}>
-          <Text style={{ color: Colors.primary, fontSize: 16, fontWeight: '700' }}>Save</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Document Type */}
-        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Type</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-          {docTypeKeys.map(key => {
-            const dt = DOCUMENT_TYPES[key];
-            const selected = docType === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => setDocType(key)}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  backgroundColor: selected ? Colors.primary + '22' : Colors.surface,
-                  borderWidth: 1,
-                  borderColor: selected ? Colors.primary : 'rgba(255,255,255,0.06)',
-                }}
-              >
-                <Text style={{ color: selected ? Colors.primary : Colors.textSecondary, fontSize: 14 }}>
-                  {dt.emoji} {dt.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Expiry Date */}
-        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Expiry Date (YYYY-MM-DD)</Text>
-        <TextInput
-          style={{
-            backgroundColor: Colors.surface,
-            color: Colors.textPrimary,
-            borderRadius: 12,
-            padding: 14,
-            fontSize: 16,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.06)',
-            marginBottom: 20,
-          }}
-          placeholder="2026-12-31"
-          placeholderTextColor={Colors.textSecondary + '80'}
-          value={expiryDate}
-          onChangeText={setExpiryDate}
-        />
-
-        {/* Notes */}
-        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Notes</Text>
-        <TextInput
-          style={{
-            backgroundColor: Colors.surface,
-            color: Colors.textPrimary,
-            borderRadius: 12,
-            padding: 14,
-            fontSize: 16,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.06)',
-            marginBottom: 20,
-            minHeight: 80,
-          }}
-          placeholder="Policy number, details, etc."
-          placeholderTextColor={Colors.textSecondary + '80'}
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-
-        {/* Photo */}
-        <Text style={[Typography.label, { marginBottom: 8, color: Colors.textSecondary }]}>Photo (optional)</Text>
-        <TouchableOpacity
-          onPress={handlePickPhoto}
-          style={{
-            backgroundColor: Colors.surface,
-            borderRadius: 12,
-            padding: 20,
-            alignItems: 'center',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.06)',
-            borderStyle: 'dashed',
-            marginBottom: 20,
-          }}
-        >
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={{ width: 200, height: 150, borderRadius: 8 }} resizeMode="cover" />
-          ) : (
-            <View style={{ alignItems: 'center' }}>
-              <Ionicons name="camera-outline" size={32} color={Colors.textSecondary} />
-              <Text style={{ color: Colors.textSecondary, marginTop: 8 }}>Tap to add photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
-  );
-}
