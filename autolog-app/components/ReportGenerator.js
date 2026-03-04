@@ -1,4 +1,6 @@
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
 import { getVehicleSchedule } from '../lib/vehicleDB';
@@ -222,13 +224,36 @@ ${chronologicalServices.length > 0 ? `
 </body>
 </html>`;
 
-  // Open in new window and print
+  // Share or print the report
   if (Platform.OS === 'web') {
     const newWindow = window.open('', '_blank');
     if (newWindow) {
       newWindow.document.write(html);
       newWindow.document.close();
       setTimeout(() => newWindow.print(), 500);
+    }
+  } else {
+    // iOS/Android: write HTML to temp file and share
+    try {
+      const fileName = `Glovebox_Report_${vehicle.make}_${vehicle.model}_${vehicle.year}.html`;
+      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(filePath, html, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'text/html',
+          dialogTitle: `${vehicleName} — Vehicle Report`,
+          UTI: 'public.html',
+        });
+      } else {
+        Alert.alert('Sharing Unavailable', 'Unable to share on this device.');
+      }
+    } catch (error) {
+      console.error('Error sharing report:', error);
+      Alert.alert('Error', 'Failed to generate report. Please try again.');
     }
   }
 };
