@@ -572,6 +572,18 @@ export default function GarageScreen() {
     return (
       <View style={Shared.container}>
         <EmptyState onAddVehicle={handleAddVehicle} onLoadSampleData={handleLoadSampleData} />
+
+        <AddVehicleModal
+          visible={showAddVehicleModal}
+          onClose={() => setShowAddVehicleModal(false)}
+          onVehicleAdded={handleVehicleAdded}
+        />
+
+        <OnboardingModal
+          visible={showOnboardingModal}
+          onClose={handleOnboardingClose}
+          onAddVehicle={handleOnboardingAddVehicle}
+        />
       </View>
     );
   }

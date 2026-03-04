@@ -373,20 +373,21 @@ export default function OnboardingModal({ visible, onClose, onAddVehicle }) {
               flexDirection: 'row',
               transform: [{ translateX: slideAnim }],
               width: width * screens.length,
+              height: '100%',
             }}
           >
             {/* Welcome Screen */}
-            <View style={{ width, flex: 1 }}>
+            <View style={{ width, height: '100%' }}>
               <WelcomeScreen onNext={handleNext} />
             </View>
 
             {/* Features Screen */}
-            <View style={{ width, flex: 1 }}>
+            <View style={{ width, height: '100%' }}>
               <FeaturesScreen onNext={handleNext} onBack={handleBack} />
             </View>
 
             {/* Get Started Screen */}
-            <View style={{ width, flex: 1 }}>
+            <View style={{ width, height: '100%' }}>
               <GetStartedScreen onAddVehicle={handleAddVehicle} onBack={handleBack} />
             </View>
           </Animated.View>
