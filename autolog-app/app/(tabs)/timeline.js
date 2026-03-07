@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStorage } from '../../lib/storage';
+import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStorage, ImageStorage } from '../../lib/storage';
+import { getThumbnailUri } from '../../lib/imageUtils';
 import LogServiceModal from '../../components/LogServiceModal';
 import EditServiceModal from '../../components/EditServiceModal';
 import { shareSnapshot } from '../../lib/shareSnapshot';
@@ -67,7 +68,7 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
   </ScrollView>
 );
 
-const ServiceCard = ({ service, vehicle, onEdit }) => {
+const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
   const getServiceIcon = (serviceType) => {
     const iconMap = {
       'Oil Change': 'construct-outline',
@@ -155,19 +156,33 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
             {vehicle?.nickname || `${vehicle?.year} ${vehicle?.make} ${vehicle?.model}`}
           </Text>
-        </View>{service.photos && service.photos.length > 0 && (
-          <View style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: Colors.primary + '20',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginRight: Spacing.sm,
-          }}>
-            <Ionicons name="camera" size={12} color={Colors.primary} />
+        </View>
+
+        {servicePhotos.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: Spacing.sm }}>
+            <Ionicons name="camera" size={16} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+            <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 4 }]}>
+              {servicePhotos.length}
+            </Text>
+            {servicePhotos.slice(0, 2).map((photo, index) => (
+              <Image
+                key={photo.id || index}
+                source={{ uri: getThumbnailUri(photo) }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: Colors.glassBorder,
+                  marginLeft: 2,
+                }}
+                resizeMode="cover"
+              />
+            ))}
           </View>
-        )}<View style={{ alignItems: 'flex-end' }}>
+        )}
+
+        <View style={{ alignItems: 'flex-end' }}>
           <Text style={[Typography.h2, { color: Colors.success, fontSize: 20 }]}>
             {formatCost(service.cost)}
           </Text>
@@ -496,6 +511,7 @@ const MonthSection = ({ month, services, vehicles, onEditService }) => {
             service={service}
             vehicle={vehicle}
             onEdit={onEditService}
+            servicePhotos={servicePhotosMap[service.id] || []}
           />
         );
       })}
@@ -545,6 +561,7 @@ export default function TimelineScreen() {
   const [showEditServiceModal, setShowEditServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [fuelLogs, setFuelLogs] = useState([]);
+  const [servicePhotosMap, setServicePhotosMap] = useState({});
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -574,6 +591,14 @@ export default function TimelineScreen() {
       setFuelLogs(allFuelLogs);
       setIssues(allIssues);
       setSnapshots(allSnapshots);
+
+      // Load photos for all services
+      const photosMap = {};
+      for (const service of allServices) {
+        const photos = await ImageStorage.getByServiceId(service.id);
+        if (photos.length > 0) photosMap[service.id] = photos;
+      }
+      setServicePhotosMap(photosMap);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -918,6 +943,7 @@ export default function TimelineScreen() {
                       service={entry}
                       vehicle={vehicle}
                       onEdit={handleEditService}
+                      servicePhotos={servicePhotosMap[entry.id] || []}
                     />
                   );
                 })}

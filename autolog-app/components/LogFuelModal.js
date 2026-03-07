@@ -289,6 +289,11 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   onChangeText={setOdometer}
                   keyboardType="number-pad"
                 />
+                {vehicle?.currentMileage && !isEditing && (
+                  <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: 2 }]}>
+                    Last: {vehicle.currentMileage.toLocaleString()} mi
+                  </Text>
+                )}
               </View>
             </View>
 

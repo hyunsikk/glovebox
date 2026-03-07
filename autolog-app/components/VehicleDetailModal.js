@@ -10,16 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
-import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage } from '../lib/storage';
+import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage, ReminderStorage } from '../lib/storage';
 import LogFuelModal from './LogFuelModal';
 import LogIssueModal from './LogIssueModal';
 import TakeSnapshotModal from './TakeSnapshotModal';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
-import { pickImageAsync, convertToBase64 } from '../lib/imageUtils';
+import { pickImageAsync, convertToBase64, getThumbnailUri } from '../lib/imageUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
@@ -146,6 +147,36 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
               {service.vendor}
             </Text>
+          )}
+          
+          {/* Photo thumbnails */}
+          {servicePhotos.length > 0 && (
+            <View style={{ flexDirection: 'row', marginTop: 4, alignItems: 'center' }}>
+              <MaterialCommunityIcons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+              <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                {servicePhotos.length}
+              </Text>
+              {servicePhotos.slice(0, 2).map((photo, index) => (
+                <TouchableOpacity 
+                  key={photo.id || index} 
+                  onPress={() => setPreviewImage(getThumbnailUri(photo))}
+                  activeOpacity={0.8}
+                  style={{ marginLeft: 4 }}
+                >
+                  <Image
+                    source={{ uri: getThumbnailUri(photo) }}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 4,
+                      borderWidth: 1,
+                      borderColor: Colors.glassBorder,
+                    }}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
         </View>
       </View>
@@ -526,6 +557,455 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
         </View>
       )}
     </TouchableOpacity>
+  );
+};
+
+const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
+  const [recalls, setRecalls] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [lastChecked, setLastChecked] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadCachedRecalls();
+  }, [vehicleId]);
+
+  const loadCachedRecalls = async () => {
+    try {
+      const cached = await AsyncStorage.getItem(`recalls_${vehicleId}`);
+      if (cached) {
+        const data = JSON.parse(cached);
+        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        if (cacheAge < oneDayMs) {
+          setRecalls(data.recalls);
+          setLastChecked(new Date(data.timestamp));
+          return;
+        }
+      }
+      // If no cache or cache expired, check recalls
+      checkRecalls();
+    } catch (error) {
+      console.error('Error loading cached recalls:', error);
+    }
+  };
+
+  const checkRecalls = async () => {
+    if (!make || !model || !year) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch recalls');
+      }
+
+      const data = await response.json();
+      const recallData = data.results || [];
+
+      // Cache results
+      await AsyncStorage.setItem(`recalls_${vehicleId}`, JSON.stringify({
+        recalls: recallData,
+        timestamp: new Date().toISOString()
+      }));
+
+      setRecalls(recallData);
+      setLastChecked(new Date());
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error checking recalls:', error);
+      setError('Failed to check recalls');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric', 
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  return (
+    <View style={{
+      marginTop: Spacing.lg,
+      backgroundColor: Colors.surface1,
+      borderRadius: 12,
+      padding: Spacing.lg,
+      borderWidth: 1,
+      borderColor: recalls.length > 0 ? Colors.warning + '40' : Colors.glassBorder,
+    }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
+        <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+          recall alerts {recalls.length > 0 && '⚠️'}
+        </Text>
+        
+        <TouchableOpacity
+          onPress={checkRecalls}
+          disabled={loading}
+          style={{
+            paddingHorizontal: Spacing.md,
+            paddingVertical: Spacing.sm,
+            backgroundColor: Colors.primary + '20',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: Colors.primary + '30',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          <Text style={[Typography.caption, { color: Colors.primary }]}>
+            {loading ? 'Checking...' : 'Check Now'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {error && (
+        <View style={{
+          backgroundColor: Colors.danger + '15',
+          borderRadius: 8,
+          padding: Spacing.md,
+          marginBottom: Spacing.md,
+        }}>
+          <Text style={[Typography.caption, { color: Colors.danger }]}>
+            {error}
+          </Text>
+        </View>
+      )}
+
+      {recalls.length > 0 ? (
+        <View>
+          <View style={{
+            backgroundColor: Colors.warning + '15',
+            borderRadius: 8,
+            padding: Spacing.md,
+            marginBottom: Spacing.md,
+            borderWidth: 1,
+            borderColor: Colors.warning + '30',
+          }}>
+            <Text style={[Typography.body, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
+              {recalls.length} active recall{recalls.length !== 1 ? 's' : ''} found
+            </Text>
+            <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
+              Contact your dealer for service
+            </Text>
+          </View>
+
+          {recalls.slice(0, 3).map((recall, index) => (
+            <View key={index} style={{
+              backgroundColor: Colors.surface2,
+              borderRadius: 8,
+              padding: Spacing.md,
+              marginBottom: index < Math.min(recalls.length, 3) - 1 ? Spacing.sm : 0,
+            }}>
+              <Text style={[Typography.body, { color: Colors.textPrimary, marginBottom: Spacing.xs }]}>
+                {recall.Summary || 'Recall Notice'}
+              </Text>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                  {recall.Component || 'Component not specified'}
+                </Text>
+                <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                  {formatDate(recall.ReportReceivedDate)}
+                </Text>
+              </View>
+
+              {recall.Remedy && (
+                <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
+                  Remedy: {recall.Remedy}
+                </Text>
+              )}
+            </View>
+          ))}
+
+          {recalls.length > 3 && (
+            <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: Spacing.sm, textAlign: 'center' }]}>
+              +{recalls.length - 3} more recall{recalls.length - 3 !== 1 ? 's' : ''}
+            </Text>
+          )}
+        </View>
+      ) : !loading && (
+        <Text style={[Typography.caption, { color: Colors.success }]}>
+          No active recalls found ✓
+        </Text>
+      )}
+
+      {lastChecked && (
+        <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: Spacing.sm, textAlign: 'center' }]}>
+          Last checked: {formatDate(lastChecked.toISOString())}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const MaintenanceReminders = ({ vehicleId }) => {
+  const [reminders, setReminders] = useState([]);
+  const [newReminderForm, setNewReminderForm] = useState({
+    serviceType: '',
+    intervalMiles: '',
+    intervalMonths: '',
+    enabled: true
+  });
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const commonServices = [
+    'Oil Change',
+    'Tire Rotation', 
+    'Brake Inspection',
+    'Multi-Point Inspection',
+    'Air Filter',
+    'Cabin Air Filter',
+    'Transmission Fluid',
+    'Coolant Flush',
+    'Spark Plugs',
+    'Battery Check',
+    'Brake Fluid'
+  ];
+
+  useEffect(() => {
+    loadReminders();
+  }, [vehicleId]);
+
+  const loadReminders = async () => {
+    try {
+      const vehicleReminders = await ReminderStorage.getByVehicleId(vehicleId);
+      setReminders(vehicleReminders);
+    } catch (error) {
+      console.error('Error loading reminders:', error);
+    }
+  };
+
+  const handleAddReminder = async () => {
+    if (!newReminderForm.serviceType || (!newReminderForm.intervalMiles && !newReminderForm.intervalMonths)) {
+      Alert.alert('Error', 'Please fill in service type and at least one interval');
+      return;
+    }
+
+    try {
+      await ReminderStorage.add({
+        vehicleId,
+        serviceType: newReminderForm.serviceType,
+        intervalMiles: newReminderForm.intervalMiles ? parseInt(newReminderForm.intervalMiles) : null,
+        intervalMonths: newReminderForm.intervalMonths ? parseInt(newReminderForm.intervalMonths) : null,
+        enabled: newReminderForm.enabled
+      });
+
+      setNewReminderForm({
+        serviceType: '',
+        intervalMiles: '',
+        intervalMonths: '',
+        enabled: true
+      });
+      setShowAddForm(false);
+      loadReminders();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error adding reminder:', error);
+      Alert.alert('Error', 'Failed to add reminder');
+    }
+  };
+
+  const handleToggleReminder = async (reminderId, enabled) => {
+    try {
+      await ReminderStorage.update(reminderId, { enabled });
+      loadReminders();
+      Haptics.selectionAsync();
+    } catch (error) {
+      console.error('Error toggling reminder:', error);
+    }
+  };
+
+  const handleDeleteReminder = async (reminderId) => {
+    try {
+      await ReminderStorage.delete(reminderId);
+      loadReminders();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error deleting reminder:', error);
+    }
+  };
+
+  return (
+    <View>
+      {/* Existing Reminders */}
+      {reminders.map((reminder) => (
+        <View key={reminder.id} style={{
+          backgroundColor: Colors.surface1,
+          borderRadius: 12,
+          padding: Spacing.md,
+          marginBottom: Spacing.md,
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+          opacity: reminder.enabled ? 1 : 0.6
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                {reminder.serviceType}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                Every {reminder.intervalMiles?.toLocaleString() || '---'} miles{reminder.intervalMonths ? ` or ${reminder.intervalMonths} months` : ''}
+              </Text>
+            </View>
+            
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Switch
+                value={reminder.enabled}
+                onValueChange={(enabled) => handleToggleReminder(reminder.id, enabled)}
+                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
+                thumbColor={reminder.enabled ? Colors.primary : Colors.textSecondary}
+                ios_backgroundColor={Colors.surface3}
+                style={{ marginRight: Spacing.sm }}
+              />
+              
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Delete Reminder',
+                    `Remove reminder for ${reminder.serviceType}?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteReminder(reminder.id) }
+                    ]
+                  );
+                }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="trash-outline" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      ))}
+
+      {/* Add New Reminder */}
+      {!showAddForm ? (
+        <TouchableOpacity
+          style={[Shared.buttonSecondary, { marginTop: reminders.length > 0 ? Spacing.md : 0 }]}
+          onPress={() => setShowAddForm(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={[Typography.body, { color: Colors.primary }]}>
+            add maintenance reminder
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={{
+          backgroundColor: Colors.surface2,
+          borderRadius: 12,
+          padding: Spacing.lg,
+          marginTop: reminders.length > 0 ? Spacing.md : 0,
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+        }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+            New Reminder
+          </Text>
+
+          {/* Service Type Picker */}
+          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+            Service Type
+          </Text>
+          <View style={{ marginBottom: Spacing.md }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                {commonServices.map((service) => (
+                  <TouchableOpacity
+                    key={service}
+                    onPress={() => setNewReminderForm(prev => ({ ...prev, serviceType: service }))}
+                    style={{
+                      paddingHorizontal: Spacing.md,
+                      paddingVertical: Spacing.sm,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: newReminderForm.serviceType === service ? Colors.primary : Colors.glassBorder,
+                      backgroundColor: newReminderForm.serviceType === service ? Colors.primary + '20' : Colors.surface1,
+                    }}
+                  >
+                    <Text style={[Typography.caption, { 
+                      color: newReminderForm.serviceType === service ? Colors.primary : Colors.textPrimary 
+                    }]}>
+                      {service}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          {/* Intervals */}
+          <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                Miles Interval
+              </Text>
+              <TextInput
+                style={[Shared.input, { textAlign: 'center' }]}
+                placeholder="5000"
+                placeholderTextColor={Colors.textTertiary}
+                value={newReminderForm.intervalMiles}
+                onChangeText={(value) => setNewReminderForm(prev => ({ ...prev, intervalMiles: value }))}
+                keyboardType="numeric"
+              />
+            </View>
+            
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                Months Interval
+              </Text>
+              <TextInput
+                style={[Shared.input, { textAlign: 'center' }]}
+                placeholder="6"
+                placeholderTextColor={Colors.textTertiary}
+                value={newReminderForm.intervalMonths}
+                onChangeText={(value) => setNewReminderForm(prev => ({ ...prev, intervalMonths: value }))}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+            <TouchableOpacity
+              style={[Shared.buttonSecondary, { flex: 1 }]}
+              onPress={() => setShowAddForm(false)}
+            >
+              <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[Shared.buttonPrimary, { flex: 1 }]}
+              onPress={handleAddReminder}
+            >
+              <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {reminders.length === 0 && !showAddForm && (
+        <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md }]}>
+          No maintenance reminders set up yet
+        </Text>
+      )}
+    </View>
   );
 };
 
@@ -1428,6 +1908,17 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     </View>
                   </View>
                 )}
+
+                {/* Recall Check */}
+                {vehicleData.vin && (
+                  <RecallCheck 
+                    vehicleId={vehicleData.id}
+                    vin={vehicleData.vin}
+                    make={vehicleData.make}
+                    model={vehicleData.model}
+                    year={vehicleData.year}
+                  />
+                )}
               </View>
             </CollapsibleSection>
 
@@ -1628,6 +2119,15 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       </Text>
                     </View>
                   )}
+                </CollapsibleSection>
+
+                {/* Recurring Reminders Section (Collapsible - Default Collapsed) */}
+                <CollapsibleSection 
+                  title="Maintenance Reminders" 
+                  defaultExpanded={false}
+                  hasContent={true}
+                >
+                  <MaintenanceReminders vehicleId={vehicleData.id} />
                 </CollapsibleSection>
 
                 {/* Activity Log Section (Collapsible - Default Collapsed) - Merged Fuel + Service History */}

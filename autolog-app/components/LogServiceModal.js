@@ -150,6 +150,8 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
   const [step, setStep] = useState(preselectedVehicle ? 'service' : 'vehicle'); // 'vehicle' or 'service' or 'details' or 'custom'
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [customServiceType, setCustomServiceType] = useState('');
+  const [previousService, setPreviousService] = useState(null);
+  const [showServiceTemplate, setShowServiceTemplate] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -177,8 +179,15 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       if (preselectedVehicle) {
         setSelectedVehicle(preselectedVehicle);
         loadServiceTypes(preselectedVehicle);
+        // Pre-fill odometer with current mileage
+        setFormData(prev => ({ 
+          ...prev, 
+          mileage: preselectedVehicle.currentMileage?.toString() || ''
+        }));
+        
         if (preselectedServiceType) {
           setFormData(prev => ({ ...prev, serviceType: preselectedServiceType }));
+          checkForPreviousService(preselectedVehicle, preselectedServiceType);
           setStep('details');
         } else {
           setStep('service');
@@ -186,6 +195,13 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       }
     }
   }, [visible, preselectedVehicle, preselectedServiceType]);
+
+  // Check for previous service template when service type and vehicle are selected
+  useEffect(() => {
+    if (selectedVehicle && formData.serviceType && step === 'details') {
+      checkForPreviousService(selectedVehicle, formData.serviceType);
+    }
+  }, [selectedVehicle, formData.serviceType, step]);
 
   const loadVehicles = async () => {
     try {
@@ -217,6 +233,35 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     setServiceTypes([...manufacturerServices, ...customServices]);
   };
 
+  const checkForPreviousService = async (vehicle, serviceType) => {
+    try {
+      const previousService = await ServiceStorage.getLatestByType(vehicle.id, serviceType);
+      if (previousService) {
+        setPreviousService(previousService);
+        setShowServiceTemplate(true);
+      } else {
+        setPreviousService(null);
+        setShowServiceTemplate(false);
+      }
+    } catch (error) {
+      console.error('Error checking for previous service:', error);
+      setPreviousService(null);
+      setShowServiceTemplate(false);
+    }
+  };
+
+  const applyServiceTemplate = () => {
+    if (previousService) {
+      setFormData(prev => ({
+        ...prev,
+        cost: previousService.cost?.toString() || '',
+        vendor: previousService.vendor || '',
+      }));
+      setShowServiceTemplate(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const resetForm = () => {
     setStep(preselectedVehicle ? 'service' : 'vehicle');
     setSelectedVehicle(preselectedVehicle);
@@ -246,6 +291,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     Haptics.selectionAsync();
     setSelectedVehicle(vehicle);
     loadServiceTypes(vehicle);
+    // Pre-fill odometer with current mileage for new entries
+    setFormData(prev => ({ 
+      ...prev, 
+      mileage: vehicle.currentMileage?.toString() || ''
+    }));
     setStep('service');
   };
 
@@ -257,6 +307,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       setStep('custom');
     } else {
       setFormData(prev => ({ ...prev, serviceType }));
+      checkForPreviousService(selectedVehicle, serviceType);
       setStep('details');
     }
   };
@@ -554,6 +605,50 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         />
       </View>
 
+      {/* Service Template Suggestion */}
+      {showServiceTemplate && previousService && (
+        <View style={{
+          backgroundColor: Colors.primary + '10',
+          borderRadius: 12,
+          padding: Spacing.md,
+          marginBottom: Spacing.lg,
+          borderWidth: 1,
+          borderColor: Colors.primary + '30',
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
+            <Text style={[Typography.body, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
+              Same as last time?
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowServiceTemplate(false)}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="close" size={16} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.md }]}>
+            Last {formData.serviceType}: ${previousService.cost?.toFixed(2) || '---'} at {previousService.vendor || 'Unknown vendor'}
+          </Text>
+          
+          <TouchableOpacity
+            style={{
+              backgroundColor: Colors.primary,
+              borderRadius: 8,
+              paddingVertical: Spacing.sm,
+              paddingHorizontal: Spacing.lg,
+              alignSelf: 'flex-start',
+            }}
+            onPress={applyServiceTemplate}
+            activeOpacity={0.8}
+          >
+            <Text style={[Typography.caption, { color: Colors.textPrimary }]}>
+              Use same vendor & cost
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Mileage Input */}
       <View style={{ marginBottom: Spacing.lg }}>
         <Text style={[Typography.caption, { 
@@ -570,6 +665,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           onChangeText={(value) => updateFormData('mileage', value)}
           keyboardType="numeric"
         />
+        {selectedVehicle?.currentMileage && (
+          <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: Spacing.xs }]}>
+            Last recorded: {selectedVehicle.currentMileage.toLocaleString()} mi
+          </Text>
+        )}
       </View>
 
       {/* Cost Input */}

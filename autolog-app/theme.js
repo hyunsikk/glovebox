@@ -45,6 +45,51 @@ export const Colors = {
   textDisabled: '#64748B',
 };
 
+// Light Mode Color System  
+export const LightColors = {
+  // Light Background System
+  background: '#FFFFFF',        // Pure white background
+  surface1: '#F8FAFC',          // Light gray surface
+  surface2: '#F1F5F9',          // Slightly darker surface
+  surface3: '#E2E8F0',          // Interactive elements hover
+  
+  // Glass Effect Colors (Light)
+  glassBorder: 'rgba(0, 0, 0, 0.06)',
+  glassBackground: 'rgba(248, 250, 252, 0.8)',
+  
+  // Border System
+  border: 'rgba(203, 213, 225, 0.6)',
+  
+  // Accent Colors (same as dark for consistency)
+  primary: '#3B82F6',           // Electric blue
+  warning: '#F59E0B',           // Amber/safety yellow
+  danger: '#EF4444',            // Safety red
+  success: '#10B981',           // Emerald green
+  
+  // Text Hierarchy (Light Mode)
+  textPrimary: '#0F172A',       // Near black
+  textSecondary: '#475569',     // Dark gray
+  textTertiary: '#94A3B8',      // Medium gray
+  
+  // Legacy Compatibility (Light Mode)
+  midnightNavy: '#0F172A',
+  pearlWhite: '#FFFFFF',
+  charcoalGray: '#475569',
+  amberAlert: '#F59E0B',
+  forestGreen: '#10B981',
+  steelBlue: '#3B82F6',
+  warmCopper: '#B45309',
+  arcticSilver: '#64748B',
+  deepRed: '#EF4444',
+  surface: '#F8FAFC',
+  elevated: '#F1F5F9',
+  accent: '#3B82F6',
+  interactive: '#3B82F6',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textDisabled: '#94A3B8',
+};
+
 // Premium Typography Hierarchy - ALL text should use these
 export const Typography = StyleSheet.create({
   // Hero - Screen titles (32px Bold) - lowercase style

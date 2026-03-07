@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   FUEL_LOGS: '@autolog_fuel_logs',
   ISSUES: '@autolog_issues',
   SNAPSHOTS: '@autolog_snapshots',
+  REMINDERS: '@autolog_reminders',
 };
 
 // Utility functions
@@ -738,6 +739,147 @@ export const DocumentStorage = {
   },
 };
 
+// Recurring Maintenance Reminders Storage
+export const ReminderStorage = {
+  getAll: async () => {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.REMINDERS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting reminders:', error);
+      return [];
+    }
+  },
+
+  add: async (reminderData) => {
+    try {
+      const reminders = await ReminderStorage.getAll();
+      const newReminder = {
+        id: generateId(),
+        ...reminderData,
+        enabled: reminderData.enabled !== false,
+        createdAt: getCurrentDate(),
+        updatedAt: getCurrentDate(),
+      };
+      reminders.push(newReminder);
+      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(reminders));
+      return newReminder;
+    } catch (error) {
+      console.error('Error adding reminder:', error);
+      throw error;
+    }
+  },
+
+  update: async (id, updates) => {
+    try {
+      const reminders = await ReminderStorage.getAll();
+      const index = reminders.findIndex(r => r.id === id);
+      if (index === -1) throw new Error('Reminder not found');
+      reminders[index] = { ...reminders[index], ...updates, updatedAt: getCurrentDate() };
+      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(reminders));
+      return reminders[index];
+    } catch (error) {
+      console.error('Error updating reminder:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const reminders = await ReminderStorage.getAll();
+      const filtered = reminders.filter(r => r.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error deleting reminder:', error);
+      throw error;
+    }
+  },
+
+  getByVehicleId: async (vehicleId) => {
+    try {
+      const reminders = await ReminderStorage.getAll();
+      return reminders.filter(r => r.vehicleId === vehicleId);
+    } catch (error) {
+      console.error('Error getting reminders by vehicle:', error);
+      return [];
+    }
+  },
+
+  // Get reminders that are due or overdue for a vehicle
+  getDueReminders: async (vehicleId) => {
+    try {
+      const reminders = await ReminderStorage.getByVehicleId(vehicleId);
+      const vehicle = await VehicleStorage.getById(vehicleId);
+      const services = await ServiceStorage.getByVehicleId(vehicleId);
+
+      if (!vehicle) return [];
+
+      const dueReminders = [];
+
+      for (const reminder of reminders.filter(r => r.enabled)) {
+        const lastService = services
+          .filter(s => s.serviceType === reminder.serviceType)
+          .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        if (!lastService) continue;
+
+        const lastServiceDate = new Date(lastService.date);
+        const lastServiceMileage = lastService.mileage || 0;
+        const currentMileage = vehicle.currentMileage || 0;
+
+        let isDue = false;
+        let isOverdue = false;
+        let dueType = '';
+
+        // Check mileage interval
+        if (reminder.intervalMiles && currentMileage >= (lastServiceMileage + reminder.intervalMiles)) {
+          isDue = true;
+          dueType = 'mileage';
+          if (currentMileage > (lastServiceMileage + reminder.intervalMiles + 1000)) {
+            isOverdue = true;
+          }
+        }
+
+        // Check time interval
+        if (reminder.intervalMonths) {
+          const nextDueDate = new Date(lastServiceDate);
+          nextDueDate.setMonth(nextDueDate.getMonth() + reminder.intervalMonths);
+          const now = new Date();
+
+          if (now >= nextDueDate) {
+            isDue = true;
+            if (dueType) dueType += ' & time';
+            else dueType = 'time';
+
+            const overdueDays = Math.floor((now - nextDueDate) / (24 * 60 * 60 * 1000));
+            if (overdueDays > 7) {
+              isOverdue = true;
+            }
+          }
+        }
+
+        if (isDue) {
+          dueReminders.push({
+            ...reminder,
+            isDue,
+            isOverdue,
+            dueType,
+            lastService,
+            lastServiceDate: lastService.date,
+            lastServiceMileage: lastService.mileage
+          });
+        }
+      }
+
+      return dueReminders;
+    } catch (error) {
+      console.error('Error getting due reminders:', error);
+      return [];
+    }
+  },
+};
+
 // Utility functions for data operations
 export const DataUtils = {
   // Clear all app data
@@ -833,5 +975,6 @@ export default {
   IssueStorage,
   SnapshotStorage,
   DocumentStorage,
+  ReminderStorage,
   DataUtils,
 };

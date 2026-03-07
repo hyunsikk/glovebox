@@ -26,6 +26,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
   const [showConditionSection, setShowConditionSection] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [decodingVIN, setDecodingVIN] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -107,6 +108,68 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
 
   const updateFormData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const decodeVIN = async () => {
+    const vin = formData.vin.trim();
+    if (vin.length !== 17) {
+      Alert.alert('Invalid VIN', 'VIN must be exactly 17 characters');
+      return;
+    }
+
+    setDecodingVIN(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to decode VIN');
+      }
+
+      const data = await response.json();
+      const results = data.Results || [];
+
+      // Extract relevant information
+      const getField = (variableName) => {
+        const field = results.find(r => r.Variable === variableName);
+        return field ? field.Value : null;
+      };
+
+      const year = getField('Model Year');
+      const make = getField('Make');
+      const model = getField('Model');
+
+      if (year && make && model) {
+        setFormData(prev => ({
+          ...prev,
+          year: year,
+          make: make,
+          model: model
+        }));
+
+        Alert.alert(
+          'VIN Decoded Successfully',
+          `Found: ${year} ${make} ${model}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'VIN Decoded',
+          'Some vehicle information could not be determined from the VIN',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('VIN decode error:', error);
+      Alert.alert(
+        'VIN Decode Failed',
+        'Could not decode VIN. Please verify the VIN is correct or enter vehicle details manually.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setDecodingVIN(false);
+    }
   };
 
   const isFieldError = (field) => showErrors && !formData[field];
@@ -405,7 +468,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
         />
       </View>
 
-      {/* VIN Input */}
+      {/* VIN Input with Decode Button */}
       <View style={{ marginBottom: Spacing.lg }}>
         <Text style={[Typography.caption, { 
           color: Colors.textSecondary, 
@@ -413,15 +476,41 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
         }]}>
           VIN (Optional)
         </Text>
-        <TextInput
-          style={Shared.input}
-          placeholder="1HGBH41JXMN109186"
-          placeholderTextColor={Colors.arcticSilver}
-          value={formData.vin}
-          onChangeText={(value) => updateFormData('vin', value.toUpperCase())}
-          autoCapitalize="characters"
-          maxLength={17}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            style={[Shared.input, { flex: 1, marginRight: Spacing.md }]}
+            placeholder="1HGBH41JXMN109186"
+            placeholderTextColor={Colors.arcticSilver}
+            value={formData.vin}
+            onChangeText={(value) => updateFormData('vin', value.toUpperCase())}
+            autoCapitalize="characters"
+            maxLength={17}
+          />
+          {formData.vin.length === 17 && (
+            <TouchableOpacity
+              onPress={decodeVIN}
+              disabled={decodingVIN}
+              style={{
+                paddingHorizontal: Spacing.md,
+                paddingVertical: Spacing.sm,
+                backgroundColor: Colors.primary + '20',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: Colors.primary + '30',
+                opacity: decodingVIN ? 0.6 : 1,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[Typography.caption, { color: Colors.primary, marginRight: 4 }]}>
+                  🔍
+                </Text>
+                <Text style={[Typography.caption, { color: Colors.primary }]}>
+                  {decodingVIN ? 'Decoding...' : 'Decode'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={[Typography.caption, { 
           color: Colors.arcticSilver, 
           marginTop: 4 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform, Modal, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -311,6 +311,486 @@ const EmptyState = () => (
     </Text>
   </View>
 );
+
+const CostForecast = ({ vehicles, selectedVehicleId }) => {
+  const [forecastData, setForecastData] = useState({
+    avgMonthlySpend: 0,
+    estimatedAnnualCost: 0
+  });
+
+  useEffect(() => {
+    calculateForecast();
+  }, [vehicles, selectedVehicleId]);
+
+  const calculateForecast = async () => {
+    try {
+      const filterVehicles = selectedVehicleId === 'all' 
+        ? vehicles 
+        : vehicles.filter(v => v.id === selectedVehicleId);
+
+      if (filterVehicles.length === 0) return;
+
+      // Get all services and fuel logs for the last 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+      let totalSpent = 0;
+      let monthsWithData = 0;
+
+      for (const vehicle of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(vehicle.id);
+        const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
+
+        // Services in last 6 months
+        const recentServices = services.filter(s => new Date(s.date) >= sixMonthsAgo);
+        totalSpent += recentServices.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+        // Fuel in last 6 months
+        const recentFuel = fuelLogs.filter(f => new Date(f.date) >= sixMonthsAgo);
+        totalSpent += recentFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+
+        // Count months with actual data
+        const dataMonths = new Set();
+        recentServices.forEach(s => {
+          const month = new Date(s.date).toISOString().slice(0, 7);
+          dataMonths.add(month);
+        });
+        recentFuel.forEach(f => {
+          const month = new Date(f.date).toISOString().slice(0, 7);
+          dataMonths.add(month);
+        });
+        monthsWithData = Math.max(monthsWithData, dataMonths.size);
+      }
+
+      const avgMonthlySpend = monthsWithData > 0 ? totalSpent / monthsWithData : 0;
+      const estimatedAnnualCost = avgMonthlySpend * 12;
+
+      setForecastData({ avgMonthlySpend, estimatedAnnualCost });
+    } catch (error) {
+      console.error('Error calculating cost forecast:', error);
+    }
+  };
+
+  if (vehicles.length === 0) return null;
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
+        <View style={{
+          backgroundColor: Colors.success + '20',
+          borderRadius: 20,
+          padding: 12,
+          marginRight: Spacing.md,
+          borderWidth: 1,
+          borderColor: Colors.success + '30',
+        }}>
+          <Ionicons name="trending-up-outline" size={24} color={Colors.success} />
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            cost forecast
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {selectedVehicleId === 'all' ? 'all vehicles' : 'selected vehicle'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+            ${forecastData.avgMonthlySpend.toFixed(0)}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+            avg monthly spend
+          </Text>
+        </View>
+
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h1, { color: Colors.success }]}>
+            ${forecastData.estimatedAnnualCost.toFixed(0)}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+            estimated annual cost
+          </Text>
+        </View>
+      </View>
+
+      {forecastData.avgMonthlySpend > 0 && (
+        <Text style={[Typography.small, { 
+          color: Colors.textTertiary, 
+          textAlign: 'center', 
+          marginTop: Spacing.md 
+        }]}>
+          Based on last 6 months of service & fuel data
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const VehicleComparison = ({ vehicles }) => {
+  const [comparisonData, setComparisonData] = useState([]);
+
+  useEffect(() => {
+    calculateComparison();
+  }, [vehicles]);
+
+  const calculateComparison = async () => {
+    try {
+      const data = await Promise.all(
+        vehicles.map(async (vehicle) => {
+          const services = await ServiceStorage.getByVehicleId(vehicle.id);
+          const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
+          const issues = await IssueStorage.getOpenByVehicleId(vehicle.id);
+
+          const totalSpent = services.reduce((sum, s) => sum + (s.cost || 0), 0) +
+                           fuelLogs.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+          
+          const milesDriven = Math.max(0, (vehicle.currentMileage || 0) - (vehicle.initialMileage || 0));
+          const costPerMile = milesDriven > 0 ? totalSpent / milesDriven : 0;
+
+          // Calculate average MPG
+          let avgMPG = 0;
+          const fullTankLogs = fuelLogs.filter(f => f.fullTank && f.gallons > 0).sort((a, b) => a.odometer - b.odometer);
+          if (fullTankLogs.length >= 2) {
+            let totalMPG = 0;
+            let mpgCount = 0;
+            for (let i = 1; i < fullTankLogs.length; i++) {
+              const miles = fullTankLogs[i].odometer - fullTankLogs[i - 1].odometer;
+              const gallons = fullTankLogs[i].gallons;
+              if (miles > 0 && miles < 1000 && gallons > 0) {
+                totalMPG += miles / gallons;
+                mpgCount++;
+              }
+            }
+            avgMPG = mpgCount > 0 ? totalMPG / mpgCount : 0;
+          }
+
+          return {
+            vehicle,
+            totalSpent,
+            costPerMile,
+            avgMPG,
+            issueCount: issues.length
+          };
+        })
+      );
+
+      setComparisonData(data);
+    } catch (error) {
+      console.error('Error calculating comparison:', error);
+    }
+  };
+
+  if (vehicles.length < 2) return null;
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
+      <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+        vehicle comparison
+      </Text>
+
+      {comparisonData.map((data, index) => (
+        <View key={data.vehicle.id} style={{
+          flexDirection: 'row',
+          paddingVertical: Spacing.md,
+          borderBottomWidth: index < comparisonData.length - 1 ? 1 : 0,
+          borderBottomColor: Colors.glassBorder,
+        }}>
+          <View style={{ flex: 2 }}>
+            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+              {data.vehicle.nickname || `${data.vehicle.year} ${data.vehicle.make}`}
+            </Text>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+              {data.vehicle.model}
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>Total</Text>
+            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+              ${data.totalSpent.toFixed(0)}
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>$/mi</Text>
+            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+              ${data.costPerMile.toFixed(3)}
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>MPG</Text>
+            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+              {data.avgMPG > 0 ? data.avgMPG.toFixed(1) : '—'}
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>Issues</Text>
+            <Text style={[Typography.body, { 
+              color: data.issueCount > 0 ? Colors.danger : Colors.success 
+            }]}>
+              {data.issueCount}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+const CSVImport = ({ vehicles, onImportComplete }) => {
+  const [csvText, setCsvText] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const parseCSVLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    result.push(current.trim());
+    return result;
+  };
+
+  const handleCSVImport = async () => {
+    if (!csvText.trim()) {
+      Alert.alert('Error', 'Please paste CSV data first');
+      return;
+    }
+
+    if (vehicles.length === 0) {
+      Alert.alert('Error', 'Please add at least one vehicle before importing services');
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const lines = csvText.trim().split('\n').map(line => line.trim()).filter(line => line);
+      
+      if (lines.length < 2) {
+        throw new Error('CSV must have at least a header row and one data row');
+      }
+
+      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z]/g, ''));
+      
+      // Expected columns: date, servicetype, cost, mileage, vendor, notes
+      const requiredColumns = ['date', 'servicetype'];
+      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      
+      if (missingColumns.length > 0) {
+        throw new Error(`Missing required columns: ${missingColumns.join(', ')}. Required: date, serviceType`);
+      }
+
+      let importedCount = 0;
+      const errors = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        try {
+          const values = parseCSVLine(lines[i]);
+          const row = {};
+          
+          headers.forEach((header, index) => {
+            row[header] = values[index] || '';
+          });
+
+          // Validate required fields
+          if (!row.date || !row.servicetype) {
+            errors.push(`Line ${i + 1}: Missing date or serviceType`);
+            continue;
+          }
+
+          // Parse date
+          const date = new Date(row.date);
+          if (isNaN(date.getTime())) {
+            errors.push(`Line ${i + 1}: Invalid date format`);
+            continue;
+          }
+
+          // Use first vehicle if no vehicle specified
+          const vehicle = vehicles[0];
+
+          const serviceData = {
+            vehicleId: vehicle.id,
+            serviceType: row.servicetype,
+            date: date.toISOString().split('T')[0],
+            mileage: row.mileage ? parseInt(row.mileage) : undefined,
+            cost: row.cost ? parseFloat(row.cost) : undefined,
+            vendor: row.vendor || undefined,
+            notes: row.notes || undefined,
+          };
+
+          await ServiceStorage.add(serviceData);
+          importedCount++;
+        } catch (error) {
+          errors.push(`Line ${i + 1}: ${error.message}`);
+        }
+      }
+
+      if (errors.length > 0 && errors.length < 5) {
+        console.warn('Import errors:', errors);
+      }
+
+      setCsvText('');
+      setShowImportModal(false);
+      onImportComplete();
+
+      Alert.alert(
+        'Import Complete',
+        `Successfully imported ${importedCount} service records${errors.length > 0 ? `\n\n${errors.length} errors encountered` : ''}`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('CSV import error:', error);
+      Alert.alert('Import Failed', error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const sampleCSV = `date,serviceType,cost,mileage,vendor,notes
+2024-01-15,Oil Change,65.00,25000,QuickLube,Synthetic oil
+2024-02-20,Tire Rotation,25.00,26500,Local Shop,
+2024-03-10,Brake Inspection,0.00,27000,Dealer,Free inspection`;
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[Shared.buttonSecondary, { marginBottom: Spacing.md }]}
+        onPress={() => setShowImportModal(true)}
+        activeOpacity={0.9}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="cloud-upload-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
+          <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
+            import from CSV
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* Import Modal */}
+      <Modal
+        visible={showImportModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={{ 
+          flex: 1, 
+          backgroundColor: Colors.background,
+          paddingHorizontal: Spacing.horizontalLarge,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: Spacing.xl,
+            borderBottomWidth: 1,
+            borderBottomColor: Colors.surface1,
+            marginBottom: Spacing.xl,
+          }}>
+            <TouchableOpacity
+              onPress={() => setShowImportModal(false)}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+              import CSV
+            </Text>
+
+            <View style={{ width: 32 }} />
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={[Shared.cardPrimary]}>
+              <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
+                CSV format
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.lg }]}>
+                Required columns: date, serviceType{'\n'}
+                Optional: cost, mileage, vendor, notes{'\n'}
+                Services will be added to: {vehicles[0]?.nickname || 'first vehicle'}
+              </Text>
+
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+                Sample CSV:
+              </Text>
+              <View style={{
+                backgroundColor: Colors.surface1,
+                padding: Spacing.md,
+                borderRadius: 8,
+                marginBottom: Spacing.lg,
+              }}>
+                <Text style={[Typography.small, { color: Colors.textPrimary, fontFamily: 'monospace' }]}>
+                  {sampleCSV}
+                </Text>
+              </View>
+
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+                Paste your CSV data:
+              </Text>
+              <TextInput
+                style={[Shared.input, { 
+                  height: 200, 
+                  textAlignVertical: 'top', 
+                  paddingTop: Spacing.md,
+                  fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                  fontSize: 12
+                }]}
+                placeholder={sampleCSV}
+                placeholderTextColor={Colors.textTertiary}
+                value={csvText}
+                onChangeText={setCsvText}
+                multiline
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg }}>
+              <TouchableOpacity
+                style={[Shared.buttonSecondary, { flex: 1 }]}
+                onPress={() => setShowImportModal(false)}
+              >
+                <Text style={[Typography.body, { color: Colors.textSecondary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[Shared.buttonPrimary, { flex: 1, opacity: importing ? 0.6 : 1 }]}
+                onPress={handleCSVImport}
+                disabled={importing}
+              >
+                <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                  {importing ? 'Importing...' : 'Import'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+    </>
+  );
+};
 
 export default function InsightsScreen() {
   const [vehicles, setVehicles] = useState([]);
@@ -663,6 +1143,14 @@ export default function InsightsScreen() {
           </View>
         )}
 
+        {/* Cost Forecast */}
+        <CostForecast vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+
+        {/* Vehicle Comparison */}
+        {selectedVehicleId === 'all' && vehicles.length >= 2 && (
+          <VehicleComparison vehicles={vehicles} />
+        )}
+
         {/* Monthly Spending Chart */}
         <ChartCard
           title="monthly spending"
@@ -777,7 +1265,7 @@ export default function InsightsScreen() {
           />
         ))}
 
-        {/* Data Export */}
+        {/* Data Import/Export */}
         <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
             <View style={{
@@ -793,13 +1281,16 @@ export default function InsightsScreen() {
             
             <View style={{ flex: 1 }}>
               <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-                export your data
+                data import/export
               </Text>
               <Text style={[Typography.body, { color: Colors.textSecondary, marginTop: 4 }]}>
-                download all vehicles and service records as JSON
+                backup, import, or transfer your service records
               </Text>
             </View>
           </View>
+
+          {/* CSV Import */}
+          <CSVImport vehicles={vehicles} onImportComplete={loadInsights} />
 
           <TouchableOpacity
             style={[Shared.buttonSecondary, { marginBottom: 0 }]}

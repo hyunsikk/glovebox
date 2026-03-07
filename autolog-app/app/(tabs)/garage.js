@@ -5,7 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { VehicleStorage, ServiceStorage, IssueStorage } from '../../lib/storage';
+import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { addSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
@@ -13,6 +13,7 @@ import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
 import OnboardingModal from '../../components/OnboardingModal';
 import { HealthScoreDialSmall } from '../../components/HealthScoreDial';
+import { Modal, Switch } from 'react-native';
 
 const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
   const [overdueServices, setOverdueServices] = useState([]);
@@ -427,6 +428,260 @@ const EmptyState = ({ onAddVehicle, onLoadSampleData }) => {
   );
 };
 
+const DashboardSummary = ({ vehicles }) => {
+  const [summaryData, setSummaryData] = useState({
+    totalVehicles: 0,
+    openIssuesCount: 0,
+    nextServiceDue: null,
+    thisMonthSpending: 0
+  });
+
+  useEffect(() => {
+    loadSummaryData();
+  }, [vehicles]);
+
+  const loadSummaryData = async () => {
+    try {
+      const totalVehicles = vehicles.length;
+      
+      // Count open issues across all vehicles
+      let openIssuesCount = 0;
+      for (const vehicle of vehicles) {
+        const issues = await IssueStorage.getOpenByVehicleId(vehicle.id);
+        openIssuesCount += issues.length;
+      }
+
+      // Find next service due (soonest across all vehicles)
+      let nextServiceDue = null;
+      let soonestDays = Infinity;
+
+      for (const vehicle of vehicles) {
+        try {
+          const upcoming = await ServiceDue.getUpcomingServices(vehicle.id, 30);
+          if (upcoming.length > 0) {
+            const service = upcoming[0];
+            const daysUntil = service.isOverdue ? 0 : service.daysUntilDue || 0;
+            if (daysUntil < soonestDays) {
+              soonestDays = daysUntil;
+              nextServiceDue = {
+                service: service.service,
+                vehicleName: vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+                daysUntilDue: daysUntil,
+                isOverdue: service.isOverdue
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Error loading upcoming services:', error);
+        }
+      }
+
+      // Calculate this month's spending (services + fuel)
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      let thisMonthSpending = 0;
+
+      for (const vehicle of vehicles) {
+        // Services this month
+        const services = await ServiceStorage.getByVehicleId(vehicle.id);
+        const thisMonthServices = services.filter(s => {
+          const serviceDate = new Date(s.date);
+          return serviceDate.getMonth() === thisMonth && serviceDate.getFullYear() === thisYear;
+        });
+        thisMonthSpending += thisMonthServices.reduce((sum, s) => sum + (s.cost || 0), 0);
+
+        // Fuel this month
+        const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
+        const thisMonthFuel = fuelLogs.filter(f => {
+          const fuelDate = new Date(f.date);
+          return fuelDate.getMonth() === thisMonth && fuelDate.getFullYear() === thisYear;
+        });
+        thisMonthSpending += thisMonthFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+      }
+
+      setSummaryData({
+        totalVehicles,
+        openIssuesCount,
+        nextServiceDue,
+        thisMonthSpending
+      });
+    } catch (error) {
+      console.error('Error loading summary data:', error);
+    }
+  };
+
+  if (vehicles.length === 0) return null;
+
+  return (
+    <View style={[Shared.cardPrimary, { marginBottom: Spacing.xl }]}>
+      <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+        dashboard summary
+      </Text>
+      
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {/* Total Vehicles */}
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h1, { color: Colors.primary }]}>
+            {summaryData.totalVehicles}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+            vehicles
+          </Text>
+        </View>
+
+        {/* Open Issues */}
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h1, { color: summaryData.openIssuesCount > 0 ? Colors.danger : Colors.success }]}>
+            {summaryData.openIssuesCount}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+            open issues
+          </Text>
+        </View>
+
+        {/* This Month Spending */}
+        <View style={{ alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+            ${summaryData.thisMonthSpending.toFixed(0)}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+            this month
+          </Text>
+        </View>
+      </View>
+
+      {/* Next Service Due */}
+      {summaryData.nextServiceDue && (
+        <View style={{
+          marginTop: Spacing.lg,
+          padding: Spacing.md,
+          backgroundColor: Colors.surface1 + '60',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: summaryData.nextServiceDue.isOverdue ? Colors.danger : Colors.warning,
+              marginRight: Spacing.sm,
+            }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                {summaryData.nextServiceDue.service} • {summaryData.nextServiceDue.vehicleName}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                {summaryData.nextServiceDue.isOverdue ? 'Overdue' : `Due in ${summaryData.nextServiceDue.daysUntilDue} days`}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const SettingsModal = ({ visible, onClose }) => {
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  useEffect(() => {
+    loadThemePreference();
+  }, []);
+
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('@theme_mode');
+      setIsDarkMode(savedTheme !== 'light');
+    } catch (error) {
+      console.error('Error loading theme preference:', error);
+    }
+  };
+
+  const handleThemeToggle = async (value) => {
+    try {
+      setIsDarkMode(value);
+      await AsyncStorage.setItem('@theme_mode', value ? 'dark' : 'light');
+      Haptics.selectionAsync();
+      // TODO: Apply theme change across app
+      // For now, we just store the preference
+    } catch (error) {
+      console.error('Error saving theme preference:', error);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <View style={{ 
+        flex: 1, 
+        backgroundColor: Colors.background,
+        paddingHorizontal: Spacing.horizontalLarge,
+      }}>
+        {/* Header */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingVertical: Spacing.xl,
+          borderBottomWidth: 1,
+          borderBottomColor: Colors.surface1,
+          marginBottom: Spacing.xl,
+        }}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={{ padding: 4 }}
+          >
+            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            settings
+          </Text>
+
+          <View style={{ width: 32 }} />
+        </View>
+
+        {/* Settings Content */}
+        <View style={[Shared.cardPrimary]}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+            appearance
+          </Text>
+          
+          {/* Dark Mode Toggle */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: Spacing.md,
+          }}>
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                dark mode
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
+                coming soon - stored preference for future update
+              </Text>
+            </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={handleThemeToggle}
+              trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
+              thumbColor={isDarkMode ? Colors.primary : Colors.textSecondary}
+              ios_backgroundColor={Colors.surface3}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function GarageScreen() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -435,6 +690,7 @@ export default function GarageScreen() {
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   // Removed FAB multi-action state - now simple Add Vehicle button
 
   useFocusEffect(
@@ -605,10 +861,36 @@ export default function GarageScreen() {
 
   return (
     <View style={Shared.container}>
+      {/* Header with Settings */}
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.md,
+      }}>
+        <Text style={[Typography.hero, { color: Colors.textPrimary }]}>
+          garage
+        </Text>
+        
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.selectionAsync();
+            setShowSettingsModal(true);
+          }}
+          style={{ padding: 8 }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.lg, paddingBottom: 100 }}
       >
+        <DashboardSummary vehicles={vehicles} />
+        
         {vehicles.map((vehicle) => (
           <VehicleCard
             key={vehicle.id}
@@ -673,6 +955,11 @@ export default function GarageScreen() {
         visible={showOnboardingModal}
         onClose={handleOnboardingClose}
         onAddVehicle={handleOnboardingAddVehicle}
+      />
+
+      <SettingsModal
+        visible={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
       />
     </View>
   );
