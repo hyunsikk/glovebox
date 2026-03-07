@@ -426,25 +426,55 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       }
       
       // Update vehicle's current mileage if this is the highest
-      if (parseInt(formData.mileage) > selectedVehicle.currentMileage) {
+      const enteredMileage = parseInt(formData.mileage);
+      const mileageUpdated = enteredMileage > selectedVehicle.currentMileage;
+      if (mileageUpdated) {
         await VehicleStorage.update(selectedVehicle.id, {
-          currentMileage: parseInt(formData.mileage)
+          currentMileage: enteredMileage
         });
       }
       
+      const vehicleName = selectedVehicle.nickname || `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}`;
+      const mileageMsg = mileageUpdated
+        ? `\n\nVehicle mileage updated to ${enteredMileage.toLocaleString()} mi.`
+        : '';
+
+      // If mileage entered is lower than current, offer to update
+      const shouldOfferUpdate = enteredMileage && enteredMileage < selectedVehicle.currentMileage;
+
+      const alertButtons = shouldOfferUpdate
+        ? [
+            {
+              text: 'Update Mileage',
+              onPress: async () => {
+                await VehicleStorage.update(selectedVehicle.id, { currentMileage: enteredMileage });
+                onServiceLogged(savedService);
+                handleClose();
+              },
+            },
+            {
+              text: 'Keep Current',
+              style: 'cancel',
+              onPress: () => {
+                onServiceLogged(savedService);
+                handleClose();
+              },
+            },
+          ]
+        : [
+            {
+              text: 'OK',
+              onPress: () => {
+                onServiceLogged(savedService);
+                handleClose();
+              },
+            },
+          ];
 
       Alert.alert(
         'Service Logged! 🔧',
-        `${formData.serviceType} for ${selectedVehicle.nickname || `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model}`} has been recorded.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              onServiceLogged(savedService);
-              handleClose();
-            }
-          }
-        ]
+        `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}${shouldOfferUpdate ? `\n\nVehicle mileage is ${selectedVehicle.currentMileage.toLocaleString()} mi but this record is ${enteredMileage.toLocaleString()} mi. Update?` : ''}`,
+        alertButtons,
       );
 
     } catch (error) {

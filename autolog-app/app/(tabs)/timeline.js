@@ -14,14 +14,16 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
   <ScrollView 
     horizontal 
     showsHorizontalScrollIndicator={false}
-    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg }}
+    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg, alignItems: 'center' }}
   >
     <TouchableOpacity
       key="all"
       style={{
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.sm,
-        borderRadius: 20,
+        paddingHorizontal: 16,
+        height: 36,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 18,
         backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
         borderWidth: 1,
         borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
@@ -33,8 +35,9 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
       }}
       activeOpacity={0.8}
     >
-      <Text style={[Typography.body, { 
-        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary 
+      <Text style={[Typography.caption, { 
+        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary,
+        fontFamily: selectedVehicleId === 'all' ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
       }]}>
         All
       </Text>
@@ -44,9 +47,11 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
       <TouchableOpacity
         key={vehicle.id}
         style={{
-          paddingHorizontal: Spacing.lg,
-          paddingVertical: Spacing.sm,
-          borderRadius: 20,
+          paddingHorizontal: 16,
+          height: 36,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: 18,
           backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
           borderWidth: 1,
           borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
@@ -58,8 +63,9 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
         }}
         activeOpacity={0.8}
       >
-        <Text style={[Typography.body, { 
-          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary 
+        <Text style={[Typography.caption, { 
+          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary,
+          fontFamily: selectedVehicleId === vehicle.id ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
         }]}>
           {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
         </Text>

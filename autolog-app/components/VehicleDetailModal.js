@@ -1017,7 +1017,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   const [snoozeData, setSnoozeData] = useState({});
   const [healthScore, setHealthScore] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
-  const [costPerMile, setCostPerMile] = useState(0);
+
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -1196,15 +1196,13 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       }
 
       // Calculate analytics
-      const [score, cost, costPM] = await Promise.all([
+      const [score, cost] = await Promise.all([
         HealthScore.calculate(freshVehicle.id),
         CostAnalytics.getTotalCost(freshVehicle.id),
-        CostAnalytics.getCostPerMile(freshVehicle.id),
       ]);
       
       setHealthScore(score);
       setTotalCost(cost);
-      setCostPerMile(costPM);
 
       // Set edit form data
       setEditForm({
@@ -1871,10 +1869,10 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     
                     <View style={{ alignItems: 'center' }}>
                       <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
-                        ${costPerMile.toFixed(3)}
+                        {services.length}
                       </Text>
                       <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                        Cost/Mile
+                        Services
                       </Text>
                     </View>
                     
@@ -2366,9 +2364,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.9}
                   >
-                    <Ionicons name="camera-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+                    <Text style={{ fontSize: 18, marginRight: Spacing.sm }}>📸</Text>
                     <Text style={[Typography.h2, { color: Colors.primary }]}>
-                      📸 Take Snapshot
+                      Take Snapshot
                     </Text>
                   </TouchableOpacity>
 

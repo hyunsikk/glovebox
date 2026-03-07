@@ -14,14 +14,16 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
   <ScrollView 
     horizontal 
     showsHorizontalScrollIndicator={false}
-    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg }}
+    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg, alignItems: 'center' }}
   >
     <TouchableOpacity
       key="all"
       style={{
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.sm,
-        borderRadius: 20,
+        paddingHorizontal: 16,
+        height: 36,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 18,
         backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
         borderWidth: 1,
         borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
@@ -33,8 +35,9 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
       }}
       activeOpacity={0.8}
     >
-      <Text style={[Typography.body, { 
-        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary 
+      <Text style={[Typography.caption, { 
+        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary,
+        fontFamily: selectedVehicleId === 'all' ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
       }]}>
         All Vehicles
       </Text>
@@ -44,9 +47,11 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
       <TouchableOpacity
         key={vehicle.id}
         style={{
-          paddingHorizontal: Spacing.lg,
-          paddingVertical: Spacing.sm,
-          borderRadius: 20,
+          paddingHorizontal: 16,
+          height: 36,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: 18,
           backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
           borderWidth: 1,
           borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
@@ -58,8 +63,9 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
         }}
         activeOpacity={0.8}
       >
-        <Text style={[Typography.body, { 
-          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary 
+        <Text style={[Typography.caption, { 
+          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary,
+          fontFamily: selectedVehicleId === vehicle.id ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
         }]}>
           {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
         </Text>
@@ -512,13 +518,6 @@ const VehicleComparison = ({ vehicles }) => {
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>Total</Text>
             <Text style={[Typography.body, { color: Colors.textPrimary }]}>
               ${data.totalSpent.toFixed(0)}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>$/mi</Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              ${data.costPerMile.toFixed(3)}
             </Text>
           </View>
 
@@ -1031,16 +1030,6 @@ export default function InsightsScreen() {
     }
   };
 
-  const calculateCostPerMile = () => {
-    if (!fleetSummary || !vehicles.length) return '$0.00';
-    
-    const totalMiles = vehicles.reduce((sum, v) => 
-      sum + (v.currentMileage - (v.initialMileage || v.currentMileage)), 0
-    );
-    
-    return totalMiles > 0 ? `$${(fleetSummary.totalCost / totalMiles).toFixed(3)}` : '$0.00';
-  };
-
   const getNextMaintenanceCost = () => {
     const nextMonth = costPredictions.find(p => p.predictedCost > 0);
     return nextMonth ? `$${nextMonth.predictedCost.toFixed(0)}` : '$0';
@@ -1092,10 +1081,10 @@ export default function InsightsScreen() {
           />
           
           <MetricCard
-            title="cost per mile"
-            value={calculateCostPerMile()}
-            subtitle="average"
-            icon="speedometer-outline"
+            title="services"
+            value={`${fleetSummary?.totalServices || 0}`}
+            subtitle="all time"
+            icon="build-outline"
             color={Colors.primary}
           />
         </View>
@@ -1110,10 +1099,10 @@ export default function InsightsScreen() {
           />
           
           <MetricCard
-            title="services"
-            value={`${fleetSummary?.totalServices || 0}`}
-            subtitle="all time"
-            icon="build-outline"
+            title="vehicles"
+            value={`${vehicles.length}`}
+            subtitle="tracked"
+            icon="car-outline"
             color={Colors.warning}
           />
         </View>
