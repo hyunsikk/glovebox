@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
@@ -1071,10 +1071,20 @@ const CategoryView = ({ category, onBack, onArticlePress }) => (
   </ScrollView>
 );
 
+// Featured articles - most universally useful
+const featuredArticles = [
+  { categoryId: 'engine', articleIndex: 0, title: 'Oil Change Intervals' },
+  { categoryId: 'brakes', articleIndex: 0, title: 'When to Replace Brake Pads' },
+  { categoryId: 'tires', articleIndex: 0, title: 'Tire Pressure Basics' },
+  { categoryId: 'battery', articleIndex: 0, title: 'Battery Maintenance' },
+  { categoryId: 'fluids', articleIndex: 0, title: 'Checking Fluid Levels' },
+];
+
 export default function LearnScreen() {
   const [currentView, setCurrentView] = useState('categories');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleCategoryPress = (category) => {
     Haptics.selectionAsync();
@@ -1100,6 +1110,33 @@ export default function LearnScreen() {
     }
   };
 
+  // Filter categories and articles based on search query
+  const filteredCategories = useMemo(() => {
+    if (!searchQuery.trim()) return knowledgeBase.categories;
+    
+    const query = searchQuery.toLowerCase();
+    return knowledgeBase.categories
+      .map(category => ({
+        ...category,
+        articles: category.articles.filter(article =>
+          article.title.toLowerCase().includes(query) ||
+          article.content.toLowerCase().includes(query) ||
+          article.tips.some(tip => tip.toLowerCase().includes(query))
+        ),
+      }))
+      .filter(category => category.articles.length > 0);
+  }, [searchQuery]);
+
+  const getFeaturedArticleData = () => {
+    return featuredArticles.map(featured => {
+      const category = knowledgeBase.categories.find(c => c.id === featured.categoryId);
+      if (!category) return null;
+      const article = category.articles[featured.articleIndex];
+      if (!article) return null;
+      return { ...article, category, categoryEmoji: category.emoji };
+    }).filter(Boolean);
+  };
+
   if (currentView === 'article' && selectedArticle) {
     return (
       <View style={[Shared.container, { paddingHorizontal: 0 }]}>
@@ -1120,6 +1157,8 @@ export default function LearnScreen() {
     );
   }
 
+  const featuredArticlesData = getFeaturedArticleData();
+
   return (
     <View style={Shared.container}>
       <ScrollView
@@ -1127,58 +1166,124 @@ export default function LearnScreen() {
         contentContainerStyle={{ paddingTop: Spacing.lg, paddingBottom: 100 }}
       >
         {/* Header */}
-        <View style={{ marginBottom: Spacing.section }}>
+        <View style={{ marginBottom: Spacing.lg }}>
           <Text style={[Typography.body, { 
             color: Colors.textSecondary, 
-            marginBottom: Spacing.sm,
+            marginBottom: Spacing.md,
             lineHeight: 22,
           }]}>
             learn car maintenance from the experts. build confidence in your maintenance decisions.
           </Text>
         </View>
 
-        {/* Categories */}
-        {knowledgeBase.categories.map((category) => (
-          <CategoryCard
-            key={category.id}
-            category={category}
-            onPress={handleCategoryPress}
-          />
-        ))}
-
-        {/* Quick Stats */}
-        <View style={[Shared.card, { marginTop: Spacing.lg }]}>
-          <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
-            knowledge base
-          </Text>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              categories
-            </Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              {knowledgeBase.categories.length}
-            </Text>
+        {/* Search Bar */}
+        <View style={{ marginBottom: Spacing.lg }}>
+          <View style={[Shared.input, {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: Spacing.md,
+          }]}>
+            <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+            <TextInput
+              style={{
+                flex: 1,
+                color: Colors.textPrimary,
+                fontSize: 15,
+                fontFamily: 'Nunito_400Regular',
+                height: '100%',
+              }}
+              placeholder="Search articles..."
+              placeholderTextColor={Colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              total articles
+          {searchQuery.length > 0 && (
+            <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
+              {filteredCategories.reduce((sum, cat) => sum + cat.articles.length, 0)} articles found
             </Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              {knowledgeBase.categories.reduce((sum, cat) => sum + cat.articles.length, 0)}
-            </Text>
-          </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              reading time
-            </Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              ~{knowledgeBase.categories.reduce((sum, cat) => sum + cat.articles.length, 0) * 3} min
-            </Text>
-          </View>
+          )}
         </View>
+
+        {/* Featured Articles */}
+        {!searchQuery && featuredArticlesData.length > 0 && (
+          <View style={{ marginBottom: Spacing.section }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
+              <Text style={{ fontSize: 20, marginRight: Spacing.sm }}>⭐</Text>
+              <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+                Featured Articles
+              </Text>
+            </View>
+            
+            {featuredArticlesData.map((article, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[Shared.card, { marginBottom: Spacing.md }]}
+                onPress={() => handleArticlePress(article)}
+                activeOpacity={0.8}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 24, marginRight: Spacing.md }}>
+                    {article.categoryEmoji}
+                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Typography.body, { 
+                      color: Colors.textPrimary, 
+                      fontFamily: 'Nunito_600SemiBold',
+                      marginBottom: 2,
+                    }]}>
+                      {article.title}
+                    </Text>
+                    <Text style={[Typography.small, { color: Colors.textSecondary }]} numberOfLines={2}>
+                      {article.content}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} style={{ marginLeft: Spacing.sm }} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Categories Header */}
+        {!searchQuery && (
+          <Text style={[Typography.h1, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+            All Topics
+          </Text>
+        )}
+
+        {/* Categories */}
+        {filteredCategories.length > 0 ? (
+          filteredCategories.map((category) => (
+            <CategoryCard
+              key={category.id}
+              category={category}
+              onPress={handleCategoryPress}
+            />
+          ))
+        ) : (
+          <View style={{
+            backgroundColor: Colors.surface1,
+            borderRadius: 12,
+            padding: Spacing.xl,
+            alignItems: 'center',
+          }}>
+            <Text style={{ fontSize: 40, marginBottom: Spacing.md }}>🔍</Text>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.xs }]}>
+              No articles found
+            </Text>
+            <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: 'center' }]}>
+              Try different search terms
+            </Text>
+          </View>
+        )}
+
       </ScrollView>
     </View>
   );

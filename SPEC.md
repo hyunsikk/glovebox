@@ -1,12 +1,12 @@
-# Glovebox: Complete Product Specification
+# Car Story: Complete Product Specification
 
 ## 1. Product Overview
 
-### **Product Name:** Glovebox  
+### **Product Name:** Car Story  
 ### **Tagline:** "Smart car maintenance tracker with instant manufacturer schedules"
 
 ### **Description:**
-Glovebox transforms car maintenance from guesswork into intelligent planning. Enter your vehicle details and instantly access real manufacturer maintenance schedules, smart cost predictions, and proactive service reminders. No setup hell, no manual data entry—just confidence in your car care decisions.
+Car Story transforms car maintenance from guesswork into intelligent planning. Enter your vehicle details and instantly access real manufacturer maintenance schedules, smart cost predictions, and proactive service reminders. No setup hell, no manual data entry—just confidence in your car care decisions.
 
 ### **Target Audience:**
 
@@ -550,4 +550,4 @@ const vehicleData = {
 
 ---
 
-This specification serves as the complete blueprint for Glovebox development, ensuring all team members understand the vision, scope, and technical requirements for building a premium car maintenance tracking application.
+This specification serves as the complete blueprint for Car Story development, ensuring all team members understand the vision, scope, and technical requirements for building a premium car maintenance tracking application.

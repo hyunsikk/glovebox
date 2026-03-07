@@ -1,4 +1,4 @@
-# Glovebox Voice Guide
+# Car Story Voice Guide
 
 ## Voice Identity: Your Car-Savvy Friend
 
@@ -43,7 +43,7 @@
 #### **No Vehicles:**
 🚗 **"Ready to add your first car?"**
 
-*Not:* "Welcome to Glovebox! To get started with tracking your vehicle maintenance, please add your first vehicle to your garage."
+*Not:* "Welcome to Car Story! To get started with tracking your vehicle maintenance, please add your first vehicle to your garage."
 
 #### **No Service History:**
 📝 **"Add your last oil change to see when you're due next."**
@@ -67,7 +67,7 @@
 #### **Multi-Vehicle Limit:**
 🚙 **"Track unlimited vehicles for $2.99/month"**
 
-*Not:* "Upgrade to Premium to unlock the ability to manage multiple vehicles in your Glovebox account!"
+*Not:* "Upgrade to Premium to unlock the ability to manage multiple vehicles in your Car Story account!"
 
 #### **Advanced Analytics:**
 📊 **"See cost predictions and insights with Premium"**
@@ -91,7 +91,7 @@
 #### **First Year Complete:**
 🎉 **"One year of smart maintenance tracking complete"**
 
-*Not:* "Congratulations on your first anniversary with Glovebox! You've successfully maintained your vehicle for a full year."
+*Not:* "Congratulations on your first anniversary with Car Story! You've successfully maintained your vehicle for a full year."
 
 #### **Money Saved:**
 💵 **"You've saved $340 vs dealer pricing this year"**

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Glovebox",
+    "name": "Car Story",
     "slug": "glovebox-app",
     "version": "1.1.0",
     "orientation": "portrait",
@@ -15,8 +15,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "dev.teamam.glovebox",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Glovebox needs access to your photos to attach images to vehicle profiles and service records.",
-        "NSCameraUsageDescription": "Glovebox needs camera access to take photos of your vehicle and service receipts.",
+        "NSPhotoLibraryUsageDescription": "Car Story needs access to your photos to attach images to vehicle profiles and service records.",
+        "NSCameraUsageDescription": "Car Story needs camera access to take photos of your vehicle and service receipts.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "newArchEnabled": false
@@ -37,7 +37,7 @@
       "expo-font",
       "expo-sharing"
     ],
-    "scheme": "glovebox",
+    "scheme": "carstory",
     "extra": {
       "router": {},
       "eas": {

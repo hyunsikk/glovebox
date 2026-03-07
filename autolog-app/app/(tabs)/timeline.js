@@ -4,9 +4,68 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { ServiceStorage, VehicleStorage } from '../../lib/storage';
+import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStorage } from '../../lib/storage';
 import LogServiceModal from '../../components/LogServiceModal';
 import EditServiceModal from '../../components/EditServiceModal';
+import { shareSnapshot } from '../../lib/shareSnapshot';
+
+const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => (
+  <ScrollView 
+    horizontal 
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg }}
+  >
+    <TouchableOpacity
+      key="all"
+      style={{
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: 20,
+        backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
+        borderWidth: 1,
+        borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
+        marginRight: Spacing.sm,
+      }}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onVehicleSelect('all');
+      }}
+      activeOpacity={0.8}
+    >
+      <Text style={[Typography.body, { 
+        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary 
+      }]}>
+        All
+      </Text>
+    </TouchableOpacity>
+    
+    {vehicles.map((vehicle) => (
+      <TouchableOpacity
+        key={vehicle.id}
+        style={{
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.sm,
+          borderRadius: 20,
+          backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
+          borderWidth: 1,
+          borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
+          marginRight: Spacing.sm,
+        }}
+        onPress={() => {
+          Haptics.selectionAsync();
+          onVehicleSelect(vehicle.id);
+        }}
+        activeOpacity={0.8}
+      >
+        <Text style={[Typography.body, { 
+          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary 
+        }]}>
+          {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+);
 
 const ServiceCard = ({ service, vehicle, onEdit }) => {
   const getServiceIcon = (serviceType) => {
@@ -151,6 +210,219 @@ const ServiceCard = ({ service, vehicle, onEdit }) => {
   );
 };
 
+const FuelCard = ({ fuelLog, vehicle }) => {
+  const isFuel = fuelLog.type !== 'ev_charge';
+  
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.md }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {/* Icon */}
+        <View style={{
+          backgroundColor: (isFuel ? Colors.warning : Colors.success) + '20',
+          borderRadius: 24,
+          padding: 12,
+          marginRight: Spacing.md,
+          borderWidth: 1,
+          borderColor: (isFuel ? Colors.warning : Colors.success) + '30',
+        }}>
+          <Text style={{ fontSize: 20 }}>{isFuel ? '⛽' : '⚡'}</Text>
+        </View>
+
+        {/* Details */}
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            {isFuel
+              ? `${fuelLog.gallons} gal${fuelLog.fullTank ? '' : ' (partial)'}`
+              : `${fuelLog.kWh} kWh`}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
+            {fuelLog.station ? ` · ${fuelLog.station}` : ''}
+          </Text>
+        </View>
+
+        {/* Cost & Date */}
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            ${fuelLog.totalCost?.toFixed(2) || '0.00'}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {fuelLog.odometer?.toLocaleString()} mi
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const IssueCard = ({ issue, vehicle }) => {
+  const severityColors = {
+    minor: '#3B82F6',
+    moderate: '#EAB308',
+    serious: '#F97316',
+    critical: '#EF4444',
+  };
+  const statusColors = {
+    open: '#EF4444',
+    in_progress: '#EAB308',
+    resolved: '#10B981',
+  };
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.md }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        {/* Icon */}
+        <View style={{
+          backgroundColor: severityColors[issue.severity] + '20',
+          borderRadius: 24,
+          padding: 12,
+          marginRight: Spacing.md,
+          borderWidth: 1,
+          borderColor: severityColors[issue.severity] + '30',
+        }}>
+          <Text style={{ fontSize: 20 }}>🚨</Text>
+        </View>
+
+        {/* Details */}
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            {issue.title}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+            {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
+          </Text>
+          <Text style={[Typography.body, { color: Colors.textSecondary, marginBottom: Spacing.sm }]} numberOfLines={2}>
+            {issue.description}
+          </Text>
+          
+          {/* Severity and Status badges */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 8,
+              backgroundColor: severityColors[issue.severity] + '20',
+              borderWidth: 1,
+              borderColor: severityColors[issue.severity] + '40',
+              marginRight: Spacing.sm,
+            }}>
+              <Text style={[Typography.small, { 
+                color: severityColors[issue.severity],
+                fontSize: 10,
+                fontFamily: 'Nunito_600SemiBold',
+                textTransform: 'uppercase',
+              }]}>
+                {issue.severity}
+              </Text>
+            </View>
+            <View style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 8,
+              backgroundColor: statusColors[issue.status] + '20',
+              borderWidth: 1,
+              borderColor: statusColors[issue.status] + '40',
+            }}>
+              <Text style={[Typography.small, { 
+                color: statusColors[issue.status],
+                fontSize: 10,
+                fontFamily: 'Nunito_600SemiBold',
+                textTransform: 'uppercase',
+              }]}>
+                {issue.status === 'in_progress' ? 'in progress' : issue.status}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Cost */}
+        {issue.cost && (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[Typography.h2, { color: Colors.primary }]}>
+              ${issue.cost.toFixed(2)}
+            </Text>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+              {issue.status === 'resolved' ? 'actual' : 'estimated'}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const SnapshotCard = ({ snapshot, vehicle }) => {
+  const conditionColors = {
+    excellent: Colors.success || '#10B981',
+    good: Colors.primary,
+    fair: Colors.warning || '#EAB308',
+    poor: Colors.danger || '#EF4444',
+  };
+  const conditionEmojis = { excellent: '✨', good: '👍', fair: '👌', poor: '⚠️' };
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.md, borderLeftWidth: 3, borderLeftColor: conditionColors[snapshot.condition] || Colors.primary }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{
+          backgroundColor: Colors.primary + '20',
+          borderRadius: 24,
+          padding: 12,
+          marginRight: Spacing.md,
+          borderWidth: 1,
+          borderColor: Colors.primary + '30',
+        }}>
+          <Text style={{ fontSize: 20 }}>📸</Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            {snapshot.title}
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+            {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
+            {' · '}{snapshot.odometer?.toLocaleString()} mi
+          </Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm }}>
+            <View style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 8,
+              backgroundColor: conditionColors[snapshot.condition] + '20',
+              borderWidth: 1,
+              borderColor: conditionColors[snapshot.condition] + '40',
+            }}>
+              <Text style={[Typography.small, {
+                color: conditionColors[snapshot.condition],
+                fontSize: 10,
+                fontFamily: 'Nunito_600SemiBold',
+              }]}>
+                {conditionEmojis[snapshot.condition]} {snapshot.condition}
+              </Text>
+            </View>
+            {snapshot.openIssuesCount > 0 && (
+              <Text style={[Typography.small, { color: Colors.danger }]}>
+                {snapshot.openIssuesCount} open issue{snapshot.openIssuesCount !== 1 ? 's' : ''}
+              </Text>
+            )}
+            {snapshot.totalSpent > 0 && (
+              <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                ${snapshot.totalSpent.toFixed(0)} spent
+              </Text>
+            )}
+          </View>
+
+          {snapshot.notes && (
+            <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: Spacing.sm }]} numberOfLines={2}>
+              {snapshot.notes}
+            </Text>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const EmptyState = ({ onLogService }) => (
   <View style={{
     flex: 1,
@@ -266,15 +538,19 @@ const SORT_OPTIONS = [
 export default function TimelineScreen() {
   const [services, setServices] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [issues, setIssues] = useState([]);
+  const [snapshots, setSnapshots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
   const [showEditServiceModal, setShowEditServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [fuelLogs, setFuelLogs] = useState([]);
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState(new Set());
   const [sortMode, setSortMode] = useState('newest'); // newest | oldest | expensive
+  const [selectedVehicleId, setSelectedVehicleId] = useState('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -285,13 +561,19 @@ export default function TimelineScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [allServices, allVehicles] = await Promise.all([
+      const [allServices, allVehicles, allFuelLogs, allIssues, allSnapshots] = await Promise.all([
         ServiceStorage.getAll(),
         VehicleStorage.getAll(),
+        FuelStorage.getAll(),
+        IssueStorage.getAll(),
+        SnapshotStorage.getAll(),
       ]);
       
       setServices(allServices);
       setVehicles(allVehicles);
+      setFuelLogs(allFuelLogs);
+      setIssues(allIssues);
+      setSnapshots(allSnapshots);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -335,12 +617,20 @@ export default function TimelineScreen() {
     const query = searchQuery.trim().toLowerCase();
 
     let result = services.filter(s => {
+      // Vehicle filter
+      if (selectedVehicleId !== 'all' && s.vehicleId !== selectedVehicleId) {
+        return false;
+      }
+
       // Search query
       if (query) {
+        const vehicle = vehicles.find(v => v.id === s.vehicleId);
+        const vehicleName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.nickname || ''}` : '';
         const searchable = [
           s.serviceType,
           s.vendor,
           s.notes,
+          vehicleName,
         ].filter(Boolean).join(' ').toLowerCase();
         if (!searchable.includes(query)) return false;
       }
@@ -377,10 +667,22 @@ export default function TimelineScreen() {
     return result;
   }, [services, searchQuery, activeFilters, sortMode]);
 
-  // Group filtered services by month
-  const groupedServices = useMemo(() => {
-    return filteredServices.reduce((groups, service) => {
-      const date = new Date(service.date);
+  // Merge services, fuel logs, issues, and snapshots into unified timeline entries
+  const allTimelineEntries = useMemo(() => {
+    const serviceEntries = filteredServices.map(s => ({ ...s, _type: 'service' }));
+    const fuelEntries = fuelLogs.filter(f => selectedVehicleId === 'all' || f.vehicleId === selectedVehicleId)
+                               .map(f => ({ ...f, _type: 'fuel', cost: f.totalCost || 0 }));
+    const issueEntries = issues.filter(i => selectedVehicleId === 'all' || i.vehicleId === selectedVehicleId)
+                               .map(i => ({ ...i, _type: 'issue', cost: i.cost || 0 }));
+    const snapshotEntries = snapshots.filter(s => selectedVehicleId === 'all' || s.vehicleId === selectedVehicleId)
+                                     .map(s => ({ ...s, _type: 'snapshot', cost: 0 }));
+    return [...serviceEntries, ...fuelEntries, ...issueEntries, ...snapshotEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [filteredServices, fuelLogs, issues, snapshots, selectedVehicleId]);
+
+  // Group by month
+  const groupedEntries = useMemo(() => {
+    return allTimelineEntries.reduce((groups, entry) => {
+      const date = new Date(entry.date);
       const monthKey = date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -390,13 +692,17 @@ export default function TimelineScreen() {
         groups[monthKey] = [];
       }
       
-      groups[monthKey].push(service);
+      groups[monthKey].push(entry);
       return groups;
     }, {});
-  }, [filteredServices]);
+  }, [allTimelineEntries]);
 
-  const totalCostAll = services.reduce((sum, s) => sum + (s.cost || 0), 0);
-  const totalCostFiltered = filteredServices.reduce((sum, s) => sum + (s.cost || 0), 0);
+  const totalCostAll = services.reduce((sum, s) => sum + (s.cost || 0), 0)
+    + fuelLogs.reduce((sum, f) => sum + (f.totalCost || 0), 0)
+    + issues.reduce((sum, i) => sum + (i.cost || 0), 0)
+    + snapshots.reduce((sum, s) => sum + 0, 0); // snapshots don't have cost
+  // Snapshots don't have cost, they're just point-in-time records
+  const totalCostFiltered = allTimelineEntries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0);
 
   const handleLogService = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -427,7 +733,7 @@ export default function TimelineScreen() {
     );
   }
 
-  if (services.length === 0) {
+  if (services.length === 0 && fuelLogs.length === 0) {
     return (
       <View style={Shared.container}>
         <EmptyState onLogService={handleLogService} />
@@ -444,12 +750,12 @@ export default function TimelineScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-              {hasActiveFilters
-                ? `${filteredServices.length} of ${services.length} services`
-                : `${services.length} services logged`}
+              {hasActiveFilters || selectedVehicleId !== 'all'
+                ? `${allTimelineEntries.length} of ${services.length + fuelLogs.length + issues.length + snapshots.length} entries`
+                : `${services.length + fuelLogs.length + issues.length + snapshots.length} entries logged`}
             </Text>
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              {hasActiveFilters
+              {hasActiveFilters || selectedVehicleId !== 'all'
                 ? `filtered results`
                 : `across ${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''}`}
             </Text>
@@ -463,11 +769,20 @@ export default function TimelineScreen() {
               ${totalCostFiltered.toFixed(0)}
             </Text>
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              {hasActiveFilters ? `of $${totalCostAll.toFixed(0)}` : 'total spent'}
+              {hasActiveFilters || selectedVehicleId !== 'all' ? `of $${totalCostAll.toFixed(0)}` : 'total spent'}
             </Text>
           </View>
         </View>
       </View>
+
+      {/* Vehicle Filter */}
+      {vehicles.length > 1 && (
+        <VehicleFilterChips
+          vehicles={vehicles}
+          selectedVehicleId={selectedVehicleId}
+          onVehicleSelect={setSelectedVehicleId}
+        />
+      )}
 
       {/* Search Bar */}
       <View style={{ marginBottom: Spacing.sm }}>
@@ -552,11 +867,11 @@ export default function TimelineScreen() {
       </View>
 
       {/* Results */}
-      {filteredServices.length === 0 ? (
+      {allTimelineEntries.length === 0 ? (
         <View style={{ alignItems: 'center', paddingTop: Spacing.section }}>
           <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
           <Text style={[Typography.body, { color: Colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
-            No services match your filters
+            No entries match your filters
           </Text>
         </View>
       ) : (
@@ -564,15 +879,51 @@ export default function TimelineScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {Object.entries(groupedServices).map(([month, monthServices]) => (
-            <MonthSection
-              key={month}
-              month={month}
-              services={monthServices}
-              vehicles={vehicles}
-              onEditService={handleEditService}
-            />
-          ))}
+          {Object.entries(groupedEntries).map(([month, entries]) => {
+            const monthCost = entries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0);
+            return (
+              <View key={month} style={{ marginBottom: Spacing.section }}>
+                <View style={{
+                  flexDirection: 'row', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: Spacing.md,
+                  backgroundColor: Colors.background + 'E6',
+                  paddingVertical: Spacing.sm,
+                  paddingHorizontal: Spacing.horizontal,
+                  marginHorizontal: -Spacing.horizontal,
+                }}>
+                  <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+                    {month}
+                  </Text>
+                  {monthCost > 0 && (
+                    <Text style={[Typography.h2, { color: Colors.success }]}>
+                      ${monthCost.toFixed(0)}
+                    </Text>
+                  )}
+                </View>
+                
+                {entries.map((entry) => {
+                  const vehicle = vehicles.find(v => v.id === entry.vehicleId);
+                  if (entry._type === 'fuel') {
+                    return <FuelCard key={entry.id} fuelLog={entry} vehicle={vehicle} />;
+                  } else if (entry._type === 'issue') {
+                    return <IssueCard key={entry.id} issue={entry} vehicle={vehicle} />;
+                  } else if (entry._type === 'snapshot') {
+                    return <SnapshotCard key={entry.id} snapshot={entry} vehicle={vehicle} />;
+                  }
+                  return (
+                    <ServiceCard
+                      key={entry.id}
+                      service={entry}
+                      vehicle={vehicle}
+                      onEdit={handleEditService}
+                    />
+                  );
+                })}
+              </View>
+            );
+          })}
         </ScrollView>
       )}
 

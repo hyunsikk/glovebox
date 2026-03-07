@@ -60,7 +60,7 @@ const WelcomeScreen = ({ onNext }) => {
         marginBottom: Spacing.lg,
         color: Colors.textPrimary,
       }]}>
-        welcome to glovebox
+        welcome to car story
       </Text>
       
       <Text style={[Typography.body, { 

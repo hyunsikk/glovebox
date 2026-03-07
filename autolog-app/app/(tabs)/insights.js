@@ -6,10 +6,67 @@ import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { VehicleStorage, ServiceStorage, DataUtils } from '../../lib/storage';
+import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
-import AdBanner from '../../components/AdBanner';
-import { ProLockedCard } from '../../components/ProGate';
+
+
+const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => (
+  <ScrollView 
+    horizontal 
+    showsHorizontalScrollIndicator={false}
+    contentContainerStyle={{ paddingHorizontal: Spacing.horizontal, paddingBottom: Spacing.lg }}
+  >
+    <TouchableOpacity
+      key="all"
+      style={{
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: 20,
+        backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
+        borderWidth: 1,
+        borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
+        marginRight: Spacing.sm,
+      }}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onVehicleSelect('all');
+      }}
+      activeOpacity={0.8}
+    >
+      <Text style={[Typography.body, { 
+        color: selectedVehicleId === 'all' ? Colors.pearlWhite : Colors.textSecondary 
+      }]}>
+        All Vehicles
+      </Text>
+    </TouchableOpacity>
+    
+    {vehicles.map((vehicle) => (
+      <TouchableOpacity
+        key={vehicle.id}
+        style={{
+          paddingHorizontal: Spacing.lg,
+          paddingVertical: Spacing.sm,
+          borderRadius: 20,
+          backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
+          borderWidth: 1,
+          borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
+          marginRight: Spacing.sm,
+        }}
+        onPress={() => {
+          Haptics.selectionAsync();
+          onVehicleSelect(vehicle.id);
+        }}
+        activeOpacity={0.8}
+      >
+        <Text style={[Typography.body, { 
+          color: selectedVehicleId === vehicle.id ? Colors.pearlWhite : Colors.textSecondary 
+        }]}>
+          {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+);
 
 const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, trend = null }) => (
   <View style={[Shared.card, { flex: 1, marginRight: Spacing.md, position: 'relative' }]}>
@@ -257,17 +314,108 @@ const EmptyState = () => (
 
 export default function InsightsScreen() {
   const [vehicles, setVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('all');
   const [fleetSummary, setFleetSummary] = useState(null);
+  const [fuelStats, setFuelStats] = useState({ totalCost: 0, totalGallons: 0, totalKWh: 0, count: 0 });
   const [monthlyTrends, setMonthlyTrends] = useState([]);
   const [costPredictions, setCostPredictions] = useState([]);
   const [vehicleInsights, setVehicleInsights] = useState([]);
+  const [mpgTrends, setMpgTrends] = useState([]);
+  const [fuelCostMonthly, setFuelCostMonthly] = useState([]);
+  const [milesDrivenMonthly, setMilesDrivenMonthly] = useState([]);
+  const [maintenanceVsFuel, setMaintenanceVsFuel] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       loadInsights();
-    }, [])
+    }, [selectedVehicleId])
   );
+
+  const calculateNewTrends = async (vehicleList, allFuelLogs) => {
+    try {
+      // Filter data based on selected vehicle
+      const filterByVehicle = (items) => {
+        if (selectedVehicleId === 'all') return items;
+        return items.filter(item => item.vehicleId === selectedVehicleId);
+      };
+
+      const filteredFuelLogs = filterByVehicle(allFuelLogs).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const allServices = await ServiceStorage.getAll();
+      const filteredServices = filterByVehicle(allServices);
+
+      // 1. MPG over time (last 10 fill-ups)
+      const mpgData = [];
+      for (let i = 1; i < filteredFuelLogs.length && mpgData.length < 10; i++) {
+        const current = filteredFuelLogs[i];
+        const previous = filteredFuelLogs[i - 1];
+        
+        if (current.fullTank && previous.fullTank && current.odometer && previous.odometer && current.gallons) {
+          const milesDriven = current.odometer - previous.odometer;
+          const mpg = milesDriven / current.gallons;
+          if (mpg > 0 && mpg < 100) { // Filter out unrealistic values
+            mpgData.push({
+              date: new Date(current.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              value: parseFloat(mpg.toFixed(1)),
+            });
+          }
+        }
+      }
+      setMpgTrends(mpgData.slice(-10)); // Last 10 entries
+
+      // 2. Fuel cost per month (last 6 months)
+      const fuelByMonth = {};
+      filteredFuelLogs.forEach(log => {
+        const monthKey = new Date(log.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        fuelByMonth[monthKey] = (fuelByMonth[monthKey] || 0) + (log.totalCost || 0);
+      });
+      const fuelCostData = Object.entries(fuelByMonth)
+        .map(([month, cost]) => ({ month, cost: parseFloat(cost.toFixed(2)) }))
+        .slice(-6);
+      setFuelCostMonthly(fuelCostData);
+
+      // 3. Miles driven per month (last 6 months)
+      const milesByMonth = {};
+      const sortedFuelLogs = [...filteredFuelLogs].sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      for (let i = 1; i < sortedFuelLogs.length; i++) {
+        const current = sortedFuelLogs[i];
+        const previous = sortedFuelLogs[i - 1];
+        
+        if (current.odometer && previous.odometer) {
+          const monthKey = new Date(current.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+          const miles = current.odometer - previous.odometer;
+          if (miles > 0 && miles < 5000) { // Filter out unrealistic values
+            milesByMonth[monthKey] = (milesByMonth[monthKey] || 0) + miles;
+          }
+        }
+      }
+      const milesDrivenData = Object.entries(milesByMonth)
+        .map(([month, miles]) => ({ month, value: Math.round(miles) }))
+        .slice(-6);
+      setMilesDrivenMonthly(milesDrivenData);
+
+      // 4. Maintenance vs Fuel spending (last 6 months)
+      const maintenanceByMonth = {};
+      filteredServices.forEach(service => {
+        const monthKey = new Date(service.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        maintenanceByMonth[monthKey] = (maintenanceByMonth[monthKey] || 0) + (service.cost || 0);
+      });
+
+      const allMonths = new Set([...Object.keys(maintenanceByMonth), ...Object.keys(fuelByMonth)]);
+      const comparisonData = Array.from(allMonths)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .slice(-6)
+        .map(month => ({
+          month,
+          maintenance: parseFloat((maintenanceByMonth[month] || 0).toFixed(2)),
+          fuel: parseFloat((fuelByMonth[month] || 0).toFixed(2)),
+        }));
+      setMaintenanceVsFuel(comparisonData);
+    } catch (error) {
+      console.error('Error calculating new trends:', error);
+    }
+  };
 
   const loadInsights = async () => {
     try {
@@ -310,6 +458,23 @@ export default function InsightsScreen() {
       );
       
       setVehicleInsights(insights);
+
+      // Load fuel stats
+      const allFuelLogs = await FuelStorage.getAll();
+      const fStats = allFuelLogs.reduce((acc, log) => {
+        acc.totalCost += log.totalCost || 0;
+        acc.count += 1;
+        if (log.type === 'ev_charge') {
+          acc.totalKWh += log.kWh || 0;
+        } else {
+          acc.totalGallons += log.gallons || 0;
+        }
+        return acc;
+      }, { totalCost: 0, totalGallons: 0, totalKWh: 0, count: 0 });
+      setFuelStats(fStats);
+
+      // Calculate new trend data
+      await calculateNewTrends(vehicleList, allFuelLogs);
     } catch (error) {
       console.error('Error loading insights:', error);
     } finally {
@@ -336,7 +501,7 @@ export default function InsightsScreen() {
         totalServices: servicesData.length,
       };
 
-      const fileName = `glovebox-export-${new Date().toISOString().split('T')[0]}.json`;
+      const fileName = `carstory-export-${new Date().toISOString().split('T')[0]}.json`;
       const jsonString = JSON.stringify(exportData, null, 2);
 
       if (Platform.OS === 'web') {
@@ -366,7 +531,7 @@ export default function InsightsScreen() {
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri, {
             mimeType: 'application/json',
-            dialogTitle: 'Export Glovebox Data',
+            dialogTitle: 'Export Car Story Data',
           });
         } else {
           Alert.alert(
@@ -425,6 +590,17 @@ export default function InsightsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.lg, paddingBottom: 100 }}
       >
+        {/* Vehicle Filter */}
+        {vehicles.length > 1 && (
+          <View style={{ marginBottom: Spacing.lg }}>
+            <VehicleFilterChips
+              vehicles={vehicles}
+              selectedVehicleId={selectedVehicleId}
+              onVehicleSelect={setSelectedVehicleId}
+            />
+          </View>
+        )}
+
         {/* Key Metrics Row */}
         <View style={{ flexDirection: 'row', marginBottom: Spacing.lg }}>
           <MetricCard
@@ -462,6 +638,31 @@ export default function InsightsScreen() {
           />
         </View>
 
+        {/* Fuel Stats Row */}
+        {fuelStats.count > 0 && (
+          <View style={{ flexDirection: 'row', marginBottom: Spacing.lg }}>
+            <MetricCard
+              title="fuel spent"
+              value={`$${fuelStats.totalCost.toFixed(0)}`}
+              subtitle={`${fuelStats.count} fill-up${fuelStats.count !== 1 ? 's' : ''}`}
+              icon="flame-outline"
+              color={Colors.warning}
+            />
+            
+            <MetricCard
+              title={fuelStats.totalKWh > 0 ? 'energy' : 'gallons'}
+              value={fuelStats.totalKWh > 0
+                ? `${fuelStats.totalKWh.toFixed(0)} kWh`
+                : `${fuelStats.totalGallons.toFixed(1)}`}
+              subtitle={fuelStats.totalGallons > 0
+                ? `avg $${(fuelStats.totalCost / fuelStats.totalGallons).toFixed(2)}/gal`
+                : `avg $${(fuelStats.totalCost / (fuelStats.totalKWh || 1)).toFixed(2)}/kWh`}
+              icon={fuelStats.totalKWh > 0 ? 'flash-outline' : 'water-outline'}
+              color={fuelStats.totalKWh > 0 ? Colors.success : Colors.steelBlue}
+            />
+          </View>
+        )}
+
         {/* Monthly Spending Chart */}
         <ChartCard
           title="monthly spending"
@@ -469,8 +670,98 @@ export default function InsightsScreen() {
           type="bar"
         />
 
-        {/* Ad Banner */}
-        <AdBanner />
+        {/* MPG Over Time */}
+        {mpgTrends.length > 0 && (
+          <ChartCard
+            title="fuel efficiency (MPG)"
+            data={mpgTrends.map(item => ({ month: item.date, value: item.value }))}
+            type="line"
+          />
+        )}
+
+        {/* Fuel Cost Per Month */}
+        {fuelCostMonthly.length > 0 && (
+          <ChartCard
+            title="fuel cost per month"
+            data={fuelCostMonthly}
+            type="bar"
+          />
+        )}
+
+        {/* Miles Driven Per Month */}
+        {milesDrivenMonthly.length > 0 && (
+          <ChartCard
+            title="miles driven per month"
+            data={milesDrivenMonthly}
+            type="bar"
+          />
+        )}
+
+        {/* Maintenance vs Fuel Spending */}
+        {maintenanceVsFuel.length > 0 && (
+          <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg }}>
+              <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+                maintenance vs fuel
+              </Text>
+            </View>
+
+            <View style={{ 
+              height: 160,
+              backgroundColor: Colors.surface1 + '40', 
+              borderRadius: 12, 
+              padding: Spacing.sm,
+            }}>
+              <View style={{ flexDirection: 'row', height: '100%', alignItems: 'flex-end', justifyContent: 'space-around' }}>
+                {maintenanceVsFuel.map((item, i) => {
+                  const maxValue = Math.max(...maintenanceVsFuel.flatMap(d => [d.maintenance, d.fuel]));
+                  const maintenanceHeight = (item.maintenance / maxValue) * 100;
+                  const fuelHeight = (item.fuel / maxValue) * 100;
+                  
+                  return (
+                    <View key={i} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2, marginBottom: 4 }}>
+                        {/* Maintenance bar */}
+                        <View style={{
+                          width: 12,
+                          height: `${maintenanceHeight}%`,
+                          backgroundColor: Colors.warning,
+                          borderRadius: 4,
+                          minHeight: item.maintenance > 0 ? 8 : 0,
+                        }} />
+                        {/* Fuel bar */}
+                        <View style={{
+                          width: 12,
+                          height: `${fuelHeight}%`,
+                          backgroundColor: Colors.primary,
+                          borderRadius: 4,
+                          minHeight: item.fuel > 0 ? 8 : 0,
+                        }} />
+                      </View>
+                      <Text style={[Typography.small, { color: Colors.textTertiary, fontSize: 9, textAlign: 'center' }]}>
+                        {item.month.split(' ')[0]}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Legend */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.md, gap: Spacing.lg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: Colors.warning, marginRight: 4 }} />
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>Maintenance</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: Colors.primary, marginRight: 4 }} />
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>Fuel</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Removed Ad Banner */}
 
         {/* Individual Vehicle Health */}
         <Text style={[Typography.h1, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
@@ -485,44 +776,6 @@ export default function InsightsScreen() {
             dueSoonServices={insight.dueSoonServices}
           />
         ))}
-
-        {/* Quick Stats */}
-        <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
-          <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
-            quick stats
-          </Text>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              vehicles tracked
-            </Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              {fleetSummary?.totalVehicles || 0}
-            </Text>
-          </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              needing attention
-            </Text>
-            <Text style={[Typography.body, { 
-              color: vehicleInsights.filter(v => v.overdueServices.length > 0).length > 0 ? Colors.danger : Colors.success 
-            }]}>
-              {vehicleInsights.filter(v => v.overdueServices.length > 0).length} vehicle{vehicleInsights.filter(v => v.overdueServices.length > 0).length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={[Typography.body, { color: Colors.textSecondary }]}>
-              total miles tracked
-            </Text>
-            <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              {vehicles.reduce((sum, v) => 
-                sum + (v.currentMileage || 0), 0
-              ).toLocaleString()}
-            </Text>
-          </View>
-        </View>
 
         {/* Data Export */}
         <View style={[Shared.card, { marginBottom: Spacing.lg }]}>

@@ -1,4 +1,4 @@
-# Glovebox: First 60 Seconds Experience
+# Car Story: First 60 Seconds Experience
 
 ## The Magic Moment: Setup-Free Value
 

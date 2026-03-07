@@ -5,7 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { VehicleStorage, ServiceStorage } from '../../lib/storage';
+import { VehicleStorage, ServiceStorage, IssueStorage } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { addSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
@@ -18,6 +18,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
   const [overdueServices, setOverdueServices] = useState([]);
   const [dueSoonServices, setDueSoonServices] = useState([]);
   const [nextService, setNextService] = useState(null);
+  const [openIssuesCount, setOpenIssuesCount] = useState(0);
   const scaleValue = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
@@ -33,6 +34,10 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
       setOverdueServices(overdue);
       setDueSoonServices(dueSoon);
       setNextService(upcoming[0] || null);
+
+      // Load open issues count
+      const openIssues = await IssueStorage.getOpenByVehicleId(vehicle.id);
+      setOpenIssuesCount(openIssues.length);
     } catch (error) {
       console.error('Error loading vehicle data:', error);
     }
@@ -184,6 +189,40 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
                 borderColor: Colors.glassBorder,
               }}
             />
+          )}
+
+          {/* Open Issues Badge */}
+          {openIssuesCount > 0 && (
+            <View style={{ 
+              marginLeft: Spacing.sm,
+              alignItems: 'center',
+              backgroundColor: '#EF4444' + '15',
+              borderRadius: 12,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderWidth: 1,
+              borderColor: '#EF4444' + '30',
+              minWidth: 32,
+            }}>
+              <Text style={{
+                fontFamily: 'Nunito_700Bold',
+                fontSize: 12,
+                color: '#EF4444',
+                lineHeight: 14,
+              }}>
+                🚨
+              </Text>
+              <Text style={{
+                fontFamily: 'Nunito_600SemiBold',
+                fontSize: 8,
+                color: '#EF4444',
+                lineHeight: 10,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+              }}>
+                {openIssuesCount} issue{openIssuesCount !== 1 ? 's' : ''}
+              </Text>
+            </View>
           )}
           
           {/* Service Status Badge */}
@@ -396,9 +435,7 @@ export default function GarageScreen() {
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [fabOpen, setFabOpen] = useState(false);
-  const fabRotation = useState(new Animated.Value(0))[0];
-  const menuSlide = useState(new Animated.Value(0))[0];
+  // Removed FAB multi-action state - now simple Add Vehicle button
 
   useFocusEffect(
     useCallback(() => {
@@ -459,27 +496,9 @@ export default function GarageScreen() {
     }
   };
 
-  const toggleFab = () => {
-    const toValue = fabOpen ? 0 : 1;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Animated.parallel([
-      Animated.spring(fabRotation, { toValue, tension: 300, friction: 15, useNativeDriver: true }),
-      Animated.spring(menuSlide, { toValue, tension: 300, friction: 15, useNativeDriver: true }),
-    ]).start();
-    setFabOpen(!fabOpen);
-  };
-
-  const closeFab = () => {
-    if (!fabOpen) return;
-    Animated.parallel([
-      Animated.spring(fabRotation, { toValue: 0, tension: 300, friction: 15, useNativeDriver: true }),
-      Animated.spring(menuSlide, { toValue: 0, tension: 300, friction: 15, useNativeDriver: true }),
-    ]).start();
-    setFabOpen(false);
-  };
+  // Removed FAB toggle logic - now simple button
 
   const handleAddVehicle = () => {
-    closeFab();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setShowAddVehicleModal(true);
   };
@@ -530,11 +549,7 @@ export default function GarageScreen() {
     loadVehicles();
   };
 
-  const handleLogServiceFromFAB = () => {
-    closeFab();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowLogServiceModal(true);
-  };
+  // Removed handleLogServiceFromFAB - no longer needed
 
   const [preselectedServiceType, setPreselectedServiceType] = useState(null);
 
@@ -604,81 +619,9 @@ export default function GarageScreen() {
         ))}
       </ScrollView>
 
-      {/* FAB Menu Backdrop */}
-      {fabOpen && (
-        <TouchableOpacity
-          style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.4)',
-          }}
-          activeOpacity={1}
-          onPress={closeFab}
-        />
-      )}
+      {/* Simplified FAB - Add Vehicle only */}
 
-      {/* FAB Menu Items */}
-      {fabOpen && (
-        <View style={{ position: 'absolute', bottom: 88, right: 20, alignItems: 'flex-end' }}>
-          <Animated.View style={{
-            opacity: menuSlide,
-            transform: [{ translateY: menuSlide.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-            marginBottom: Spacing.md,
-          }}>
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: Colors.surface2,
-                paddingHorizontal: Spacing.lg,
-                paddingVertical: Spacing.md,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: Colors.glassBorder,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 6,
-              }}
-              onPress={handleLogServiceFromFAB}
-              activeOpacity={0.9}
-            >
-              <Ionicons name="build-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
-              <Text style={[Typography.body, { color: Colors.textPrimary }]}>Log Service</Text>
-            </TouchableOpacity>
-          </Animated.View>
-          <Animated.View style={{
-            opacity: menuSlide,
-            transform: [{ translateY: menuSlide.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-          }}>
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: Colors.surface2,
-                paddingHorizontal: Spacing.lg,
-                paddingVertical: Spacing.md,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: Colors.glassBorder,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.2,
-                shadowRadius: 8,
-                elevation: 6,
-              }}
-              onPress={handleAddVehicle}
-              activeOpacity={0.9}
-            >
-              <Ionicons name="car-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
-              <Text style={[Typography.body, { color: Colors.textPrimary }]}>Add Vehicle</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      )}
-
-      {/* FAB Button */}
+      {/* FAB Button - Add Vehicle */}
       <TouchableOpacity
         style={{
           position: 'absolute',
@@ -698,14 +641,10 @@ export default function GarageScreen() {
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}
-        onPress={toggleFab}
+        onPress={handleAddVehicle}
         activeOpacity={0.9}
       >
-        <Animated.View style={{
-          transform: [{ rotate: fabRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }],
-        }}>
-          <Ionicons name="add" size={28} color={Colors.textPrimary} />
-        </Animated.View>
+        <Ionicons name="add" size={28} color={Colors.textPrimary} />
       </TouchableOpacity>
 
       <AddVehicleModal

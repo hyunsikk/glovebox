@@ -6,6 +6,9 @@ const STORAGE_KEYS = {
   USER_SETTINGS: '@autolog_user_settings',
   IMAGES: '@autolog_images',
   DOCUMENTS: '@autolog_documents',
+  FUEL_LOGS: '@autolog_fuel_logs',
+  ISSUES: '@autolog_issues',
+  SNAPSHOTS: '@autolog_snapshots',
 };
 
 // Utility functions
@@ -82,9 +85,19 @@ export const VehicleStorage = {
       
       await AsyncStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(filteredVehicles));
       
-      // Also delete all services and images for this vehicle
+      // Also delete all services, images, issues, and snapshots for this vehicle
       await ServiceStorage.deleteByVehicleId(vehicleId);
       await ImageStorage.deleteByVehicleId(vehicleId);
+      
+      // Delete all issues for this vehicle
+      const issues = await IssueStorage.getAll();
+      const filteredIssues = issues.filter(i => i.vehicleId !== vehicleId);
+      await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(filteredIssues));
+
+      // Delete all snapshots for this vehicle
+      const snapshots = await SnapshotStorage.getAll();
+      const filteredSnapshots = snapshots.filter(s => s.vehicleId !== vehicleId);
+      await AsyncStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(filteredSnapshots));
       
       return true;
     } catch (error) {
@@ -409,6 +422,255 @@ export const ImageStorage = {
   },
 };
 
+// Fuel / Charging Log Storage
+export const FuelStorage = {
+  getAll: async () => {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.FUEL_LOGS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting fuel logs:', error);
+      return [];
+    }
+  },
+
+  add: async (logData) => {
+    try {
+      const logs = await FuelStorage.getAll();
+      const newLog = {
+        id: generateId(),
+        ...logData,
+        createdAt: getCurrentDate(),
+        updatedAt: getCurrentDate(),
+      };
+      logs.push(newLog);
+      await AsyncStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(logs));
+      return newLog;
+    } catch (error) {
+      console.error('Error adding fuel log:', error);
+      throw error;
+    }
+  },
+
+  update: async (id, updates) => {
+    try {
+      const logs = await FuelStorage.getAll();
+      const index = logs.findIndex(l => l.id === id);
+      if (index === -1) throw new Error('Fuel log not found');
+      logs[index] = { ...logs[index], ...updates, updatedAt: getCurrentDate() };
+      await AsyncStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(logs));
+      return logs[index];
+    } catch (error) {
+      console.error('Error updating fuel log:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const logs = await FuelStorage.getAll();
+      const filtered = logs.filter(l => l.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error deleting fuel log:', error);
+      throw error;
+    }
+  },
+
+  getByVehicleId: async (vehicleId) => {
+    try {
+      const logs = await FuelStorage.getAll();
+      return logs
+        .filter(l => l.vehicleId === vehicleId)
+        .sort((a, b) => b.odometer - a.odometer);
+    } catch (error) {
+      console.error('Error getting fuel logs by vehicle:', error);
+      return [];
+    }
+  },
+
+  // Calculate MPG between consecutive full-tank fill-ups
+  calculateMPG: async (vehicleId) => {
+    try {
+      const logs = await FuelStorage.getByVehicleId(vehicleId);
+      const fullTankLogs = logs
+        .filter(l => l.type === 'fuel' && l.fullTank)
+        .sort((a, b) => a.odometer - b.odometer);
+
+      const results = [];
+      for (let i = 1; i < fullTankLogs.length; i++) {
+        const miles = fullTankLogs[i].odometer - fullTankLogs[i - 1].odometer;
+        const gallons = fullTankLogs[i].gallons;
+        if (gallons > 0 && miles > 0) {
+          results.push({
+            date: fullTankLogs[i].date,
+            mpg: Math.round((miles / gallons) * 10) / 10,
+            miles,
+            gallons,
+            costPerMile: fullTankLogs[i].totalCost / miles,
+          });
+        }
+      }
+      return results;
+    } catch (error) {
+      console.error('Error calculating MPG:', error);
+      return [];
+    }
+  },
+};
+
+// Issue Storage Functions
+export const IssueStorage = {
+  getAll: async () => {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.ISSUES);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting issues:', error);
+      return [];
+    }
+  },
+
+  add: async (issueData) => {
+    try {
+      const issues = await IssueStorage.getAll();
+      const newIssue = {
+        id: generateId(),
+        ...issueData,
+        status: issueData.status || 'open',
+        createdAt: getCurrentDate(),
+        updatedAt: getCurrentDate(),
+      };
+      issues.push(newIssue);
+      await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(issues));
+      return newIssue;
+    } catch (error) {
+      console.error('Error adding issue:', error);
+      throw error;
+    }
+  },
+
+  update: async (id, updates) => {
+    try {
+      const issues = await IssueStorage.getAll();
+      const index = issues.findIndex(i => i.id === id);
+      if (index === -1) throw new Error('Issue not found');
+      
+      const updatedIssue = {
+        ...issues[index],
+        ...updates,
+        updatedAt: getCurrentDate(),
+      };
+      
+      // Set resolvedDate when status changes to resolved
+      if (updates.status === 'resolved' && issues[index].status !== 'resolved') {
+        updatedIssue.resolvedDate = getCurrentDate();
+      }
+      // Clear resolvedDate if status changes away from resolved
+      else if (updates.status && updates.status !== 'resolved') {
+        updatedIssue.resolvedDate = undefined;
+        updatedIssue.resolvedServiceId = undefined;
+      }
+      
+      issues[index] = updatedIssue;
+      await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(issues));
+      return updatedIssue;
+    } catch (error) {
+      console.error('Error updating issue:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const issues = await IssueStorage.getAll();
+      const filtered = issues.filter(i => i.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error deleting issue:', error);
+      throw error;
+    }
+  },
+
+  getByVehicleId: async (vehicleId) => {
+    try {
+      const issues = await IssueStorage.getAll();
+      return issues
+        .filter(i => i.vehicleId === vehicleId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    } catch (error) {
+      console.error('Error getting issues by vehicle:', error);
+      return [];
+    }
+  },
+
+  getOpenByVehicleId: async (vehicleId) => {
+    try {
+      const issues = await IssueStorage.getByVehicleId(vehicleId);
+      return issues.filter(i => i.status === 'open' || i.status === 'in_progress');
+    } catch (error) {
+      console.error('Error getting open issues by vehicle:', error);
+      return [];
+    }
+  },
+};
+
+// Snapshot Storage Functions
+export const SnapshotStorage = {
+  getAll: async () => {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SNAPSHOTS);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Error getting snapshots:', error);
+      return [];
+    }
+  },
+
+  add: async (snapshotData) => {
+    try {
+      const snapshots = await SnapshotStorage.getAll();
+      const newSnapshot = {
+        id: generateId(),
+        ...snapshotData,
+        createdAt: getCurrentDate(),
+      };
+      snapshots.push(newSnapshot);
+      await AsyncStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots));
+      return newSnapshot;
+    } catch (error) {
+      console.error('Error adding snapshot:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const snapshots = await SnapshotStorage.getAll();
+      const filtered = snapshots.filter(s => s.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error deleting snapshot:', error);
+      throw error;
+    }
+  },
+
+  getByVehicleId: async (vehicleId) => {
+    try {
+      const snapshots = await SnapshotStorage.getAll();
+      return snapshots
+        .filter(s => s.vehicleId === vehicleId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    } catch (error) {
+      console.error('Error getting snapshots by vehicle:', error);
+      return [];
+    }
+  },
+};
+
 // Document Storage Functions
 export const DocumentStorage = {
   getAll: async () => {
@@ -567,6 +829,9 @@ export default {
   ServiceStorage,
   SettingsStorage,
   ImageStorage,
+  FuelStorage,
+  IssueStorage,
+  SnapshotStorage,
   DocumentStorage,
   DataUtils,
 };

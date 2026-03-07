@@ -1,4 +1,4 @@
-# Glovebox Experience Design
+# Car Story Experience Design
 
 ## Dual Emotional Transformation
 
@@ -18,13 +18,13 @@
 
 ---
 
-## What Makes Glovebox Special
+## What Makes Car Story Special
 
 ### 1. **Instant Intelligence**
 Not another empty tracker that makes you do homework. Enter your car details → immediate manufacturer maintenance schedule appears. Real data, not generic advice.
 
 ### 2. **Predictive Peace of Mind**  
-Stop wondering "when" and "how much." Glovebox learns your patterns and predicts both timing and costs before they surprise you.
+Stop wondering "when" and "how much." Car Story learns your patterns and predicts both timing and costs before they surprise you.
 
 ### 3. **Your Car-Savvy Friend**
 Speaks like someone who actually knows cars. No corporate speak, no chatbot energy. Just clear, confident guidance from someone you trust.

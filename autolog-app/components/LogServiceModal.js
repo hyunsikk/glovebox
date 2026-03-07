@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
 import { pickImageAsync, saveServiceImage, getThumbnailUri } from '../lib/imageUtils';
-import { AdLogic } from '../lib/monetization';
+
 import { getVehicleSchedule } from '../lib/vehicleDB';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -381,12 +381,6 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         });
       }
       
-      // Track for interstitial ad logic
-      const logCount = await AdLogic.incrementServiceLogCount();
-      const showAd = await AdLogic.shouldShowInterstitial();
-      
-      // TODO: When AdMob integrated, show interstitial here if showAd === true
-      // InterstitialAd.show() — natural break after completing a service log
 
       Alert.alert(
         'Service Logged! 🔧',

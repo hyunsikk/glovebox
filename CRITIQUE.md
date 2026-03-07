@@ -1,8 +1,8 @@
-# Glovebox App Critique
+# Car Story App Critique
 
 ## 1. Executive Summary
 
-Glovebox is a competent MVP with a solid foundation — good design system, sensible data model, and a real value proposition around manufacturer maintenance schedules. But it's not worth $29.99/year (or even the $9.99/year shown in the paywall). The analytics are shallow, the "Learn" tab is static filler, service editing doesn't work, and there's no cloud backup. Ship it as a free app with a lower Pro price point, fix the critical issues below, and it could earn its keep.
+Car Story is a competent MVP with a solid foundation — good design system, sensible data model, and a real value proposition around manufacturer maintenance schedules. But it's not worth $29.99/year (or even the $9.99/year shown in the paywall). The analytics are shallow, the "Learn" tab is static filler, service editing doesn't work, and there's no cloud backup. Ship it as a free app with a lower Pro price point, fix the critical issues below, and it could earn its keep.
 
 ---
 
@@ -89,7 +89,7 @@ The component imports `vehicleData from '../content/v1/vehicles.json'` at the to
 - **Widget for upcoming maintenance**
 
 ### Competition Gap Analysis
-| Feature | Glovebox | Drivvo | Simply Auto | Fuelly |
+| Feature | Car Story | Drivvo | Simply Auto | Fuelly |
 |---------|----------|--------|-------------|--------|
 | Cloud sync | ❌ | ✅ | ✅ | ✅ |
 | Fuel tracking | ❌ | ✅ | ✅ | ✅ |
@@ -100,7 +100,7 @@ The component imports `vehicleData from '../content/v1/vehicles.json'` at the to
 | Recall alerts | ❌ | ❌ | ✅ | ❌ |
 | Price | $9.99/yr | Free/$4 | Free/$6 | Free |
 
-Glovebox's only edge is manufacturer maintenance schedules, and Simply Auto already does that plus more at a lower price.
+Car Story's only edge is manufacturer maintenance schedules, and Simply Auto already does that plus more at a lower price.
 
 ---
 

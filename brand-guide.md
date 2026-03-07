@@ -1,4 +1,4 @@
-# Glovebox Brand Guide
+# Car Story Brand Guide
 
 ## Brand Personality
 
@@ -200,7 +200,7 @@ Icons should feel like they belong in a premium car dashboard - clear, purposefu
 
 ## Logo & Brand Mark
 
-### **LogoType: Glovebox**
+### **LogoType: Car Story**
 - **Font:** Nunito Bold
 - **Color:** Pearl White on dark backgrounds, Midnight Navy on light
 - **Icon Integration:** Small automotive accent (wrench, gear) integrated into the 'o'
