@@ -978,11 +978,6 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     }
   };
 
-  const handleTakeSnapshot = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowTakeSnapshotModal(true);
-  };
-
   const handleSnapshotSave = async (snapshotData) => {
     try {
       await SnapshotStorage.add(snapshotData);
@@ -1438,44 +1433,64 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
             {!editMode && (
               <>
-                {/* Action Buttons */}
-                <View style={{ gap: Spacing.md, marginBottom: Spacing.xl }}>
-                  <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-                    <TouchableOpacity
-                      style={[Shared.buttonPrimary, { flex: 1, marginBottom: 0 }]}
-                      onPress={handleLogService}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[Typography.h2, { color: Colors.pearlWhite }]}>
-                        📝 Log Service
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[Shared.buttonSecondary, { flex: 1, marginBottom: 0, borderWidth: 1, borderColor: Colors.primary + '40' }]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        setEditingFuelLog(null);
-                        setShowLogFuelModal(true);
-                      }}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={[Typography.h2, { color: Colors.primary }]}>
-                        ⛽ Log Fill-Up
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                {/* Action Buttons — all 3 in one row */}
+                <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl }}>
                   <TouchableOpacity
-                    style={[Shared.buttonSecondary, { 
-                      marginBottom: 0,
-                      borderWidth: 1, 
-                      borderColor: '#EF4444' + '40',
-                      backgroundColor: '#EF4444' + '10',
-                    }]}
-                    onPress={handleLogIssue}
-                    activeOpacity={0.9}
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.surface1,
+                      borderRadius: 16,
+                      paddingVertical: Spacing.md,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: Colors.primary + '30',
+                    }}
+                    onPress={handleLogService}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[Typography.h2, { color: '#EF4444' }]}>
-                      🚨 Log Issue
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🔧</Text>
+                    <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
+                      Service
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.surface1,
+                      borderRadius: 16,
+                      paddingVertical: Spacing.md,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: Colors.warning + '30',
+                    }}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setEditingFuelLog(null);
+                      setShowLogFuelModal(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>⛽</Text>
+                    <Text style={[Typography.caption, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
+                      Fuel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      backgroundColor: Colors.surface1,
+                      borderRadius: 16,
+                      paddingVertical: Spacing.md,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: '#EF4444' + '30',
+                    }}
+                    onPress={handleLogIssue}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🚨</Text>
+                    <Text style={[Typography.caption, { color: '#EF4444', fontFamily: 'Nunito_600SemiBold' }]}>
+                      Issue
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1854,17 +1869,6 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     <Ionicons name="camera-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
                     <Text style={[Typography.h2, { color: Colors.primary }]}>
                       📸 Take Snapshot
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[Shared.buttonPrimary, { marginBottom: Spacing.md, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
-                    onPress={handleTakeSnapshot}
-                    activeOpacity={0.9}
-                  >
-                    <Text style={{ fontSize: 18, marginRight: Spacing.sm }}>📸</Text>
-                    <Text style={[Typography.h2, { color: Colors.pearlWhite }]}>
-                      Take Snapshot
                     </Text>
                   </TouchableOpacity>
 

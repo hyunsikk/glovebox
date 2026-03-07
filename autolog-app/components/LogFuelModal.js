@@ -33,7 +33,9 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const [kWh, setKWh] = useState('');
   const [costPerKWh, setCostPerKWh] = useState('');
   const [notes, setNotes] = useState('');
-  const [costMode, setCostMode] = useState('per_unit'); // 'per_unit' or 'total'
+  const [costMode, setCostMode] = useState('per_unit');
+  const [octane, setOctane] = useState(null);
+  const [chargerType, setChargerType] = useState(null);
 
   useEffect(() => {
     if (visible) {
@@ -50,6 +52,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
         setCostPerKWh(editLog.costPerKWh?.toString() || '');
         setNotes(editLog.notes || '');
         setCostMode(editLog.totalCost && !editLog.pricePerGallon ? 'total' : 'per_unit');
+        setOctane(editLog.octane || null);
+        setChargerType(editLog.chargerType || null);
       } else {
         // Defaults for new entry
         setType('fuel');
@@ -65,6 +69,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
         setCostPerKWh('');
         setNotes('');
         setCostMode('per_unit');
+        setOctane(null);
+        setChargerType(null);
       }
     }
   }, [visible, editLog, vehicle]);
@@ -144,9 +150,11 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     if (type === 'fuel') {
       logData.gallons = parseFloat(gallons);
       logData.pricePerGallon = parseFloat(pricePerGallon) || null;
+      logData.octane = octane;
     } else {
       logData.kWh = parseFloat(kWh);
       logData.costPerKWh = parseFloat(costPerKWh) || null;
+      logData.chargerType = chargerType;
     }
 
     if (isEditing) {
@@ -214,7 +222,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               <Ionicons name="close" size={24} color={Colors.textSecondary} />
             </TouchableOpacity>
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-              {isEditing ? 'Edit Entry' : 'Log Fill-Up'}
+              {isEditing ? 'Edit Entry' : 'Log Fuel'}
             </Text>
             <TouchableOpacity onPress={handleSave} style={{ padding: 4 }}>
               <Text style={[Typography.body, { color: Colors.primary, fontFamily: 'Nunito_700Bold' }]}>
@@ -340,6 +348,46 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     thumbColor={fullTank ? Colors.primary : Colors.textSecondary}
                   />
                 </View>
+
+                {/* Octane Grade (optional) */}
+                <SectionLabel>Octane Grade (optional)</SectionLabel>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg }}>
+                  {[
+                    { key: '87', label: '87 Regular' },
+                    { key: '89', label: '89 Mid' },
+                    { key: '91', label: '91 Premium' },
+                    { key: '93', label: '93 Super' },
+                    { key: 'diesel', label: 'Diesel' },
+                    { key: 'e85', label: 'E85' },
+                  ].map((opt) => {
+                    const isSelected = octane === opt.key;
+                    return (
+                      <TouchableOpacity
+                        key={opt.key}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setOctane(isSelected ? null : opt.key);
+                        }}
+                        style={{
+                          paddingHorizontal: Spacing.md,
+                          paddingVertical: Spacing.sm,
+                          borderRadius: 16,
+                          backgroundColor: isSelected ? Colors.warning + '20' : Colors.surface1,
+                          borderWidth: 1,
+                          borderColor: isSelected ? Colors.warning + '60' : Colors.glassBorder,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[Typography.caption, {
+                          color: isSelected ? Colors.warning : Colors.textSecondary,
+                          fontFamily: isSelected ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
+                        }]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </>
             ) : (
               <>
@@ -366,6 +414,44 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       keyboardType="decimal-pad"
                     />
                   </View>
+                </View>
+
+                {/* Charger Type (optional) */}
+                <SectionLabel>Charger Type (optional)</SectionLabel>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg }}>
+                  {[
+                    { key: 'level1', label: 'Level 1 (120V)' },
+                    { key: 'level2', label: 'Level 2 (240V)' },
+                    { key: 'dcfc', label: 'DC Fast' },
+                    { key: 'supercharger', label: 'Supercharger' },
+                  ].map((opt) => {
+                    const isSelected = chargerType === opt.key;
+                    return (
+                      <TouchableOpacity
+                        key={opt.key}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setChargerType(isSelected ? null : opt.key);
+                        }}
+                        style={{
+                          paddingHorizontal: Spacing.md,
+                          paddingVertical: Spacing.sm,
+                          borderRadius: 16,
+                          backgroundColor: isSelected ? Colors.success + '20' : Colors.surface1,
+                          borderWidth: 1,
+                          borderColor: isSelected ? Colors.success + '60' : Colors.glassBorder,
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[Typography.caption, {
+                          color: isSelected ? Colors.success : Colors.textSecondary,
+                          fontFamily: isSelected ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
+                        }]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             )}
