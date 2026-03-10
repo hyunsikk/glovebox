@@ -106,7 +106,7 @@ export function applyTheme(mode) {
   // Re-apply Shared styles that reference Colors
   const updatedShared = buildSharedStyles();
   Object.keys(updatedShared).forEach(key => {
-    Object.assign(Shared[key], updatedShared[key]);
+    Shared[key] = updatedShared[key];
   });
 }
 
@@ -326,5 +326,5 @@ function buildSharedStyles() {
   };
 }
 
-// Shared component styles - Premium Glassmorphism Design
-export const Shared = StyleSheet.create(buildSharedStyles());
+// Shared component styles - mutable object (not StyleSheet.create) so theme can update
+export const Shared = buildSharedStyles();
