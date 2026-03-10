@@ -464,21 +464,33 @@ const VehicleComparison = ({ vehicles }) => {
           }
           const costPerMile = milesDriven > 0 ? totalSpent / milesDriven : null;
 
-          // Calculate average MPG
+          // Calculate average MPG or mi/kWh
           let avgMPG = 0;
-          const fullTankLogs = fuelLogs.filter(f => f.fullTank && f.gallons > 0).sort((a, b) => a.odometer - b.odometer);
+          let efficiencyUnit = 'MPG';
+          const getEnergy = (log) => {
+            if (log.type === 'ev_charge' || log.kWh) {
+              if (log.kWh && log.kWh > 0) return { amount: log.kWh, unit: 'kWh' };
+              if (log.totalCost && log.costPerKWh && log.costPerKWh > 0) return { amount: log.totalCost / log.costPerKWh, unit: 'kWh' };
+              return null;
+            }
+            if (log.gallons && log.gallons > 0) return { amount: log.gallons, unit: 'gal' };
+            if (log.totalCost && log.pricePerGallon && log.pricePerGallon > 0) return { amount: log.totalCost / log.pricePerGallon, unit: 'gal' };
+            return null;
+          };
+          const fullTankLogs = fuelLogs.filter(f => f.fullTank && f.odometer > 0 && getEnergy(f)).sort((a, b) => a.odometer - b.odometer);
           if (fullTankLogs.length >= 2) {
-            let totalMPG = 0;
-            let mpgCount = 0;
+            let totalEff = 0;
+            let effCount = 0;
             for (let i = 1; i < fullTankLogs.length; i++) {
               const miles = fullTankLogs[i].odometer - fullTankLogs[i - 1].odometer;
-              const gallons = fullTankLogs[i].gallons;
-              if (miles > 0 && miles < 1000 && gallons > 0) {
-                totalMPG += miles / gallons;
-                mpgCount++;
+              const energy = getEnergy(fullTankLogs[i]);
+              if (miles > 0 && miles < 1000 && energy) {
+                totalEff += miles / energy.amount;
+                effCount++;
+                if (energy.unit === 'kWh') efficiencyUnit = 'mi/kWh';
               }
             }
-            avgMPG = mpgCount > 0 ? totalMPG / mpgCount : 0;
+            avgMPG = effCount > 0 ? totalEff / effCount : 0;
           }
 
           return {
@@ -486,6 +498,7 @@ const VehicleComparison = ({ vehicles }) => {
             totalSpent,
             costPerMile,
             avgMPG,
+            efficiencyUnit,
             issueCount: issues.length
           };
         })
@@ -529,7 +542,7 @@ const VehicleComparison = ({ vehicles }) => {
           </View>
 
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>MPG</Text>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>{data.efficiencyUnit || 'MPG'}</Text>
             <Text style={[Typography.body, { color: Colors.textPrimary }]}>
               {data.avgMPG > 0 ? data.avgMPG.toFixed(1) : '—'}
             </Text>
@@ -830,19 +843,40 @@ export default function InsightsScreen() {
       const allServices = await ServiceStorage.getAll();
       const filteredServices = filterByVehicle(allServices);
 
-      // 1. MPG over time (last 10 fill-ups)
+      // 1. MPG / mi/kWh over time (last 10 fill-ups)
+      // Helper: derive gallons or kWh from available data
+      const getEnergyAmount = (log) => {
+        if (log.type === 'ev_charge' || log.kWh) {
+          // EV: use kWh directly, or derive from totalCost / costPerKWh
+          if (log.kWh && log.kWh > 0) return { amount: log.kWh, unit: 'kWh' };
+          if (log.totalCost && log.costPerKWh && log.costPerKWh > 0) return { amount: log.totalCost / log.costPerKWh, unit: 'kWh' };
+          return null;
+        }
+        // Gas: use gallons directly, or derive from totalCost / pricePerGallon
+        if (log.gallons && log.gallons > 0) return { amount: log.gallons, unit: 'gal' };
+        if (log.totalCost && log.pricePerGallon && log.pricePerGallon > 0) return { amount: log.totalCost / log.pricePerGallon, unit: 'gal' };
+        return null;
+      };
+
       const mpgData = [];
       for (let i = 1; i < filteredFuelLogs.length && mpgData.length < 10; i++) {
         const current = filteredFuelLogs[i];
         const previous = filteredFuelLogs[i - 1];
         
-        if (current.fullTank && previous.fullTank && current.odometer && previous.odometer && current.gallons) {
+        if (current.fullTank && previous.fullTank && current.odometer && previous.odometer) {
+          const energy = getEnergyAmount(current);
+          if (!energy) continue;
+          
           const milesDriven = current.odometer - previous.odometer;
-          const mpg = milesDriven / current.gallons;
-          if (mpg > 0 && mpg < 100) { // Filter out unrealistic values
+          const efficiency = milesDriven / energy.amount;
+          
+          // Filter unrealistic values
+          const maxEfficiency = energy.unit === 'kWh' ? 10 : 100; // 10 mi/kWh or 100 MPG
+          if (efficiency > 0 && efficiency < maxEfficiency) {
             mpgData.push({
               date: new Date(current.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              value: parseFloat(mpg.toFixed(1)),
+              value: parseFloat(efficiency.toFixed(1)),
+              unit: energy.unit === 'kWh' ? 'mi/kWh' : 'MPG',
             });
           }
         }
@@ -1225,11 +1259,11 @@ export default function InsightsScreen() {
           type="bar"
         />
 
-        {/* MPG Over Time — only show with 3+ data points for reliability */}
+        {/* Fuel Efficiency Over Time — only show with 3+ data points for reliability */}
         {mpgTrends.length >= 3 && (
           <View>
             <ChartCard
-              title="fuel efficiency (MPG)"
+              title={`fuel efficiency (${mpgTrends[0]?.unit || 'MPG'})`}
               data={mpgTrends.map(item => ({ month: item.date, value: item.value }))}
               type="line"
             />
