@@ -344,12 +344,13 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     
     if (!formData.serviceType) errors.push('Service type is required');
     if (!formData.date) errors.push('Date is required');
-    if (!formData.mileage) errors.push('Mileage is required');
 
-    // Validate mileage
-    const mileage = parseInt(formData.mileage);
-    if (isNaN(mileage) || mileage < 0) {
-      errors.push('Please enter a valid mileage');
+    // Validate mileage (optional)
+    if (formData.mileage) {
+      const mileage = parseInt(formData.mileage);
+      if (isNaN(mileage) || mileage < 0) {
+        errors.push('Please enter a valid mileage');
+      }
     }
 
     // Validate cost if provided
@@ -386,7 +387,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         vehicleId: selectedVehicle.id,
         serviceType: formData.serviceType,
         date: formData.date,
-        mileage: parseInt(formData.mileage),
+        mileage: formData.mileage ? parseInt(formData.mileage) : undefined,
         cost: formData.cost ? parseFloat(formData.cost) : undefined,
         vendor: isDIY ? undefined : (formData.vendor.trim() || undefined),
         notes: formData.notes.trim() || undefined,
@@ -428,8 +429,8 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         }
       }
       
-      // Update vehicle's current mileage if toggle is on
-      const enteredMileage = parseInt(formData.mileage);
+      // Update vehicle's current mileage if toggle is on and mileage provided
+      const enteredMileage = formData.mileage ? parseInt(formData.mileage) : 0;
       const mileageUpdated = updateOdometer && enteredMileage > 0;
       if (mileageUpdated) {
         await VehicleStorage.update(selectedVehicle.id, {
@@ -663,14 +664,14 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           color: Colors.textSecondary, 
           marginBottom: Spacing.sm 
         }]}>
-          Mileage *
+          Mileage
         </Text>
         <TextInput
           style={Shared.input}
           placeholder={selectedVehicle?.currentMileage?.toString() || "25000"}
           placeholderTextColor={Colors.arcticSilver}
           value={formData.mileage}
-          onChangeText={(value) => updateFormData('mileage', value)}
+          onChangeText={(value) => updateFormData('mileage', value.replace(/[^0-9]/g, ''))}
           keyboardType="numeric"
         />
         {selectedVehicle?.currentMileage && (

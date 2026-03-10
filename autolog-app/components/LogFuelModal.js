@@ -115,17 +115,21 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const validate = () => {
     const errors = [];
     if (!date) errors.push('Date is required');
-    if (!odometer) errors.push('Odometer reading is required');
     
-    const odo = parseInt(odometer);
-    if (isNaN(odo) || odo < 0) errors.push('Invalid odometer reading');
+    // Odometer is optional
+    if (odometer) {
+      const odo = parseInt(odometer);
+      if (isNaN(odo) || odo < 0) errors.push('Invalid odometer reading');
+    }
 
-    if (type === 'fuel') {
-      if (!totalCost && !pricePerGallon) errors.push('Enter total cost or price per gallon');
-      if (costMode === 'per_unit' && !gallons) errors.push('Gallons is required when entering price per gallon');
-    } else {
-      if (!totalCost && !costPerKWh) errors.push('Enter total cost or cost per kWh');
-      if (costMode === 'per_unit' && !kWh) errors.push('kWh is required when entering cost per kWh');
+    // Cost is optional
+    if (costMode === 'per_unit') {
+      if (type === 'fuel' && gallons && !pricePerGallon && !totalCost) {
+        errors.push('Enter price per gallon or total cost');
+      }
+      if (type === 'ev_charge' && kWh && !costPerKWh && !totalCost) {
+        errors.push('Enter cost per kWh or total cost');
+      }
     }
 
     return errors;
@@ -144,8 +148,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
       vehicleId: vehicle.id,
       type,
       date,
-      odometer: parseInt(odometer),
-      totalCost: parseFloat(totalCost) || 0,
+      odometer: odometer ? parseInt(odometer) : null,
+      totalCost: totalCost ? parseFloat(totalCost) : null,
       station: station.trim() || null,
       notes: notes.trim() || null,
       fullTank,
@@ -274,14 +278,14 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             {/* Date & Odometer Row */}
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
               <View style={{ flex: 1 }}>
-                <SectionLabel>Date *</SectionLabel>
+                <SectionLabel>Date</SectionLabel>
                 <DatePickerField
                   value={date}
                   onChange={setDate}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <SectionLabel>Odometer *</SectionLabel>
+                <SectionLabel>Odometer</SectionLabel>
                 <TextInput
                   style={Shared.input}
                   placeholder={vehicle?.currentMileage?.toString() || '25000'}
@@ -300,7 +304,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
 
             {/* Total Cost (always shown — the simple path) */}
             <View style={{ marginBottom: Spacing.lg }}>
-              <SectionLabel>Total Cost *</SectionLabel>
+              <SectionLabel>Total Cost</SectionLabel>
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[Shared.input, { paddingLeft: 32 }]}
