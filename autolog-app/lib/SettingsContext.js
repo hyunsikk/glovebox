@@ -106,8 +106,6 @@ export function SettingsProvider({ children }) {
 
   const currencySymbol = cc.symbol;
 
-  if (!ready) return null;
-
   return (
     <SettingsContext.Provider value={{
       units, currency, currencySymbol,

@@ -226,6 +226,7 @@ const ChartCard = ({ title, data, type = 'bar' }) => {
 };
 
 const VehicleHealthCard = ({ vehicle, overdueServices, dueSoonServices }) => {
+  const { formatDistanceUnit } = useSettings();
   const overdueCount = overdueServices.length;
   const dueSoonCount = dueSoonServices.length;
   const statusColor = overdueCount > 0 ? Colors.danger : dueSoonCount > 0 ? Colors.warning : Colors.success;
