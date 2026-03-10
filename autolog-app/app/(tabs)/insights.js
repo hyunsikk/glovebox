@@ -8,9 +8,12 @@ import * as FileSystem from 'expo-file-system';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
+import { useSettings } from '../../lib/SettingsContext';
 
 
-const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => (
+const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => {
+  const { formatDistanceUnit } = useSettings();
+  return (
   <ScrollView 
     horizontal 
     showsHorizontalScrollIndicator={false}
@@ -72,7 +75,8 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
       </TouchableOpacity>
     ))}
   </ScrollView>
-);
+  );
+};
 
 const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, trend = null }) => (
   <View style={[Shared.card, { flex: 1, marginRight: Spacing.md, position: 'relative' }]}>
@@ -258,7 +262,7 @@ const VehicleHealthCard = ({ vehicle, overdueServices, dueSoonServices }) => {
             {vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-            {vehicle.currentMileage?.toLocaleString() || '---'} miles
+            {vehicle.currentMileage?.toLocaleString() || '---'} {formatDistanceUnit()}
           </Text>
         </View>
       </View>
@@ -319,6 +323,7 @@ const EmptyState = () => (
 );
 
 const CostForecast = ({ vehicles, selectedVehicleId }) => {
+  const { formatCostShort, currencySymbol } = useSettings();
   const [forecastData, setForecastData] = useState({
     avgMonthlySpend: 0,
     estimatedAnnualCost: 0,
@@ -454,7 +459,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
       {forecastData.calendarMonths < 2 && forecastData.avgMonthlySpend > 0 ? (
         <View style={{ alignItems: 'center', paddingVertical: Spacing.md }}>
           <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
-            ${forecastData.avgMonthlySpend.toFixed(0)}
+            {formatCostShort(forecastData.avgMonthlySpend)}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
             total spent so far
@@ -476,7 +481,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
-                ${forecastData.avgMonthlySpend.toFixed(0)}
+                {formatCostShort(forecastData.avgMonthlySpend)}
               </Text>
               <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
                 avg monthly
@@ -485,7 +490,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
 
             <View style={{ alignItems: 'center', flex: 1 }}>
               <Text style={[Typography.h1, { color: Colors.success }]}>
-                ${forecastData.estimatedAnnualCost.toFixed(0)}
+                {formatCostShort(forecastData.estimatedAnnualCost)}
               </Text>
               <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
                 estimated annual
@@ -503,11 +508,11 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
             }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔄 recurring (fuel + maintenance)</Text>
-                <Text style={[Typography.small, { color: Colors.textPrimary }]}>${(forecastData.recurringMonthly * 12).toFixed(0)}/yr</Text>
+                <Text style={[Typography.small, { color: Colors.textPrimary }]}>{formatCostShort(forecastData.recurringMonthly * 12)}/yr</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔧 major repairs</Text>
-                <Text style={[Typography.small, { color: Colors.textPrimary }]}>${forecastData.oneOffAnnual.toFixed(0)}/yr</Text>
+                <Text style={[Typography.small, { color: Colors.textPrimary }]}>{formatCostShort(forecastData.oneOffAnnual)}/yr</Text>
               </View>
             </View>
           )}
@@ -528,6 +533,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
 };
 
 const VehicleComparison = ({ vehicles }) => {
+  const { formatCostShort, formatEfficiency, formatEfficiencyUnit } = useSettings();
   const [comparisonData, setComparisonData] = useState([]);
 
   useEffect(() => {
@@ -628,12 +634,12 @@ const VehicleComparison = ({ vehicles }) => {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>Total</Text>
             <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-              ${data.totalSpent.toFixed(0)}
+              {formatCostShort(data.totalSpent)}
             </Text>
           </View>
 
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>{data.efficiencyUnit || 'MPG'}</Text>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>{data.efficiencyUnit === 'mi/kWh' ? 'mi/kWh' : formatEfficiencyUnit()}</Text>
             <Text style={[Typography.body, { color: Colors.textPrimary }]}>
               {data.avgMPG > 0 ? data.avgMPG.toFixed(1) : '—'}
             </Text>
@@ -903,6 +909,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
 };
 
 export default function InsightsScreen() {
+  const { formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
   const [fleetSummary, setFleetSummary] = useState(null);
@@ -1164,7 +1171,7 @@ export default function InsightsScreen() {
 
   const getNextMaintenanceCost = () => {
     const nextMonth = costPredictions.find(p => p.predictedCost > 0);
-    return nextMonth ? `$${nextMonth.predictedCost.toFixed(0)}` : '$0';
+    return nextMonth ? formatCostShort(nextMonth.predictedCost) : formatCostShort(0);
   };
 
   if (loading) {
@@ -1277,7 +1284,7 @@ export default function InsightsScreen() {
         <View style={{ flexDirection: 'row', marginBottom: Spacing.lg }}>
           <MetricCard
             title="total spent"
-            value={`$${fleetSummary?.totalCost.toFixed(0) || '0'}`}
+            value={formatCostShort(fleetSummary?.totalCost || 0)}
             subtitle="all time"
             icon="cash-outline"
             color={Colors.success}
@@ -1315,20 +1322,20 @@ export default function InsightsScreen() {
           <View style={{ flexDirection: 'row', marginBottom: Spacing.lg }}>
             <MetricCard
               title="fuel spent"
-              value={`$${fuelStats.totalCost.toFixed(0)}`}
+              value={formatCostShort(fuelStats.totalCost)}
               subtitle={`${fuelStats.count} fill-up${fuelStats.count !== 1 ? 's' : ''}`}
               icon="flame-outline"
               color={Colors.warning}
             />
             
             <MetricCard
-              title={fuelStats.totalKWh > 0 ? 'energy' : 'gallons'}
+              title={fuelStats.totalKWh > 0 ? 'energy' : formatVolumeUnit()}
               value={fuelStats.totalKWh > 0
                 ? `${fuelStats.totalKWh.toFixed(0)} kWh`
-                : `${fuelStats.totalGallons.toFixed(1)}`}
+                : formatVolume(fuelStats.totalGallons)}
               subtitle={fuelStats.totalGallons > 0
-                ? `avg $${(fuelStats.totalCost / fuelStats.totalGallons).toFixed(2)}/gal`
-                : `avg $${(fuelStats.totalCost / (fuelStats.totalKWh || 1)).toFixed(2)}/kWh`}
+                ? `avg ${formatCostShort(fuelStats.totalCost / fuelStats.totalGallons)}/${formatVolumeUnit()}`
+                : `avg ${formatCostShort(fuelStats.totalCost / (fuelStats.totalKWh || 1))}/kWh`}
               icon={fuelStats.totalKWh > 0 ? 'flash-outline' : 'water-outline'}
               color={fuelStats.totalKWh > 0 ? Colors.success : Colors.steelBlue}
             />
@@ -1381,7 +1388,7 @@ export default function InsightsScreen() {
         {/* Miles Driven Per Month */}
         {milesDrivenMonthly.length > 0 && (
           <ChartCard
-            title="miles driven per month"
+            title={`${formatDistanceUnit()} driven per month`}
             data={milesDrivenMonthly}
             type="bar"
           />

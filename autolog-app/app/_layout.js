@@ -5,6 +5,7 @@ import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nuni
 import { View } from 'react-native';
 import { Colors } from '../theme';
 import { ThemeProvider, useTheme } from '../lib/ThemeContext';
+import { SettingsProvider } from '../lib/SettingsContext';
 import { requestNotificationPermissions, scheduleServiceNotifications } from '../lib/notifications';
 
 function RootLayoutInner() {
@@ -41,7 +42,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <RootLayoutInner />
+      <SettingsProvider>
+        <RootLayoutInner />
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

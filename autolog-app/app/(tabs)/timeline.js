@@ -9,6 +9,7 @@ import { getThumbnailUri } from '../../lib/imageUtils';
 import LogServiceModal from '../../components/LogServiceModal';
 import EditServiceModal from '../../components/EditServiceModal';
 import { shareSnapshot } from '../../lib/shareSnapshot';
+import { useSettings } from '../../lib/SettingsContext';
 
 const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => (
   <ScrollView 
@@ -75,6 +76,7 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
 );
 
 const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
+  const { formatCost, formatDistance } = useSettings();
   const getServiceIcon = (serviceType) => {
     const iconMap = {
       'Oil Change': 'construct-outline',
@@ -115,10 +117,6 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
       day: 'numeric',
       year: 'numeric',
     });
-  };
-
-  const formatCost = (cost) => {
-    return cost ? `$${cost.toFixed(2)}` : '---';
   };
 
   const serviceColor = getServiceCategoryColor(service.serviceType);
@@ -203,7 +201,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="speedometer-outline" size={16} color={Colors.textSecondary} />
           <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
-            {service.mileage?.toLocaleString() || '---'} miles
+            {service.mileage ? formatDistance(service.mileage) : '---'}
           </Text>
         </View>{service.vendor && (
           <Text style={[Typography.caption, { 
@@ -232,6 +230,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
 };
 
 const FuelCard = ({ fuelLog, vehicle }) => {
+  const { formatCost, formatDistance, formatVolume } = useSettings();
   const isFuel = fuelLog.type !== 'ev_charge';
   
   return (
@@ -253,7 +252,7 @@ const FuelCard = ({ fuelLog, vehicle }) => {
         <View style={{ flex: 1 }}>
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
             {isFuel
-              ? `${fuelLog.gallons} gal${fuelLog.fullTank ? '' : ' (partial)'}`
+              ? `${formatVolume(fuelLog.gallons)}${fuelLog.fullTank ? '' : ' (partial)'}`
               : `${fuelLog.kWh} kWh`}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
@@ -265,10 +264,10 @@ const FuelCard = ({ fuelLog, vehicle }) => {
         {/* Cost & Date */}
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-            ${fuelLog.totalCost?.toFixed(2) || '0.00'}
+            {formatCost(fuelLog.totalCost || 0)}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-            {fuelLog.odometer?.toLocaleString()} mi
+            {fuelLog.odometer ? formatDistance(fuelLog.odometer) : ''}
           </Text>
         </View>
       </View>
@@ -277,6 +276,7 @@ const FuelCard = ({ fuelLog, vehicle }) => {
 };
 
 const IssueCard = ({ issue, vehicle }) => {
+  const { formatCost } = useSettings();
   const severityColors = {
     minor: '#3B82F6',
     moderate: '#EAB308',
@@ -360,7 +360,7 @@ const IssueCard = ({ issue, vehicle }) => {
         {issue.cost && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[Typography.h2, { color: Colors.primary }]}>
-              ${issue.cost.toFixed(2)}
+              {formatCost(issue.cost)}
             </Text>
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
               {issue.status === 'resolved' ? 'actual' : 'estimated'}
@@ -373,6 +373,7 @@ const IssueCard = ({ issue, vehicle }) => {
 };
 
 const SnapshotCard = ({ snapshot, vehicle }) => {
+  const { formatCostShort, formatDistance } = useSettings();
   const conditionColors = {
     excellent: Colors.success || '#10B981',
     good: Colors.primary,
@@ -401,7 +402,7 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
             {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
-            {' · '}{snapshot.odometer?.toLocaleString()} mi
+            {' · '}{snapshot.odometer ? formatDistance(snapshot.odometer) : ''}
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm }}>
@@ -428,7 +429,7 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
             )}
             {snapshot.totalSpent > 0 && (
               <Text style={[Typography.small, { color: Colors.textSecondary }]}>
-                ${snapshot.totalSpent.toFixed(0)} spent
+                {formatCostShort(snapshot.totalSpent)} spent
               </Text>
             )}
           </View>
@@ -483,6 +484,7 @@ const EmptyState = ({ onLogService }) => (
 );
 
 const MonthSection = ({ month, services, vehicles, onEditService }) => {
+  const { formatCostShort } = useSettings();
   const totalCost = services.reduce((sum, s) => sum + (s.cost || 0), 0);
   
   return (
@@ -504,7 +506,7 @@ const MonthSection = ({ month, services, vehicles, onEditService }) => {
         
         {totalCost > 0 && (
           <Text style={[Typography.h2, { color: Colors.success }]}>
-            ${totalCost.toFixed(0)}
+            {formatCostShort(totalCost)}
           </Text>
         )}
       </View>
@@ -558,6 +560,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function TimelineScreen() {
+  const { formatCost, formatCostShort, formatDistance, formatVolume } = useSettings();
   const [services, setServices] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [issues, setIssues] = useState([]);
@@ -962,7 +965,7 @@ export default function TimelineScreen() {
                   </Text>
                   {monthCost > 0 && (
                     <Text style={[Typography.h2, { color: Colors.success }]}>
-                      ${monthCost.toFixed(0)}
+                      {formatCostShort(monthCost)}
                     </Text>
                   )}
                 </View>

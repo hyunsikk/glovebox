@@ -16,6 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage, ReminderStorage } from '../lib/storage';
+import { useSettings } from '../lib/SettingsContext';
 import LogServiceModal from './LogServiceModal';
 import LogFuelModal from './LogFuelModal';
 import LogIssueModal from './LogIssueModal';
@@ -72,6 +73,7 @@ const CollapsibleSection = ({ title, children, defaultExpanded = false, hasConte
 
 
 const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
+  const { formatCost, formatDistance } = useSettings();
   const [previewImage, setPreviewImage] = useState(null);
   const getServiceIcon = (serviceType) => {
     const iconMap = {
@@ -137,13 +139,13 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
             {service.serviceType}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-            {formatDate(service.date)} • {service.mileage?.toLocaleString() || '---'} miles
+            {formatDate(service.date)} • {service.mileage ? formatDistance(service.mileage) : '---'}
           </Text>
         </View>
 
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[Typography.body, { color: Colors.forestGreen }]}>
-            ${service.cost?.toFixed(2) || '---'}
+            {service.cost != null ? formatCost(service.cost) : '---'}
           </Text>
           {service.vendor && (
             <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
@@ -301,6 +303,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
 
 
 const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDate, onSnooze, onQuickLog, snoozedUntil }) => {
+  const { distanceLabel } = useSettings();
   const [showActions, setShowActions] = useState(false);
   const getServiceIcon = (serviceType) => {
     const iconMap = {
@@ -351,9 +354,9 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
   };
 
   const formatInterval = () => {
-    const miles = scheduleItem.mileInterval.toLocaleString();
+    const dist = scheduleItem.mileInterval.toLocaleString();
     const months = scheduleItem.monthInterval;
-    return `Every ${miles} miles or ${months} months`;
+    return `Every ${dist} ${distanceLabel} or ${months} months`;
   };
 
   const formatDueDate = () => {
@@ -984,7 +987,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
                 {reminder.serviceType}
               </Text>
               <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                Every {reminder.intervalMiles?.toLocaleString() || '---'} miles{reminder.intervalMonths ? ` or ${reminder.intervalMonths} months` : ''}
+                Every {reminder.intervalMiles?.toLocaleString() || '---'} {distanceLabel}{reminder.intervalMonths ? ` or ${reminder.intervalMonths} months` : ''}
               </Text>
             </View>
             
@@ -1137,6 +1140,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
 };
 
 export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService, onServiceLogged }) {
+  const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, distanceLabel, formatEfficiency, formatVolume, formatVolumeUnit, currencySymbol } = useSettings();
   const [vehicleData, setVehicleData] = useState(null);
   const [services, setServices] = useState([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState([]);
@@ -1742,7 +1746,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             keyboardType="numeric"
                           />
                           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                            miles
+                            {distanceLabel}
                           </Text>
                         </View>
                         <TextInput
@@ -1779,7 +1783,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           </Text>
                         )}
                         <Text style={[Typography.h2, { color: Colors.steelBlue, marginTop: Spacing.sm }]}>
-                          {vehicleData.currentMileage?.toLocaleString() || '---'} miles
+                          {vehicleData.currentMileage ? formatDistance(vehicleData.currentMileage) : '---'}
                         </Text>
                         {vehicleData.vin && (
                           <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 4 }]}>
@@ -1991,7 +1995,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   }}>
                     <View style={{ alignItems: 'center' }}>
                       <Text style={[Typography.h2, { color: Colors.forestGreen }]}>
-                        ${totalCost.toFixed(2)}
+                        {formatCost(totalCost)}
                       </Text>
                       <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
                         Total Cost
@@ -2315,17 +2319,17 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                   <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
                                     {entry.type === 'ev_charge'
                                       ? `${entry.kWh} kWh`
-                                      : `${entry.gallons} gal${entry.fullTank ? '' : ' (partial)'}`}
+                                      : `${formatVolume(entry.gallons)}${entry.fullTank ? '' : ' (partial)'}`}
                                   </Text>
                                   <Text style={[Typography.small, { color: Colors.textSecondary }]}>
                                     {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     {entry.station ? ` · ${entry.station}` : ''}
-                                    {' · '}{entry.odometer?.toLocaleString()} mi
+                                    {' · '}{entry.odometer ? formatDistance(entry.odometer) : ''}
                                   </Text>
                                 </View>
                               </View>
                               <Text style={[Typography.h2, { color: Colors.primary }]}>
-                                ${entry.totalCost?.toFixed(2)}
+                                {formatCost(entry.totalCost)}
                               </Text>
                             </View>
                           </TouchableOpacity>
@@ -2426,7 +2430,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                               </View>
                               {entry.cost && (
                                 <Text style={[Typography.h2, { color: Colors.primary }]}>
-                                  ${entry.cost.toFixed(2)}
+                                  {formatCost(entry.cost)}
                                 </Text>
                               )}
                             </View>
@@ -2452,7 +2456,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                 </Text>
                                 <Text style={[Typography.small, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
                                   {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  {' · '}{entry.odometer?.toLocaleString()} mi
+                                  {' · '}{entry.odometer ? formatDistance(entry.odometer) : ''}
                                   {' · '}{entry.condition}
                                 </Text>
                                 {entry.notes && (
@@ -2468,12 +2472,12 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                   )}
                                   {entry.totalSpent > 0 && (
                                     <Text style={[Typography.small, { color: Colors.textSecondary }]}>
-                                      ${entry.totalSpent.toFixed(0)} spent
+                                      {formatCostShort(entry.totalSpent)} spent
                                     </Text>
                                   )}
                                   {entry.fuelEfficiency && (
                                     <Text style={[Typography.small, { color: Colors.success }]}>
-                                      {entry.fuelEfficiency.toFixed(1)} MPG
+                                      {formatEfficiency(entry.fuelEfficiency)}
                                     </Text>
                                   )}
                                 </View>

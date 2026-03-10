@@ -10,6 +10,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage, DataUtils } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
+import { useSettings } from '../../lib/SettingsContext';
 import { addSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
 import VehicleDetailModal from '../../components/VehicleDetailModal';
@@ -20,6 +21,7 @@ import { useTheme } from '../../lib/ThemeContext';
 import { Modal, Switch } from 'react-native';
 
 const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
+  const { formatDistance } = useSettings();
   const [overdueServices, setOverdueServices] = useState([]);
   const [dueSoonServices, setDueSoonServices] = useState([]);
   const [nextService, setNextService] = useState(null);
@@ -177,7 +179,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
                 style={{ marginRight: 4 }}
               />
               <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                {vehicle.currentMileage?.toLocaleString() || '---'} miles
+                {vehicle.currentMileage ? formatDistance(vehicle.currentMileage) : '---'}
               </Text>
             </View>
           </View>
@@ -433,6 +435,7 @@ const EmptyState = ({ onAddVehicle, onLoadSampleData }) => {
 };
 
 const DashboardSummary = ({ vehicles }) => {
+  const { formatCostShort } = useSettings();
   const [summaryData, setSummaryData] = useState({
     totalVehicles: 0,
     openIssuesCount: 0,
@@ -547,7 +550,7 @@ const DashboardSummary = ({ vehicles }) => {
         {/* This Month Spending */}
         <View style={{ alignItems: 'center', flex: 1 }}>
           <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
-            ${summaryData.thisMonthSpending.toFixed(0)}
+            {formatCostShort(summaryData.thisMonthSpending)}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
             this month
