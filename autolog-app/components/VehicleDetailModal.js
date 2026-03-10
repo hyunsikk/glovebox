@@ -565,12 +565,14 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
 const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
   const [recalls, setRecalls] = useState([]);
   const [dismissedIds, setDismissedIds] = useState(new Set());
+  const [sectionHidden, setSectionHidden] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDismissed();
+    loadSectionHidden();
     loadCachedRecalls();
   }, [vehicleId]);
 
@@ -581,6 +583,20 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
     } catch (e) {
       console.error('Error loading dismissed recalls:', e);
     }
+  };
+
+  const loadSectionHidden = async () => {
+    try {
+      const hidden = await AsyncStorage.getItem(`recalls_section_hidden_${vehicleId}`);
+      if (hidden === 'true') setSectionHidden(true);
+    } catch (e) {}
+  };
+
+  const toggleSection = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next = !sectionHidden;
+    setSectionHidden(next);
+    await AsyncStorage.setItem(`recalls_section_hidden_${vehicleId}`, next ? 'true' : 'false');
   };
 
   const dismissRecall = async (recallId) => {
@@ -665,6 +681,31 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
     }
   };
 
+  if (sectionHidden) {
+    return (
+      <TouchableOpacity
+        onPress={toggleSection}
+        activeOpacity={0.7}
+        style={{
+          marginTop: Spacing.lg,
+          backgroundColor: Colors.surface1,
+          borderRadius: 12,
+          padding: Spacing.md,
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+          recall alerts (hidden)
+        </Text>
+        <Text style={[Typography.small, { color: Colors.primary }]}>Show</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={{
       marginTop: Spacing.lg,
@@ -675,10 +716,24 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
       borderColor: recalls.length > 0 ? Colors.warning + '40' : Colors.glassBorder,
     }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
-        <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-          recall alerts {recalls.length > 0 && '⚠️'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            recall alerts {recalls.length > 0 && '⚠️'}
+          </Text>
+        </View>
         
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+          <TouchableOpacity
+            onPress={toggleSection}
+            style={{
+              paddingHorizontal: Spacing.sm,
+              paddingVertical: Spacing.xs,
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="eye-off-outline" size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
         <TouchableOpacity
           onPress={checkRecalls}
           disabled={loading}
@@ -696,6 +751,7 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
             {loading ? 'Checking...' : 'Check Now'}
           </Text>
         </TouchableOpacity>
+        </View>
       </View>
 
       {error && (
