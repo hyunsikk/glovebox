@@ -9,6 +9,7 @@ import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
+import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline } from '../../components/DataViz';
 
 
 const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => {
@@ -923,6 +924,13 @@ export default function InsightsScreen() {
   const [milesDrivenMonthly, setMilesDrivenMonthly] = useState([]);
   const [maintenanceVsFuel, setMaintenanceVsFuel] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // New data viz state
+  const [costByCategory, setCostByCategory] = useState([]);
+  const [spendingHeatmap, setSpendingHeatmap] = useState({});
+  const [costPerMile, setCostPerMile] = useState(null);
+  const [monthlySparkline, setMonthlySparkline] = useState([]);
+  const [avgCostTrend, setAvgCostTrend] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -1094,6 +1102,93 @@ export default function InsightsScreen() {
 
       // Calculate new trend data
       await calculateNewTrends(vehicleList, allFuelLogs);
+
+      // --- NEW: Data viz computations ---
+      const filterVehicles = selectedVehicleId === 'all' ? vehicleList : vehicleList.filter(v => v.id === selectedVehicleId);
+      
+      // 1. Cost by category (donut chart)
+      const categoryMap = {};
+      let totalFuelCostForDonut = 0;
+      for (const v of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(v.id);
+        services.forEach(s => {
+          const cat = s.serviceType || s.type || 'other';
+          categoryMap[cat] = (categoryMap[cat] || 0) + (s.cost || 0);
+        });
+        const vFuel = allFuelLogs.filter(f => f.vehicleId === v.id);
+        totalFuelCostForDonut += vFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+      }
+      if (totalFuelCostForDonut > 0) categoryMap['fuel'] = totalFuelCostForDonut;
+      const catArray = Object.entries(categoryMap)
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value);
+      setCostByCategory(catArray);
+
+      // 2. Spending heatmap (last 3 months, per-day amounts)
+      const heatmap = {};
+      for (const v of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(v.id);
+        services.forEach(s => {
+          if (s.date) {
+            const key = s.date.slice(0, 10);
+            heatmap[key] = (heatmap[key] || 0) + (s.cost || 0);
+          }
+        });
+        const vFuel = allFuelLogs.filter(f => f.vehicleId === v.id);
+        vFuel.forEach(f => {
+          if (f.date) {
+            const key = f.date.slice(0, 10);
+            heatmap[key] = (heatmap[key] || 0) + (f.totalCost || 0);
+          }
+        });
+      }
+      setSpendingHeatmap(heatmap);
+
+      // 3. Cost per mile
+      let totalMiles = 0;
+      let totalAllCost = 0;
+      for (const v of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(v.id);
+        const vFuel = allFuelLogs.filter(f => f.vehicleId === v.id);
+        totalAllCost += services.reduce((sum, s) => sum + (s.cost || 0), 0);
+        totalAllCost += vFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+        // Estimate miles from odometer readings
+        const allOdometers = [
+          ...services.filter(s => s.mileage > 0).map(s => ({ date: s.date, odo: s.mileage })),
+          ...vFuel.filter(f => f.odometer > 0).map(f => ({ date: f.date, odo: f.odometer })),
+        ].sort((a, b) => new Date(a.date) - new Date(b.date));
+        if (allOdometers.length >= 2) {
+          totalMiles += allOdometers[allOdometers.length - 1].odo - allOdometers[0].odo;
+        }
+      }
+      setCostPerMile(totalMiles > 100 ? totalAllCost / totalMiles : null);
+
+      // 4. Monthly sparkline (last 6 months of total spending)
+      const sparkMap = {};
+      for (const v of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(v.id);
+        const vFuel = allFuelLogs.filter(f => f.vehicleId === v.id);
+        [...services, ...vFuel].forEach(item => {
+          const date = item.date;
+          if (!date) return;
+          const key = date.slice(0, 7);
+          sparkMap[key] = (sparkMap[key] || 0) + (item.cost || item.totalCost || 0);
+        });
+      }
+      const sparkMonths = Object.keys(sparkMap).sort().slice(-6);
+      setMonthlySparkline(sparkMonths.map(k => sparkMap[k] || 0));
+
+      // 5. Avg cost trend (compare last 3 months vs prior 3 months)
+      const now = new Date();
+      const threeMonthsAgo = new Date(now); threeMonthsAgo.setMonth(now.getMonth() - 3);
+      const sixMonthsAgo = new Date(now); sixMonthsAgo.setMonth(now.getMonth() - 6);
+      let recent3 = 0, prior3 = 0;
+      Object.entries(sparkMap).forEach(([key, val]) => {
+        const d = new Date(key + '-15');
+        if (d >= threeMonthsAgo) recent3 += val;
+        else if (d >= sixMonthsAgo) prior3 += val;
+      });
+      setAvgCostTrend(prior3 > 0 ? ((recent3 - prior3) / prior3) * 100 : null);
     } catch (error) {
       console.error('Error loading insights:', error);
     } finally {
@@ -1340,6 +1435,84 @@ export default function InsightsScreen() {
               icon={fuelStats.totalKWh > 0 ? 'flash-outline' : 'water-outline'}
               color={fuelStats.totalKWh > 0 ? Colors.success : Colors.steelBlue}
             />
+          </View>
+        )}
+
+        {/* Smart Insights Row */}
+        {(costPerMile !== null || monthlySparkline.length >= 2) && (
+          <View style={{ flexDirection: 'row', marginBottom: Spacing.lg, gap: Spacing.sm }}>
+            {costPerMile !== null && (
+              <StatTrendCard
+                title={`cost per ${formatDistanceUnit()}`}
+                value={formatCostShort(costPerMile)}
+                trend={avgCostTrend}
+                trendLabel="vs prior 3mo"
+                sparkData={monthlySparkline}
+                color={Colors.primary}
+              />
+            )}
+            {monthlySparkline.length >= 2 && costPerMile === null && (
+              <StatTrendCard
+                title="monthly spend"
+                value={formatCostShort(monthlySparkline[monthlySparkline.length - 1] || 0)}
+                trend={avgCostTrend}
+                trendLabel="vs prior 3mo"
+                sparkData={monthlySparkline}
+                color={Colors.warning}
+              />
+            )}
+            {fuelStats.count > 0 && (
+              <StatTrendCard
+                title="avg fill-up"
+                value={formatCostShort(fuelStats.totalCost / fuelStats.count)}
+                sparkData={null}
+                color={Colors.success}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Spending Breakdown (Donut) */}
+        {costByCategory.length > 0 && (
+          <View style={[Shared.card, { alignItems: 'center' }]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, alignSelf: 'flex-start', marginBottom: Spacing.md }]}>
+              spending breakdown
+            </Text>
+            <DonutChart
+              segments={costByCategory}
+              centerValue={formatCostShort(costByCategory.reduce((s, c) => s + c.value, 0))}
+              centerLabel="total"
+              size={180}
+            />
+          </View>
+        )}
+
+        {/* Cost by Category (Horizontal Bars) */}
+        {costByCategory.length > 1 && (
+          <View style={[Shared.card]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
+              cost by category
+            </Text>
+            <HorizontalBarChart
+              data={costByCategory.slice(0, 8).map(c => ({
+                label: c.label,
+                value: c.value,
+              }))}
+              formatValue={(v) => formatCostShort(v)}
+            />
+          </View>
+        )}
+
+        {/* Spending Heatmap */}
+        {Object.keys(spendingHeatmap).length > 0 && (
+          <View style={[Shared.card]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
+              spending activity
+            </Text>
+            <Text style={[Typography.small, { color: Colors.textTertiary, marginBottom: Spacing.sm }]}>
+              last 3 months — darker = more spent
+            </Text>
+            <CalendarHeatmap data={spendingHeatmap} months={3} colorScale={Colors.primary} />
           </View>
         )}
 

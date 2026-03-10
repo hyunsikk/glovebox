@@ -45,49 +45,49 @@ export const Colors = {
   textDisabled: '#64748B',
 };
 
-// Light Mode Color System — warm, readable, not washed out
+// Light Mode Color System — Apple-inspired, clear card separation
 export const LightColors = {
-  // Background System — warm whites, not clinical
-  background: '#F5F3EF',        // Warm off-white (less stark than pure white)
-  surface1: '#FFFFFF',          // True white cards (contrast against warm bg)
-  surface2: '#F9F8F5',          // Elevated surface
-  surface3: '#EDEAE4',          // Interactive hover
+  // Background System — gray base so white cards pop
+  background: '#E8E6E1',        // Warm stone gray (cards clearly sit above)
+  surface1: '#FFFFFF',          // Pure white cards (max contrast vs bg)
+  surface2: '#F5F4F1',          // Slightly warm white (elevated)
+  surface3: '#E0DDD7',          // Interactive hover (darker than bg)
   
-  // Glass Effect Colors (Light)
-  glassBorder: 'rgba(0, 0, 0, 0.08)',
-  glassBackground: 'rgba(255, 255, 255, 0.85)',
+  // Glass Effect Colors (Light) — white cards with visible border
+  glassBorder: 'rgba(0, 0, 0, 0.12)',
+  glassBackground: '#FFFFFF',   // Solid white, not translucent (clarity > effect)
   
-  // Border System — visible but subtle
-  border: 'rgba(0, 0, 0, 0.10)',
+  // Border System — visible separation
+  border: 'rgba(0, 0, 0, 0.12)',
   
-  // Accent Colors — slightly deeper for light bg contrast
-  primary: '#2563EB',           // Deeper blue (better contrast on white)
-  warning: '#D97706',           // Darker amber
-  danger: '#DC2626',            // Deeper red
-  success: '#059669',           // Deeper emerald
+  // Accent Colors — punchy on white
+  primary: '#2563EB',           // Deep blue
+  warning: '#D97706',           // Rich amber
+  danger: '#DC2626',            // Deep red
+  success: '#059669',           // Deep emerald
   
-  // Text Hierarchy — strong contrast
-  textPrimary: '#1A1A1A',       // Near black, not washed gray
-  textSecondary: '#4A4A4A',     // Dark gray, readable
-  textTertiary: '#737373',      // Medium gray
+  // Text Hierarchy — max readability
+  textPrimary: '#1A1A1A',       // Near black
+  textSecondary: '#4A4A4A',     // Dark gray
+  textTertiary: '#6B7280',      // Medium gray
   
   // Legacy Compatibility (Light Mode)
   midnightNavy: '#1A1A1A',
-  pearlWhite: '#F5F3EF',
+  pearlWhite: '#E8E6E1',
   charcoalGray: '#4A4A4A',
   amberAlert: '#D97706',
   forestGreen: '#059669',
   steelBlue: '#2563EB',
   warmCopper: '#B45309',
-  arcticSilver: '#737373',
+  arcticSilver: '#6B7280',
   deepRed: '#DC2626',
   surface: '#FFFFFF',
-  elevated: '#F9F8F5',
+  elevated: '#F5F4F1',
   accent: '#2563EB',
   interactive: '#2563EB',
   text: '#1A1A1A',
   textSecondary: '#4A4A4A',
-  textDisabled: '#737373',
+  textDisabled: '#6B7280',
 };
 
 // Dark mode colors (for reset)
