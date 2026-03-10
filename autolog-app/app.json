@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Car Story",
+    "name": "Car Story — Vehicle Tracker",
     "slug": "glovebox-app",
-    "version": "1.1.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -14,10 +14,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.teamam.glovebox",
+      "buildNumber": "3",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Car Story needs access to your photos to attach images to vehicle profiles and service records.",
         "NSCameraUsageDescription": "Car Story needs camera access to take photos of your vehicle and service receipts.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Car Story"
       },
       "newArchEnabled": false
     },

@@ -532,7 +532,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         <SettingRow
           icon="car-sport-outline"
           label="Car Story"
-          value="v1.1.0 · built by TeamAM"
+          value="v2.0.0 · built by TeamAM"
           colors={colors}
         />
       </View>
