@@ -564,13 +564,38 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
 
 const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
   const [recalls, setRecalls] = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    loadDismissed();
     loadCachedRecalls();
   }, [vehicleId]);
+
+  const loadDismissed = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(`recalls_dismissed_${vehicleId}`);
+      if (stored) setDismissedIds(new Set(JSON.parse(stored)));
+    } catch (e) {
+      console.error('Error loading dismissed recalls:', e);
+    }
+  };
+
+  const dismissRecall = async (recallId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const updated = new Set(dismissedIds);
+    updated.add(recallId);
+    setDismissedIds(updated);
+    await AsyncStorage.setItem(`recalls_dismissed_${vehicleId}`, JSON.stringify([...updated]));
+  };
+
+  const undismissAll = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDismissedIds(new Set());
+    await AsyncStorage.removeItem(`recalls_dismissed_${vehicleId}`);
+  };
 
   const loadCachedRecalls = async () => {
     try {
@@ -686,63 +711,107 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
         </View>
       )}
 
-      {recalls.length > 0 ? (
-        <View>
-          <View style={{
-            backgroundColor: Colors.warning + '15',
-            borderRadius: 8,
-            padding: Spacing.md,
-            marginBottom: Spacing.md,
-            borderWidth: 1,
-            borderColor: Colors.warning + '30',
-          }}>
-            <Text style={[Typography.body, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
-              {recalls.length} active recall{recalls.length !== 1 ? 's' : ''} found
-            </Text>
-            <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
-              Contact your dealer for service
-            </Text>
-          </View>
-
-          {recalls.slice(0, 3).map((recall, index) => (
-            <View key={index} style={{
-              backgroundColor: Colors.surface2,
-              borderRadius: 8,
-              padding: Spacing.md,
-              marginBottom: index < Math.min(recalls.length, 3) - 1 ? Spacing.sm : 0,
-            }}>
-              <Text style={[Typography.body, { color: Colors.textPrimary, marginBottom: Spacing.xs }]}>
-                {recall.Summary || 'Recall Notice'}
-              </Text>
-              
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                  {recall.Component || 'Component not specified'}
+      {(() => {
+        const activeRecalls = recalls.filter((r, i) => !dismissedIds.has(r.NHTSACampaignNumber || `recall_${i}`));
+        const dismissedCount = recalls.length - activeRecalls.length;
+        
+        if (activeRecalls.length > 0) {
+          return (
+            <View>
+              <View style={{
+                backgroundColor: Colors.warning + '15',
+                borderRadius: 8,
+                padding: Spacing.md,
+                marginBottom: Spacing.md,
+                borderWidth: 1,
+                borderColor: Colors.warning + '30',
+              }}>
+                <Text style={[Typography.body, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
+                  {activeRecalls.length} active recall{activeRecalls.length !== 1 ? 's' : ''} found
+                  {dismissedCount > 0 ? ` (${dismissedCount} dismissed)` : ''}
                 </Text>
-                <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                  {formatDate(recall.ReportReceivedDate)}
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
+                  Contact your dealer for service
                 </Text>
               </View>
 
-              {recall.Remedy && (
-                <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
-                  Remedy: {recall.Remedy}
+              {activeRecalls.slice(0, 3).map((recall, index) => {
+                const recallId = recall.NHTSACampaignNumber || `recall_${recalls.indexOf(recall)}`;
+                return (
+                  <View key={index} style={{
+                    backgroundColor: Colors.surface2,
+                    borderRadius: 8,
+                    padding: Spacing.md,
+                    marginBottom: index < Math.min(activeRecalls.length, 3) - 1 ? Spacing.sm : 0,
+                  }}>
+                    <Text style={[Typography.body, { color: Colors.textPrimary, marginBottom: Spacing.xs }]}>
+                      {recall.Summary || 'Recall Notice'}
+                    </Text>
+                    
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                        {recall.Component || 'Component not specified'}
+                      </Text>
+                      <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                        {formatDate(recall.ReportReceivedDate)}
+                      </Text>
+                    </View>
+
+                    {recall.Remedy && (
+                      <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
+                        Remedy: {recall.Remedy}
+                      </Text>
+                    )}
+
+                    <TouchableOpacity
+                      onPress={() => dismissRecall(recallId)}
+                      style={{
+                        marginTop: Spacing.sm,
+                        alignSelf: 'flex-start',
+                        paddingHorizontal: Spacing.md,
+                        paddingVertical: Spacing.xs,
+                        borderRadius: 8,
+                        backgroundColor: Colors.surface3,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                        Dismiss
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+
+              {activeRecalls.length > 3 && (
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: Spacing.sm, textAlign: 'center' }]}>
+                  +{activeRecalls.length - 3} more recall{activeRecalls.length - 3 !== 1 ? 's' : ''}
                 </Text>
               )}
             </View>
-          ))}
-
-          {recalls.length > 3 && (
-            <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: Spacing.sm, textAlign: 'center' }]}>
-              +{recalls.length - 3} more recall{recalls.length - 3 !== 1 ? 's' : ''}
+          );
+        } else if (dismissedCount > 0) {
+          return (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[Typography.caption, { color: Colors.success }]}>
+                All recalls dismissed ✓
+              </Text>
+              <TouchableOpacity onPress={undismissAll} activeOpacity={0.7}>
+                <Text style={[Typography.small, { color: Colors.primary }]}>
+                  Show all ({dismissedCount})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        } else if (!loading) {
+          return (
+            <Text style={[Typography.caption, { color: Colors.success }]}>
+              No active recalls found ✓
             </Text>
-          )}
-        </View>
-      ) : !loading && (
-        <Text style={[Typography.caption, { color: Colors.success }]}>
-          No active recalls found ✓
-        </Text>
-      )}
+          );
+        }
+        return null;
+      })()}
 
       {lastChecked && (
         <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: Spacing.sm, textAlign: 'center' }]}>
