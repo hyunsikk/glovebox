@@ -45,62 +45,68 @@ export const Colors = {
   textDisabled: '#64748B',
 };
 
-// Light Mode Color System  
+// Light Mode Color System — warm, readable, not washed out
 export const LightColors = {
-  // Light Background System
-  background: '#FFFFFF',        // Pure white background
-  surface1: '#F8FAFC',          // Light gray surface
-  surface2: '#F1F5F9',          // Slightly darker surface
-  surface3: '#E2E8F0',          // Interactive elements hover
+  // Background System — warm whites, not clinical
+  background: '#F5F3EF',        // Warm off-white (less stark than pure white)
+  surface1: '#FFFFFF',          // True white cards (contrast against warm bg)
+  surface2: '#F9F8F5',          // Elevated surface
+  surface3: '#EDEAE4',          // Interactive hover
   
   // Glass Effect Colors (Light)
-  glassBorder: 'rgba(0, 0, 0, 0.06)',
-  glassBackground: 'rgba(248, 250, 252, 0.8)',
+  glassBorder: 'rgba(0, 0, 0, 0.08)',
+  glassBackground: 'rgba(255, 255, 255, 0.85)',
   
-  // Border System
-  border: 'rgba(203, 213, 225, 0.6)',
+  // Border System — visible but subtle
+  border: 'rgba(0, 0, 0, 0.10)',
   
-  // Accent Colors (same as dark for consistency)
-  primary: '#3B82F6',           // Electric blue
-  warning: '#F59E0B',           // Amber/safety yellow
-  danger: '#EF4444',            // Safety red
-  success: '#10B981',           // Emerald green
+  // Accent Colors — slightly deeper for light bg contrast
+  primary: '#2563EB',           // Deeper blue (better contrast on white)
+  warning: '#D97706',           // Darker amber
+  danger: '#DC2626',            // Deeper red
+  success: '#059669',           // Deeper emerald
   
-  // Text Hierarchy (Light Mode)
-  textPrimary: '#0F172A',       // Near black
-  textSecondary: '#475569',     // Dark gray
-  textTertiary: '#94A3B8',      // Medium gray
+  // Text Hierarchy — strong contrast
+  textPrimary: '#1A1A1A',       // Near black, not washed gray
+  textSecondary: '#4A4A4A',     // Dark gray, readable
+  textTertiary: '#737373',      // Medium gray
   
   // Legacy Compatibility (Light Mode)
-  midnightNavy: '#0F172A',
-  pearlWhite: '#FFFFFF',
-  charcoalGray: '#475569',
-  amberAlert: '#F59E0B',
-  forestGreen: '#10B981',
-  steelBlue: '#3B82F6',
+  midnightNavy: '#1A1A1A',
+  pearlWhite: '#F5F3EF',
+  charcoalGray: '#4A4A4A',
+  amberAlert: '#D97706',
+  forestGreen: '#059669',
+  steelBlue: '#2563EB',
   warmCopper: '#B45309',
-  arcticSilver: '#64748B',
-  deepRed: '#EF4444',
-  surface: '#F8FAFC',
-  elevated: '#F1F5F9',
-  accent: '#3B82F6',
-  interactive: '#3B82F6',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textDisabled: '#94A3B8',
+  arcticSilver: '#737373',
+  deepRed: '#DC2626',
+  surface: '#FFFFFF',
+  elevated: '#F9F8F5',
+  accent: '#2563EB',
+  interactive: '#2563EB',
+  text: '#1A1A1A',
+  textSecondary: '#4A4A4A',
+  textDisabled: '#737373',
 };
 
 // Dark mode colors (for reset)
 const DarkColors = { ...Colors };
 
 /**
- * Apply theme by mutating Colors in-place.
- * This way all existing `import { Colors }` references stay valid.
+ * Apply theme by mutating Colors AND Shared styles in-place.
+ * This way all existing `import { Colors, Shared }` references stay valid.
  */
 export function applyTheme(mode) {
   const source = mode === 'light' ? LightColors : DarkColors;
   Object.keys(source).forEach(key => {
     Colors[key] = source[key];
+  });
+  
+  // Re-apply Shared styles that reference Colors
+  const updatedShared = buildSharedStyles();
+  Object.keys(updatedShared).forEach(key => {
+    Object.assign(Shared[key], updatedShared[key]);
   });
 }
 
@@ -179,162 +185,146 @@ export const Spacing = {
   buttonMargin: 12, // 12px between related buttons
 };
 
-// Shared component styles - Premium Glassmorphism Design
-export const Shared = StyleSheet.create({
-  // Glassmorphism Card - Main card style
-  card: {
-    backgroundColor: Colors.glassBackground,
-    borderRadius: 20,
-    padding: Spacing.xl,
-    marginBottom: Spacing.cardMargin,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  
-  // Premium card with enhanced spacing
-  cardPrimary: {
-    backgroundColor: Colors.glassBackground,
-    borderRadius: 20,
-    padding: Spacing.horizontalLarge,
-    marginBottom: Spacing.cardMargin,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  
-  // Elevated card for modals/overlays
-  cardElevated: {
-    backgroundColor: Colors.surface2,
-    borderRadius: 20,
-    padding: Spacing.xl,
-    marginBottom: Spacing.cardMargin,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 12,
-  },
-  
-  // Premium Button styles
-  buttonPrimary: {
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.buttonMargin,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.buttonMargin,
-  },
-  
-  buttonDestructive: {
-    backgroundColor: Colors.danger,
-    borderRadius: 16,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.buttonMargin,
-    shadowColor: Colors.danger,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  
-  // Container styles
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing.horizontal,
-  },
-  
-  containerLarge: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    paddingHorizontal: Spacing.horizontalLarge,
-  },
-  
-  // Premium form input styles
-  input: {
-    backgroundColor: Colors.surface1,
-    borderRadius: 16,
-    height: 48,
-    paddingHorizontal: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.glassBorder,
-    color: Colors.textPrimary,
-    fontSize: 15,
-    fontFamily: 'Nunito_400Regular',
-  },
-  
-  // Modal header bar
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
+// Build Shared styles using current Colors — called at init and on theme switch
+function buildSharedStyles() {
+  return {
+    card: {
+      backgroundColor: Colors.glassBackground,
+      borderRadius: 20,
+      padding: Spacing.xl,
+      marginBottom: Spacing.cardMargin,
+      borderWidth: 1,
+      borderColor: Colors.glassBorder,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    cardPrimary: {
+      backgroundColor: Colors.glassBackground,
+      borderRadius: 20,
+      padding: Spacing.horizontalLarge,
+      marginBottom: Spacing.cardMargin,
+      borderWidth: 1,
+      borderColor: Colors.glassBorder,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    cardElevated: {
+      backgroundColor: Colors.surface2,
+      borderRadius: 20,
+      padding: Spacing.xl,
+      marginBottom: Spacing.cardMargin,
+      borderWidth: 1,
+      borderColor: Colors.glassBorder,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 12,
+    },
+    buttonPrimary: {
+      backgroundColor: Colors.primary,
+      borderRadius: 16,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: Spacing.buttonMargin,
+      shadowColor: Colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    buttonSecondary: {
+      backgroundColor: 'transparent',
+      borderRadius: 16,
+      height: 48,
+      borderWidth: 1,
+      borderColor: Colors.glassBorder,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: Spacing.buttonMargin,
+    },
+    buttonDestructive: {
+      backgroundColor: Colors.danger,
+      borderRadius: 16,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: Spacing.buttonMargin,
+      shadowColor: Colors.danger,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: Colors.background,
+      paddingHorizontal: Spacing.horizontal,
+    },
+    containerLarge: {
+      flex: 1,
+      backgroundColor: Colors.background,
+      paddingHorizontal: Spacing.horizontalLarge,
+    },
+    input: {
+      backgroundColor: Colors.surface1,
+      borderRadius: 16,
+      height: 48,
+      paddingHorizontal: Spacing.lg,
+      borderWidth: 1,
+      borderColor: Colors.glassBorder,
+      color: Colors.textPrimary,
+      fontSize: 15,
+      fontFamily: 'Nunito_400Regular',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 50,
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+    },
+    inputFocused: {
+      borderColor: Colors.primary,
+      shadowColor: Colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
+      backgroundColor: Colors.surface2,
+    },
+    healthDialContainer: {
+      width: 120,
+      height: 120,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    healthDialOuter: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      borderWidth: 8,
+      borderColor: Colors.surface1,
+      position: 'absolute',
+    },
+    healthDialInner: {
+      width: 104,
+      height: 104,
+      borderRadius: 52,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: Colors.surface1,
+    },
+  };
+}
 
-  inputFocused: {
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    backgroundColor: Colors.surface2,
-  },
-  
-  // Health Score Dial Components (View-based, no SVG)
-  healthDialContainer: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  healthDialOuter: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 8,
-    borderColor: Colors.surface1,
-    position: 'absolute',
-  },
-  
-  healthDialInner: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.surface1,
-  },
-});
+// Shared component styles - Premium Glassmorphism Design
+export const Shared = StyleSheet.create(buildSharedStyles());
