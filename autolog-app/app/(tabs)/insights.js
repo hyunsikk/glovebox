@@ -321,7 +321,11 @@ const EmptyState = () => (
 const CostForecast = ({ vehicles, selectedVehicleId }) => {
   const [forecastData, setForecastData] = useState({
     avgMonthlySpend: 0,
-    estimatedAnnualCost: 0
+    estimatedAnnualCost: 0,
+    recurringMonthly: 0,
+    oneOffAnnual: 0,
+    calendarMonths: 0,
+    confidence: null, // 'low' | 'medium' | 'high'
   });
 
   useEffect(() => {
@@ -336,42 +340,86 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
 
       if (filterVehicles.length === 0) return;
 
-      // Get all services and fuel logs for the last 6 months
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-      let totalSpent = 0;
-      let monthsWithData = 0;
+      // Gather ALL data from all time, then compute calendar span
+      let allDates = [];
+      let recurringTotal = 0; // fuel + normal services
+      let oneOffTotal = 0;    // unusually expensive services (outliers)
 
       for (const vehicle of filterVehicles) {
         const services = await ServiceStorage.getByVehicleId(vehicle.id);
         const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
 
-        // Services in last 6 months
-        const recentServices = services.filter(s => new Date(s.date) >= sixMonthsAgo);
-        totalSpent += recentServices.reduce((sum, s) => sum + (s.cost || 0), 0);
+        // Collect all dates for calendar span
+        services.forEach(s => { if (s.date) allDates.push(new Date(s.date)); });
+        fuelLogs.forEach(f => { if (f.date) allDates.push(new Date(f.date)); });
 
-        // Fuel in last 6 months
-        const recentFuel = fuelLogs.filter(f => new Date(f.date) >= sixMonthsAgo);
-        totalSpent += recentFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+        // Separate recurring vs one-off services using median-based outlier detection
+        const serviceCosts = services.map(s => s.cost || 0).filter(c => c > 0).sort((a, b) => a - b);
+        const median = serviceCosts.length > 0 
+          ? serviceCosts[Math.floor(serviceCosts.length / 2)] 
+          : 0;
+        const outlierThreshold = Math.max(median * 2.5, 200); // 2.5x median or $200, whichever is higher
 
-        // Count months with actual data
-        const dataMonths = new Set();
-        recentServices.forEach(s => {
-          const month = new Date(s.date).toISOString().slice(0, 7);
-          dataMonths.add(month);
+        services.forEach(s => {
+          const cost = s.cost || 0;
+          if (cost > outlierThreshold && serviceCosts.length >= 3) {
+            oneOffTotal += cost; // big repair — don't annualize monthly
+          } else {
+            recurringTotal += cost;
+          }
         });
-        recentFuel.forEach(f => {
-          const month = new Date(f.date).toISOString().slice(0, 7);
-          dataMonths.add(month);
-        });
-        monthsWithData = Math.max(monthsWithData, dataMonths.size);
+
+        // Fuel is always recurring
+        recurringTotal += fuelLogs.reduce((sum, f) => sum + (f.totalCost || 0), 0);
       }
 
-      const avgMonthlySpend = monthsWithData > 0 ? totalSpent / monthsWithData : 0;
-      const estimatedAnnualCost = avgMonthlySpend * 12;
+      if (allDates.length === 0) {
+        setForecastData({ avgMonthlySpend: 0, estimatedAnnualCost: 0, recurringMonthly: 0, oneOffAnnual: 0, calendarMonths: 0, confidence: null });
+        return;
+      }
 
-      setForecastData({ avgMonthlySpend, estimatedAnnualCost });
+      // Calendar span: earliest date → now (not just months with data)
+      // Parse YYYY-MM from earliest to avoid UTC timezone offset issues
+      const earliestTs = Math.min(...allDates.map(d => d.getTime()));
+      const earliest = new Date(earliestTs);
+      const now = new Date();
+      // Use date string parsing for month to avoid timezone drift
+      const eYear = earliest.getFullYear();
+      const eMonth = earliest.getMonth();
+      const nYear = now.getFullYear();
+      const nMonth = now.getMonth();
+      const calendarMonths = Math.max(1, (nYear - eYear) * 12 + (nMonth - eMonth) + 1);
+
+      // Need at least 2 calendar months for a meaningful estimate
+      if (calendarMonths < 2) {
+        const totalSpent = recurringTotal + oneOffTotal;
+        setForecastData({
+          avgMonthlySpend: totalSpent,
+          estimatedAnnualCost: 0, // don't show projection
+          recurringMonthly: 0,
+          oneOffAnnual: 0,
+          calendarMonths,
+          confidence: null,
+        });
+        return;
+      }
+
+      // Recurring: spread over calendar months, then annualize
+      const recurringMonthly = recurringTotal / calendarMonths;
+      
+      // One-off: assume these happen ~once per year regardless of observation window
+      // If we've observed < 12 months, just use the total as-is
+      // If > 12 months, annualize
+      const yearsObserved = calendarMonths / 12;
+      const oneOffAnnual = yearsObserved >= 1 ? oneOffTotal / yearsObserved : oneOffTotal;
+
+      const estimatedAnnualCost = (recurringMonthly * 12) + oneOffAnnual;
+      const avgMonthlySpend = estimatedAnnualCost / 12;
+
+      // Confidence based on data depth
+      const confidence = calendarMonths >= 6 ? 'high' : calendarMonths >= 3 ? 'medium' : 'low';
+
+      setForecastData({ avgMonthlySpend, estimatedAnnualCost, recurringMonthly, oneOffAnnual, calendarMonths, confidence });
     } catch (error) {
       console.error('Error calculating cost forecast:', error);
     }
@@ -403,35 +451,78 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ alignItems: 'center', flex: 1 }}>
+      {forecastData.calendarMonths < 2 && forecastData.avgMonthlySpend > 0 ? (
+        <View style={{ alignItems: 'center', paddingVertical: Spacing.md }}>
           <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
             ${forecastData.avgMonthlySpend.toFixed(0)}
           </Text>
-          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
-            avg monthly spend
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
+            total spent so far
           </Text>
+          <View style={{
+            marginTop: Spacing.md,
+            backgroundColor: Colors.warning + '15',
+            borderRadius: 8,
+            paddingHorizontal: Spacing.md,
+            paddingVertical: Spacing.sm,
+          }}>
+            <Text style={[Typography.small, { color: Colors.warning, textAlign: 'center' }]}>
+              ⏳ need at least 2 months of data to estimate annual costs
+            </Text>
+          </View>
         </View>
+      ) : forecastData.estimatedAnnualCost > 0 ? (
+        <>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+                ${forecastData.avgMonthlySpend.toFixed(0)}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+                avg monthly
+              </Text>
+            </View>
 
-        <View style={{ alignItems: 'center', flex: 1 }}>
-          <Text style={[Typography.h1, { color: Colors.success }]}>
-            ${forecastData.estimatedAnnualCost.toFixed(0)}
-          </Text>
-          <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
-            estimated annual cost
-          </Text>
-        </View>
-      </View>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={[Typography.h1, { color: Colors.success }]}>
+                ${forecastData.estimatedAnnualCost.toFixed(0)}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary, textAlign: 'center' }]}>
+                estimated annual
+              </Text>
+            </View>
+          </View>
 
-      {forecastData.avgMonthlySpend > 0 && (
-        <Text style={[Typography.small, { 
-          color: Colors.textTertiary, 
-          textAlign: 'center', 
-          marginTop: Spacing.md 
-        }]}>
-          Based on last 6 months of service & fuel data
-        </Text>
-      )}
+          {/* Breakdown: recurring vs one-off */}
+          {forecastData.oneOffAnnual > 0 && (
+            <View style={{ 
+              marginTop: Spacing.md, 
+              paddingTop: Spacing.md, 
+              borderTopWidth: 1, 
+              borderTopColor: Colors.glassBorder 
+            }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔄 recurring (fuel + maintenance)</Text>
+                <Text style={[Typography.small, { color: Colors.textPrimary }]}>${(forecastData.recurringMonthly * 12).toFixed(0)}/yr</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔧 major repairs</Text>
+                <Text style={[Typography.small, { color: Colors.textPrimary }]}>${forecastData.oneOffAnnual.toFixed(0)}/yr</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Confidence + data source */}
+          <View style={{ marginTop: Spacing.md, alignItems: 'center' }}>
+            <Text style={[Typography.small, { color: Colors.textTertiary, textAlign: 'center' }]}>
+              Based on {forecastData.calendarMonths} month{forecastData.calendarMonths !== 1 ? 's' : ''} of data
+              {forecastData.confidence === 'low' && ' · ⚠️ low confidence'}
+              {forecastData.confidence === 'medium' && ' · moderate confidence'}
+              {forecastData.confidence === 'high' && ' · ✓ high confidence'}
+            </Text>
+          </View>
+        </>
+      ) : null}
     </View>
   );
 };
