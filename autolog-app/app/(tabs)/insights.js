@@ -180,6 +180,158 @@ const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
   );
 };
 
+const MonthOverMonthCard = ({ vehicles, selectedVehicleId }) => {
+  const { formatCostShort, formatDistanceUnit } = useSettings();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    compute();
+  }, [vehicles, selectedVehicleId]);
+
+  const compute = async () => {
+    try {
+      const now = new Date();
+      const filterVehicles = selectedVehicleId === 'all'
+        ? vehicles
+        : vehicles.filter(v => v.id === selectedVehicleId);
+
+      // Gather costs by month for last 13 months (to get YoY)
+      const monthMap = {};
+      for (const vehicle of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(vehicle.id);
+        const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
+
+        [...services, ...fuelLogs].forEach(item => {
+          const d = item.date;
+          if (!d) return;
+          const key = d.slice(0, 7); // YYYY-MM
+          if (!monthMap[key]) monthMap[key] = { services: 0, fuel: 0, serviceCount: 0, fuelCount: 0 };
+          if (item.serviceType || item.type === undefined) {
+            monthMap[key].services += item.cost || 0;
+            monthMap[key].serviceCount += 1;
+          }
+          if (item.totalCost !== undefined) {
+            monthMap[key].fuel += item.totalCost || 0;
+            monthMap[key].fuelCount += 1;
+          }
+        });
+      }
+
+      const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const prevMonth = new Date(now);
+      prevMonth.setMonth(prevMonth.getMonth() - 1);
+      const prevKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+      const yoyMonth = new Date(now);
+      yoyMonth.setFullYear(yoyMonth.getFullYear() - 1);
+      const yoyKey = `${yoyMonth.getFullYear()}-${String(yoyMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      const current = monthMap[currentKey] || { services: 0, fuel: 0, serviceCount: 0, fuelCount: 0 };
+      const prev = monthMap[prevKey];
+      const yoy = monthMap[yoyKey];
+
+      const currentTotal = current.services + current.fuel;
+      const prevTotal = prev ? prev.services + prev.fuel : null;
+      const yoyTotal = yoy ? yoy.services + yoy.fuel : null;
+
+      const momPct = prevTotal != null && prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : null;
+      const yoyPct = yoyTotal != null && yoyTotal > 0 ? ((currentTotal - yoyTotal) / yoyTotal) * 100 : null;
+
+      const prevMonthName = prevMonth.toLocaleDateString('en-US', { month: 'short' });
+      const yoyMonthName = yoyMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+      if (prevTotal == null && yoyTotal == null) {
+        setData(null);
+        return;
+      }
+
+      setData({ currentTotal, prevTotal, yoyTotal, momPct, yoyPct, prevMonthName, yoyMonthName, current, prev, yoy });
+    } catch (error) {
+      console.error('Error computing MoM:', error);
+    }
+  };
+
+  if (!data) return null;
+
+  const TrendRow = ({ label, currentVal, previousVal, pct }) => {
+    if (previousVal == null) return null;
+    const color = pct > 5 ? Colors.danger : pct < -5 ? Colors.success : Colors.textSecondary;
+    const arrow = pct > 0 ? '↑' : pct < 0 ? '↓' : '→';
+    return (
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }}>
+        <Text style={[Typography.body, { color: Colors.textPrimary, flex: 1 }]}>{label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+          <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
+            {formatCostShort(currentVal)}
+          </Text>
+          <View style={{ backgroundColor: color + '15', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 12, color, fontFamily: 'Nunito_600SemiBold' }}>
+              {arrow} {Math.abs(pct).toFixed(0)}%
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
+      <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
+        trends
+      </Text>
+
+      {/* Month over Month */}
+      {data.prevTotal != null && (
+        <View style={{ marginBottom: data.yoyTotal != null ? Spacing.md : 0 }}>
+          <Text style={[Typography.small, { color: Colors.textTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }]}>
+            vs {data.prevMonthName}
+          </Text>
+          <TrendRow
+            label="total"
+            currentVal={data.currentTotal}
+            previousVal={data.prevTotal}
+            pct={data.momPct}
+          />
+          {data.prev && data.current.services > 0 && (
+            <TrendRow
+              label="maintenance"
+              currentVal={data.current.services}
+              previousVal={data.prev.services}
+              pct={data.prev.services > 0 ? ((data.current.services - data.prev.services) / data.prev.services) * 100 : null}
+            />
+          )}
+          {data.prev && data.current.fuel > 0 && (
+            <TrendRow
+              label="fuel"
+              currentVal={data.current.fuel}
+              previousVal={data.prev.fuel}
+              pct={data.prev.fuel > 0 ? ((data.current.fuel - data.prev.fuel) / data.prev.fuel) * 100 : null}
+            />
+          )}
+        </View>
+      )}
+
+      {/* Year over Year */}
+      {data.yoyTotal != null && (
+        <View style={{ 
+          paddingTop: data.prevTotal != null ? Spacing.md : 0,
+          borderTopWidth: data.prevTotal != null ? 1 : 0,
+          borderTopColor: Colors.glassBorder,
+        }}>
+          <Text style={[Typography.small, { color: Colors.textTertiary, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }]}>
+            vs {data.yoyMonthName}
+          </Text>
+          <TrendRow
+            label="total (year ago)"
+            currentVal={data.currentTotal}
+            previousVal={data.yoyTotal}
+            pct={data.yoyPct}
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
 const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => {
   const { formatDistanceUnit } = useSettings();
   return (
@@ -1475,6 +1627,9 @@ export default function InsightsScreen() {
 
         {/* Monthly Summary Card */}
         <MonthlySummaryCard vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+
+        {/* Month-over-Month & Year-over-Year Trends */}
+        <MonthOverMonthCard vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
 
         {/* Action Items — overdue and due soon */}
         {(() => {
