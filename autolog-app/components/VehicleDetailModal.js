@@ -16,6 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage, ReminderStorage } from '../lib/storage';
+import LogServiceModal from './LogServiceModal';
 import LogFuelModal from './LogFuelModal';
 import LogIssueModal from './LogIssueModal';
 import TakeSnapshotModal from './TakeSnapshotModal';
@@ -1010,7 +1011,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
   );
 };
 
-export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService }) {
+export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService, onServiceLogged }) {
   const [vehicleData, setVehicleData] = useState(null);
   const [services, setServices] = useState([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState([]);
@@ -1041,6 +1042,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   const [servicePhotosMap, setServicePhotosMap] = useState({});
   const [fuelLogs, setFuelLogs] = useState([]);
   const [issues, setIssues] = useState([]);
+  const [showLogServiceModal, setShowLogServiceModal] = useState(false);
+  const [preselectedServiceType, setPreselectedServiceType] = useState(null);
   const [showLogFuelModal, setShowLogFuelModal] = useState(false);
   const [editingFuelLog, setEditingFuelLog] = useState(null);
   const [showLogIssueModal, setShowLogIssueModal] = useState(false);
@@ -1093,8 +1096,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   };
 
   const handleQuickLog = (serviceName) => {
-    // Close detail modal and open log service modal pre-filled
-    onLogService && onLogService(vehicleData, serviceName);
+    handleLogService(serviceName);
   };
 
   const loadVehicleData = async () => {
@@ -1271,9 +1273,10 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     });
   };
 
-  const handleLogService = () => {
+  const handleLogService = (serviceName) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onLogService && onLogService(vehicleData);
+    setPreselectedServiceType(serviceName || null);
+    setShowLogServiceModal(true);
   };
 
   const handleEditService = async (service) => {
@@ -2648,6 +2651,21 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
           </Modal>
 
           {/* Log Fuel Modal */}
+          <LogServiceModal
+            visible={showLogServiceModal}
+            onClose={() => { setShowLogServiceModal(false); setPreselectedServiceType(null); }}
+            onServiceLogged={(savedService) => {
+              setShowLogServiceModal(false);
+              setPreselectedServiceType(null);
+              // Refresh data
+              loadVehicleData();
+              // Notify parent to refresh
+              onServiceLogged && onServiceLogged();
+            }}
+            preselectedVehicle={vehicleData}
+            preselectedServiceType={preselectedServiceType}
+          />
+
           <LogFuelModal
             visible={showLogFuelModal}
             onClose={() => { setShowLogFuelModal(false); setEditingFuelLog(null); }}

@@ -1185,7 +1185,7 @@ export default function GarageScreen() {
         onClose={() => setShowVehicleDetailModal(false)}
         vehicle={selectedVehicle}
         onVehicleUpdated={handleVehicleUpdated}
-        onLogService={handleLogServiceFromDetail}
+        onServiceLogged={handleServiceLogged}
       />
 
       <LogServiceModal
