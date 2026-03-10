@@ -278,6 +278,16 @@ export const Shared = StyleSheet.create({
     fontFamily: 'Nunito_400Regular',
   },
   
+  // Modal header bar
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+
   inputFocused: {
     borderColor: Colors.primary,
     shadowColor: Colors.primary,

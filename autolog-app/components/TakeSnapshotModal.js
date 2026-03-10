@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { SnapshotStorage, IssueStorage } from '../lib/storage';
+import DatePickerField from './DatePickerField';
 import { CostAnalytics } from '../lib/analytics';
 
 const CONDITION_OPTIONS = [
@@ -344,12 +345,9 @@ export default function TakeSnapshotModal({
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
                   Date
                 </Text>
-                <TextInput
-                  style={Shared.input}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={Colors.textTertiary}
+                <DatePickerField
                   value={form.date}
-                  onChangeText={(value) => setForm(prev => ({ ...prev, date: value }))}
+                  onChange={(date) => setForm(prev => ({ ...prev, date }))}
                 />
               </View>
               <View style={{ flex: 1 }}>

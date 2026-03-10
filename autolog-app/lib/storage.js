@@ -99,6 +99,16 @@ export const VehicleStorage = {
       const snapshots = await SnapshotStorage.getAll();
       const filteredSnapshots = snapshots.filter(s => s.vehicleId !== vehicleId);
       await AsyncStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(filteredSnapshots));
+
+      // Delete all fuel logs for this vehicle
+      const fuelLogs = await FuelStorage.getAll();
+      const filteredFuel = fuelLogs.filter(f => f.vehicleId !== vehicleId);
+      await AsyncStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(filteredFuel));
+
+      // Delete all reminders for this vehicle
+      const reminders = await ReminderStorage.getAll();
+      const filteredReminders = reminders.filter(r => r.vehicleId !== vehicleId);
+      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(filteredReminders));
       
       return true;
     } catch (error) {
