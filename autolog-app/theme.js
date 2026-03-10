@@ -90,6 +90,20 @@ export const LightColors = {
   textDisabled: '#94A3B8',
 };
 
+// Dark mode colors (for reset)
+const DarkColors = { ...Colors };
+
+/**
+ * Apply theme by mutating Colors in-place.
+ * This way all existing `import { Colors }` references stay valid.
+ */
+export function applyTheme(mode) {
+  const source = mode === 'light' ? LightColors : DarkColors;
+  Object.keys(source).forEach(key => {
+    Colors[key] = source[key];
+  });
+}
+
 // Premium Typography Hierarchy - ALL text should use these
 export const Typography = StyleSheet.create({
   // Hero - Screen titles (32px Bold) - lowercase style

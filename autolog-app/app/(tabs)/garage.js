@@ -16,6 +16,7 @@ import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
 import OnboardingModal from '../../components/OnboardingModal';
 import { HealthScoreDialSmall } from '../../components/HealthScoreDial';
+import { useTheme } from '../../lib/ThemeContext';
 import { Modal, Switch } from 'react-native';
 
 const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
@@ -587,24 +588,14 @@ const DashboardSummary = ({ vehicles }) => {
   );
 };
 
-const SettingsModal = ({ visible, onClose }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+const SettingsModal = ({ visible, onClose, themeContext }) => {
+  const { isDark, toggleTheme } = themeContext || { isDark: true, toggleTheme: () => {} };
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [notificationTiming, setNotificationTiming] = useState(7);
 
   useEffect(() => {
-    loadThemePreference();
     loadNotificationSettings();
   }, []);
-
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem('@theme_mode');
-      setIsDarkMode(savedTheme !== 'light');
-    } catch (error) {
-      console.error('Error loading theme preference:', error);
-    }
-  };
 
   const loadNotificationSettings = async () => {
     try {
@@ -616,14 +607,9 @@ const SettingsModal = ({ visible, onClose }) => {
     }
   };
 
-  const handleThemeToggle = async (value) => {
-    try {
-      setIsDarkMode(value);
-      await AsyncStorage.setItem('@theme_mode', value ? 'dark' : 'light');
-      Haptics.selectionAsync();
-    } catch (error) {
-      console.error('Error saving theme preference:', error);
-    }
+  const handleThemeToggle = () => {
+    toggleTheme();
+    Haptics.selectionAsync();
   };
 
   const handleNotificationToggle = async (value) => {
@@ -807,14 +793,14 @@ const SettingsModal = ({ visible, onClose }) => {
                   dark mode
                 </Text>
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
-                  coming soon - stored preference for future update
+                  {isDark ? 'dark theme active' : 'light theme active'}
                 </Text>
               </View>
               <Switch
-                value={isDarkMode}
+                value={isDark}
                 onValueChange={handleThemeToggle}
                 trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
-                thumbColor={isDarkMode ? Colors.primary : Colors.textSecondary}
+                thumbColor={isDark ? Colors.primary : Colors.textSecondary}
                 ios_backgroundColor={Colors.surface3}
               />
             </View>
@@ -927,6 +913,7 @@ const SettingsModal = ({ visible, onClose }) => {
 };
 
 export default function GarageScreen() {
+  const themeContext = useTheme();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -1205,6 +1192,7 @@ export default function GarageScreen() {
       <SettingsModal
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
+        themeContext={themeContext}
       />
     </View>
   );

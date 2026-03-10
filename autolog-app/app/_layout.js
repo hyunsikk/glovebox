@@ -4,7 +4,28 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { View } from 'react-native';
 import { Colors } from '../theme';
+import { ThemeProvider, useTheme } from '../lib/ThemeContext';
 import { requestNotificationPermissions, scheduleServiceNotifications } from '../lib/notifications';
+
+function RootLayoutInner() {
+  const { isDark, colors } = useTheme();
+
+  useEffect(() => {
+    (async () => {
+      await requestNotificationPermissions();
+      await scheduleServiceNotifications();
+    })();
+  }, []);
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.background} />
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout() {
   let [fontsLoaded] = useFonts({
@@ -14,25 +35,13 @@ export default function RootLayout() {
     Nunito_700Bold,
   });
 
-  useEffect(() => {
-    // Request notification permissions and schedule maintenance reminders on app start
-    (async () => {
-      await requestNotificationPermissions();
-      await scheduleServiceNotifications();
-    })();
-  }, []);
-
   if (!fontsLoaded) {
-    // Simple loading view
     return <View style={{ flex: 1, backgroundColor: Colors.background }} />;
   }
 
   return (
-    <>
-      <StatusBar style="light" backgroundColor={Colors.background} />
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </>
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
   );
 }
