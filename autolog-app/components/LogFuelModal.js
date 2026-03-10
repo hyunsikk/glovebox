@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, Shared } from '../theme';
+import DatePickerField from './DatePickerField';
 
 const FUEL_TYPES = [
   { key: 'fuel', label: 'Gas / Diesel', emoji: '⛽' },
@@ -269,14 +270,9 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
               <View style={{ flex: 1 }}>
                 <SectionLabel>Date *</SectionLabel>
-                <TextInput
-                  style={Shared.input}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={Colors.arcticSilver}
+                <DatePickerField
                   value={date}
-                  onChangeText={(t) => setDate(formatDateInput(t))}
-                  keyboardType="number-pad"
-                  maxLength={10}
+                  onChange={setDate}
                 />
               </View>
               <View style={{ flex: 1 }}>

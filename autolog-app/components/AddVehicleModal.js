@@ -16,6 +16,7 @@ import { Colors, Typography, Spacing, Shared } from '../theme';
 import VehicleSearch from './VehicleSearch';
 import { VehicleStorage } from '../lib/storage';
 import vehicleData from '../content/v1/vehicles.json';
+import DatePickerField from './DatePickerField';
 
 export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
   const [step, setStep] = useState('search'); // 'search' or 'manual' or 'details'
@@ -539,22 +540,19 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
 
       {/* Purchase Date Input */}
       <View style={{ marginBottom: Spacing.lg }}>
-        <Text style={[Typography.caption, { 
-          color: Colors.textSecondary, 
-          marginBottom: Spacing.sm 
+        <Text style={[Typography.caption, {
+          color: Colors.textSecondary,
+          marginBottom: Spacing.sm
         }]}>
           When Did You Get It? (Optional)
         </Text>
-        <TextInput
-          style={Shared.input}
-          placeholder="YYYY-MM or YYYY-MM-DD"
-          placeholderTextColor={Colors.arcticSilver}
+        <DatePickerField
           value={formData.purchaseDate}
-          onChangeText={(value) => updateFormData('purchaseDate', value)}
+          onChange={(date) => updateFormData('purchaseDate', date)}
         />
-        <Text style={[Typography.caption, { 
-          color: Colors.arcticSilver, 
-          marginTop: 4 
+        <Text style={[Typography.caption, {
+          color: Colors.arcticSilver,
+          marginTop: 4
         }]}>
           Helps calculate accurate maintenance schedules
         </Text>

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { ServiceStorage, VehicleStorage } from '../lib/storage';
+import DatePickerField from './DatePickerField';
 
 export default function EditServiceModal({ visible, onClose, service, onServiceUpdated }) {
   const [loading, setLoading] = useState(false);
@@ -241,34 +242,12 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
 
           {/* Service Date */}
           <View style={[Shared.card]}>
-            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
-              service date
-            </Text>
-            
-            <TextInput
-              style={[
-                Shared.input,
-                showErrors && errors.date && { borderColor: Colors.danger, borderWidth: 2 }
-              ]}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textTertiary}
+            <DatePickerField
+              label="service date"
               value={formData.date}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, date: text }))}
-              autoCorrect={false}
-              keyboardType="numeric"
+              onChange={(date) => setFormData(prev => ({ ...prev, date }))}
+              error={showErrors && errors.date ? errors.date : null}
             />
-            
-            {showErrors && errors.date && (
-              <Text style={[Typography.caption, { color: Colors.danger, marginTop: Spacing.xs }]}>
-                {errors.date}
-              </Text>
-            )}
-            
-            {formData.date && !errors.date && (
-              <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: Spacing.xs }]}>
-                {formatDate(formData.date)}
-              </Text>
-            )}
           </View>
 
           {/* Mileage */}

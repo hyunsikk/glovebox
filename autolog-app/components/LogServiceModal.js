@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
 import { pickImageAsync, saveServiceImage, getThumbnailUri } from '../lib/imageUtils';
+import DatePickerField from './DatePickerField';
 
 import { getVehicleSchedule } from '../lib/vehicleDB';
 
@@ -620,18 +621,15 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       {/* Date Input */}
       <View style={{ marginBottom: Spacing.lg }}>
-        <Text style={[Typography.caption, { 
-          color: Colors.textSecondary, 
-          marginBottom: Spacing.sm 
+        <Text style={[Typography.caption, {
+          color: Colors.textSecondary,
+          marginBottom: Spacing.sm
         }]}>
           Service Date *
         </Text>
-        <TextInput
-          style={Shared.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={Colors.arcticSilver}
+        <DatePickerField
           value={formData.date}
-          onChangeText={(value) => updateFormData('date', value)}
+          onChange={(date) => updateFormData('date', date)}
         />
       </View>
 

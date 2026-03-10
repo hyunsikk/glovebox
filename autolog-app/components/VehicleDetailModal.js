@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
+import DatePickerField from './DatePickerField';
 
 // CollapsibleSection component defined at top of file
 const CollapsibleSection = ({ title, children, defaultExpanded = false, hasContent = true }) => {
@@ -2477,14 +2478,11 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       {/* Date */}
                       <View style={{ marginBottom: Spacing.lg }}>
                         <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                          Date (YYYY-MM-DD)
+                          Date
                         </Text>
-                        <TextInput
-                          style={Shared.input}
-                          placeholder="2025-01-15"
-                          placeholderTextColor={Colors.arcticSilver}
+                        <DatePickerField
                           value={serviceEditForm.date}
-                          onChangeText={(v) => setServiceEditForm(prev => ({ ...prev, date: v }))}
+                          onChange={(v) => setServiceEditForm(prev => ({ ...prev, date: v }))}
                         />
                       </View>
 
