@@ -357,7 +357,7 @@ const IssueCard = ({ issue, vehicle }) => {
         </View>
 
         {/* Cost */}
-        {issue.cost && (
+        {issue.cost != null && issue.cost > 0 && (
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={[Typography.h2, { color: Colors.primary }]}>
               {formatCost(issue.cost)}
