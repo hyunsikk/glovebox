@@ -546,12 +546,23 @@ export const IssueStorage = {
   add: async (issueData) => {
     try {
       const issues = await IssueStorage.getAll();
+      const now = getCurrentDate();
       const newIssue = {
         id: generateId(),
         ...issueData,
         status: issueData.status || 'open',
-        createdAt: getCurrentDate(),
-        updatedAt: getCurrentDate(),
+        history: [
+          {
+            id: generateId(),
+            type: 'created',
+            timestamp: now,
+            status: issueData.status || 'open',
+            severity: issueData.severity || 'moderate',
+            note: null,
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
       };
       issues.push(newIssue);
       await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(issues));
@@ -568,15 +579,85 @@ export const IssueStorage = {
       const index = issues.findIndex(i => i.id === id);
       if (index === -1) throw new Error('Issue not found');
       
+      const oldIssue = issues[index];
+      const now = getCurrentDate();
+      const historyEntries = [];
+
+      // Track status changes
+      if (updates.status && updates.status !== oldIssue.status) {
+        historyEntries.push({
+          id: generateId(),
+          type: 'status_change',
+          timestamp: now,
+          from: oldIssue.status,
+          to: updates.status,
+          note: null,
+        });
+      }
+
+      // Track severity changes
+      if (updates.severity && updates.severity !== oldIssue.severity) {
+        historyEntries.push({
+          id: generateId(),
+          type: 'severity_change',
+          timestamp: now,
+          from: oldIssue.severity,
+          to: updates.severity,
+          note: null,
+        });
+      }
+
+      // Track cost changes
+      if (updates.cost !== undefined && updates.cost !== oldIssue.cost) {
+        historyEntries.push({
+          id: generateId(),
+          type: 'cost_update',
+          timestamp: now,
+          from: oldIssue.cost,
+          to: updates.cost,
+          note: null,
+        });
+      }
+
+      // Track update notes (user-added comments)
+      if (updates._updateNote) {
+        historyEntries.push({
+          id: generateId(),
+          type: 'note',
+          timestamp: now,
+          note: updates._updateNote,
+        });
+      }
+
+      // If fields changed but no specific history entry was created, log a generic update
+      if (historyEntries.length === 0 && !updates._updateNote) {
+        const fieldsChanged = [];
+        if (updates.title && updates.title !== oldIssue.title) fieldsChanged.push('title');
+        if (updates.description && updates.description !== oldIssue.description) fieldsChanged.push('description');
+        if (updates.odometer && updates.odometer !== oldIssue.odometer) fieldsChanged.push('odometer');
+        if (fieldsChanged.length > 0) {
+          historyEntries.push({
+            id: generateId(),
+            type: 'updated',
+            timestamp: now,
+            fields: fieldsChanged,
+            note: null,
+          });
+        }
+      }
+
       const updatedIssue = {
-        ...issues[index],
+        ...oldIssue,
         ...updates,
-        updatedAt: getCurrentDate(),
+        _updateNote: undefined, // Don't persist the internal field
+        history: [...(oldIssue.history || []), ...historyEntries],
+        updatedAt: now,
       };
+      delete updatedIssue._updateNote;
       
       // Set resolvedDate when status changes to resolved
-      if (updates.status === 'resolved' && issues[index].status !== 'resolved') {
-        updatedIssue.resolvedDate = getCurrentDate();
+      if (updates.status === 'resolved' && oldIssue.status !== 'resolved') {
+        updatedIssue.resolvedDate = now;
       }
       // Clear resolvedDate if status changes away from resolved
       else if (updates.status && updates.status !== 'resolved') {

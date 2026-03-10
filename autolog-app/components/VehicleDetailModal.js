@@ -2271,7 +2271,27 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                   <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: 2 }]}>
                                     {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     {entry.odometer ? ` • ${entry.odometer.toLocaleString()} mi` : ''}
+                                    {entry.history && entry.history.length > 1 ? ` • ${entry.history.length} updates` : ''}
                                   </Text>
+                                  {/* Show latest history note if exists */}
+                                  {(() => {
+                                    const latestNote = entry.history && [...entry.history].reverse().find(h => h.type === 'note');
+                                    if (latestNote) {
+                                      return (
+                                        <View style={{ 
+                                          marginTop: Spacing.xs, 
+                                          paddingTop: Spacing.xs, 
+                                          borderTopWidth: 1, 
+                                          borderTopColor: Colors.glassBorder,
+                                        }}>
+                                          <Text style={[Typography.small, { color: Colors.textTertiary, fontStyle: 'italic' }]} numberOfLines={1}>
+                                            💬 {latestNote.note}
+                                          </Text>
+                                        </View>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </View>
                               </View>
                               {entry.cost && (

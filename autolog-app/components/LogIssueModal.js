@@ -157,6 +157,7 @@ export default function LogIssueModal({
     cost: '',
     resolvedServiceId: '',
   });
+  const [updateNote, setUpdateNote] = useState('');
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -177,6 +178,7 @@ export default function LogIssueModal({
           cost: editingIssue.cost?.toString() || '',
           resolvedServiceId: editingIssue.resolvedServiceId || '',
         });
+        setUpdateNote('');
         loadServices(editingIssue.vehicleId);
       } else {
         setForm({
@@ -190,6 +192,7 @@ export default function LogIssueModal({
           cost: '',
           resolvedServiceId: '',
         });
+        setUpdateNote('');
       }
       setErrors({});
     }
@@ -257,6 +260,10 @@ export default function LogIssueModal({
       };
 
       if (isEditing) {
+        // Pass update note as internal field for history tracking
+        if (updateNote.trim()) {
+          issueData._updateNote = updateNote.trim();
+        }
         await IssueStorage.update(editingIssue.id, issueData);
       } else {
         await IssueStorage.add(issueData);
@@ -530,6 +537,112 @@ export default function LogIssueModal({
                     </TouchableOpacity>
                   ))}
                 </View>
+              </View>
+            )}
+
+            {/* Update Note (only when editing) */}
+            {isEditing && (
+              <View style={{ marginBottom: Spacing.lg }}>
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
+                  Add Update Note
+                </Text>
+                <TextInput
+                  style={[Shared.input, { 
+                    height: 80, 
+                    textAlignVertical: 'top', 
+                    paddingTop: Spacing.md 
+                  }]}
+                  placeholder="What changed? Any new observations, repairs attempted, parts ordered..."
+                  placeholderTextColor={Colors.textTertiary}
+                  value={updateNote}
+                  onChangeText={setUpdateNote}
+                  multiline
+                  autoCapitalize="sentences"
+                />
+              </View>
+            )}
+
+            {/* Issue History (only when editing and has history) */}
+            {isEditing && editingIssue?.history && editingIssue.history.length > 0 && (
+              <View style={{ marginBottom: Spacing.lg }}>
+                <Text style={[Typography.caption, { 
+                  color: Colors.textSecondary, 
+                  marginBottom: Spacing.md,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                }]}>
+                  History
+                </Text>
+                
+                {[...editingIssue.history].reverse().map((entry, idx) => {
+                  const formatTime = (ts) => {
+                    const d = new Date(ts);
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + 
+                      ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                  };
+
+                  const statusLabel = (s) => s === 'in_progress' ? 'In Progress' : s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
+                  let icon = '📝';
+                  let text = '';
+                  
+                  if (entry.type === 'created') {
+                    icon = '🆕';
+                    text = `Issue created — ${statusLabel(entry.status)}, ${statusLabel(entry.severity)}`;
+                  } else if (entry.type === 'status_change') {
+                    icon = entry.to === 'resolved' ? '✅' : entry.to === 'in_progress' ? '🔄' : '🔓';
+                    text = `Status: ${statusLabel(entry.from)} → ${statusLabel(entry.to)}`;
+                  } else if (entry.type === 'severity_change') {
+                    icon = '⚠️';
+                    text = `Severity: ${statusLabel(entry.from)} → ${statusLabel(entry.to)}`;
+                  } else if (entry.type === 'cost_update') {
+                    icon = '💰';
+                    const fromCost = entry.from != null ? `$${Number(entry.from).toFixed(2)}` : 'none';
+                    const toCost = entry.to != null ? `$${Number(entry.to).toFixed(2)}` : 'none';
+                    text = `Cost: ${fromCost} → ${toCost}`;
+                  } else if (entry.type === 'note') {
+                    icon = '💬';
+                    text = entry.note;
+                  } else if (entry.type === 'updated') {
+                    icon = '📝';
+                    text = `Updated: ${entry.fields?.join(', ') || 'details'}`;
+                  }
+
+                  const isLast = idx === editingIssue.history.length - 1;
+
+                  return (
+                    <View key={entry.id || idx} style={{ flexDirection: 'row', marginBottom: isLast ? 0 : Spacing.md }}>
+                      {/* Timeline line */}
+                      <View style={{ alignItems: 'center', width: 32 }}>
+                        <Text style={{ fontSize: 14 }}>{icon}</Text>
+                        {!isLast && (
+                          <View style={{ 
+                            width: 1, 
+                            flex: 1, 
+                            backgroundColor: Colors.glassBorder, 
+                            marginTop: 4,
+                            minHeight: 16,
+                          }} />
+                        )}
+                      </View>
+                      
+                      {/* Content */}
+                      <View style={{ flex: 1, paddingLeft: Spacing.sm, paddingBottom: isLast ? 0 : Spacing.sm }}>
+                        <Text style={[Typography.body, { 
+                          color: entry.type === 'note' ? Colors.textPrimary : Colors.textSecondary,
+                          fontFamily: entry.type === 'note' ? 'Nunito_500Medium' : 'Nunito_400Regular',
+                          fontSize: 13,
+                          lineHeight: 18,
+                        }]}>
+                          {text}
+                        </Text>
+                        <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: 2, fontSize: 11 }]}>
+                          {formatTime(entry.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             )}
 
