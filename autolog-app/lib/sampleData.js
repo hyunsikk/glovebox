@@ -11,6 +11,7 @@ export const addSampleData = async () => {
       nickname: 'Daily Driver',
       initialMileage: 15000,
       currentMileage: 32400,
+      purchaseDate: '2022-03-10',
       vin: '2T3P1RFV0NW123456',
       location: 'Home garage',
     });
@@ -22,6 +23,7 @@ export const addSampleData = async () => {
       nickname: 'Weekend Car',
       initialMileage: 8000,
       currentMileage: 24200,
+      purchaseDate: '2021-01-15',
       vin: '19XFC2F59LE012345',
     });
 
@@ -32,6 +34,7 @@ export const addSampleData = async () => {
       nickname: 'Sport Sedan',
       initialMileage: 5000,
       currentMileage: 28500,
+      purchaseDate: '2021-06-20',
       vin: 'WBA5R1C52M7D12345',
       location: 'Parking garage',
     });
@@ -138,7 +141,104 @@ export const addSampleData = async () => {
       diyLog: { difficulty: 'Easy', timeTaken: 10 },
     });
 
-    // ─── Vehicle 1: Toyota RAV4 — Fuel Logs ───
+    // ─── Vehicle 1: Toyota RAV4 — Fuel Logs (18 months of fill-ups) ───
+    // Earlier fill-ups for longer MPG trend
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2023-06-15',
+      odometer: 17500,
+      gallons: 11.0,
+      pricePerGallon: 3.89,
+      totalCost: 42.79,
+      fullTank: true,
+      station: 'Costco Gas',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2023-07-10',
+      odometer: 18000,
+      gallons: 10.8,
+      pricePerGallon: 3.95,
+      totalCost: 42.66,
+      fullTank: true,
+      station: 'Shell',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2023-08-20',
+      odometer: 19500,
+      gallons: 11.5,
+      pricePerGallon: 4.15,
+      totalCost: 47.73,
+      fullTank: true,
+      station: 'Chevron',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2023-10-01',
+      odometer: 21500,
+      gallons: 12.0,
+      pricePerGallon: 4.39,
+      totalCost: 52.68,
+      fullTank: true,
+      station: 'Costco Gas',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2023-12-15',
+      odometer: 23500,
+      gallons: 11.8,
+      pricePerGallon: 4.09,
+      totalCost: 48.26,
+      fullTank: true,
+      station: 'Arco',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2024-02-20',
+      odometer: 25500,
+      gallons: 12.2,
+      pricePerGallon: 4.19,
+      totalCost: 51.12,
+      fullTank: true,
+      station: 'Shell',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2024-04-15',
+      odometer: 27000,
+      gallons: 11.5,
+      pricePerGallon: 4.45,
+      totalCost: 51.18,
+      fullTank: true,
+      station: 'Costco Gas',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle1.id,
+      date: '2024-06-20',
+      odometer: 28800,
+      gallons: 11.9,
+      pricePerGallon: 4.55,
+      totalCost: 54.15,
+      fullTank: true,
+      station: 'Chevron',
+      type: 'fuel',
+    });
+
     await FuelStorage.add({
       vehicleId: vehicle1.id,
       date: '2024-12-01',
@@ -148,7 +248,7 @@ export const addSampleData = async () => {
       totalCost: 50.62,
       fullTank: true,
       station: 'Costco Gas',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -160,7 +260,7 @@ export const addSampleData = async () => {
       totalCost: 44.00,
       fullTank: true,
       station: 'Shell',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -172,7 +272,7 @@ export const addSampleData = async () => {
       totalCost: 52.64,
       fullTank: true,
       station: 'Costco Gas',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -184,7 +284,7 @@ export const addSampleData = async () => {
       totalCost: 50.74,
       fullTank: true,
       station: 'Chevron',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -196,7 +296,7 @@ export const addSampleData = async () => {
       totalCost: 47.85,
       fullTank: true,
       station: 'Shell',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -208,7 +308,7 @@ export const addSampleData = async () => {
       totalCost: 49.30,
       fullTank: true,
       station: 'Costco Gas',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -220,7 +320,7 @@ export const addSampleData = async () => {
       totalCost: 54.60,
       fullTank: true,
       station: 'Chevron',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -232,7 +332,7 @@ export const addSampleData = async () => {
       totalCost: 53.47,
       fullTank: true,
       station: 'Shell',
-      type: 'gas',
+      type: 'fuel',
     });
 
     // ─── Vehicle 1: Toyota RAV4 — Issues ───
@@ -341,6 +441,42 @@ export const addSampleData = async () => {
     // ─── Vehicle 2: Honda Civic — Fuel Logs ───
     await FuelStorage.add({
       vehicleId: vehicle2.id,
+      date: '2024-03-10',
+      odometer: 19500,
+      gallons: 8.5,
+      pricePerGallon: 3.99,
+      totalCost: 33.92,
+      fullTank: true,
+      station: 'Costco Gas',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle2.id,
+      date: '2024-05-15',
+      odometer: 20500,
+      gallons: 8.8,
+      pricePerGallon: 4.25,
+      totalCost: 37.40,
+      fullTank: true,
+      station: 'Shell',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle2.id,
+      date: '2024-07-20',
+      odometer: 21800,
+      gallons: 9.0,
+      pricePerGallon: 4.35,
+      totalCost: 39.15,
+      fullTank: true,
+      station: 'Chevron',
+      type: 'fuel',
+    });
+
+    await FuelStorage.add({
+      vehicleId: vehicle2.id,
       date: '2024-12-03',
       odometer: 24200,
       gallons: 9.2,
@@ -348,7 +484,7 @@ export const addSampleData = async () => {
       totalCost: 38.18,
       fullTank: true,
       station: 'Arco',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -360,7 +496,7 @@ export const addSampleData = async () => {
       totalCost: 35.99,
       fullTank: true,
       station: 'Costco Gas',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -372,7 +508,7 @@ export const addSampleData = async () => {
       totalCost: 38.25,
       fullTank: true,
       station: 'Shell',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -384,7 +520,7 @@ export const addSampleData = async () => {
       totalCost: 37.32,
       fullTank: true,
       station: 'Chevron',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -396,7 +532,7 @@ export const addSampleData = async () => {
       totalCost: 39.04,
       fullTank: true,
       station: 'Arco',
-      type: 'gas',
+      type: 'fuel',
     });
 
     // ─── Vehicle 2: Honda Civic — Issues ───
@@ -512,7 +648,7 @@ export const addSampleData = async () => {
       totalCost: 68.72,
       fullTank: true,
       station: 'Shell V-Power',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -524,7 +660,7 @@ export const addSampleData = async () => {
       totalCost: 65.92,
       fullTank: true,
       station: 'Chevron Supreme',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -536,7 +672,7 @@ export const addSampleData = async () => {
       totalCost: 69.30,
       fullTank: true,
       station: 'Shell V-Power',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -548,7 +684,7 @@ export const addSampleData = async () => {
       totalCost: 72.66,
       fullTank: true,
       station: '76',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -560,7 +696,7 @@ export const addSampleData = async () => {
       totalCost: 73.83,
       fullTank: true,
       station: 'Shell V-Power',
-      type: 'gas',
+      type: 'fuel',
     });
 
     await FuelStorage.add({
@@ -572,7 +708,7 @@ export const addSampleData = async () => {
       totalCost: 68.13,
       fullTank: true,
       station: 'Chevron Supreme',
-      type: 'gas',
+      type: 'fuel',
     });
 
     // ─── Vehicle 3: BMW 3 Series — Issues ───
