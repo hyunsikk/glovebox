@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { View } from 'react-native';
 import { Colors } from '../theme';
+import { requestNotificationPermissions, scheduleServiceNotifications } from '../lib/notifications';
 
 export default function RootLayout() {
   let [fontsLoaded] = useFonts({
@@ -11,6 +13,14 @@ export default function RootLayout() {
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
+
+  useEffect(() => {
+    // Request notification permissions and schedule maintenance reminders on app start
+    (async () => {
+      await requestNotificationPermissions();
+      await scheduleServiceNotifications();
+    })();
+  }, []);
 
   if (!fontsLoaded) {
     // Simple loading view

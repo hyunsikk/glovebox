@@ -5,7 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage } from '../../lib/storage';
+import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { addSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
@@ -586,9 +586,12 @@ const DashboardSummary = ({ vehicles }) => {
 
 const SettingsModal = ({ visible, onClose }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationTiming, setNotificationTiming] = useState(7);
 
   useEffect(() => {
     loadThemePreference();
+    loadNotificationSettings();
   }, []);
 
   const loadThemePreference = async () => {
@@ -600,17 +603,58 @@ const SettingsModal = ({ visible, onClose }) => {
     }
   };
 
+  const loadNotificationSettings = async () => {
+    try {
+      const settings = await SettingsStorage.get();
+      setNotificationsEnabled(settings.notifications !== false);
+      setNotificationTiming(settings.notificationTiming || 7);
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+    }
+  };
+
   const handleThemeToggle = async (value) => {
     try {
       setIsDarkMode(value);
       await AsyncStorage.setItem('@theme_mode', value ? 'dark' : 'light');
       Haptics.selectionAsync();
-      // TODO: Apply theme change across app
-      // For now, we just store the preference
     } catch (error) {
       console.error('Error saving theme preference:', error);
     }
   };
+
+  const handleNotificationToggle = async (value) => {
+    try {
+      setNotificationsEnabled(value);
+      await SettingsStorage.update({ notifications: value });
+      Haptics.selectionAsync();
+      if (value) {
+        const { scheduleServiceNotifications } = require('../../lib/notifications');
+        await scheduleServiceNotifications();
+      } else {
+        const { cancelAllNotifications } = require('../../lib/notifications');
+        await cancelAllNotifications();
+      }
+    } catch (error) {
+      console.error('Error saving notification setting:', error);
+    }
+  };
+
+  const handleTimingChange = async (days) => {
+    try {
+      setNotificationTiming(days);
+      await SettingsStorage.update({ notificationTiming: days });
+      Haptics.selectionAsync();
+      if (notificationsEnabled) {
+        const { scheduleServiceNotifications } = require('../../lib/notifications');
+        await scheduleServiceNotifications();
+      }
+    } catch (error) {
+      console.error('Error saving notification timing:', error);
+    }
+  };
+
+  const TIMING_OPTIONS = [3, 7, 14, 30];
 
   return (
     <Modal
@@ -618,8 +662,8 @@ const SettingsModal = ({ visible, onClose }) => {
       animationType="slide"
       presentationStyle="pageSheet"
     >
-      <View style={{ 
-        flex: 1, 
+      <View style={{
+        flex: 1,
         backgroundColor: Colors.background,
         paddingHorizontal: Spacing.horizontalLarge,
       }}>
@@ -647,36 +691,99 @@ const SettingsModal = ({ visible, onClose }) => {
           <View style={{ width: 32 }} />
         </View>
 
-        {/* Settings Content */}
-        <View style={[Shared.cardPrimary]}>
-          <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
-            appearance
-          </Text>
-          
-          {/* Dark Mode Toggle */}
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingVertical: Spacing.md,
-          }}>
-            <View style={{ flex: 1 }}>
-              <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                dark mode
-              </Text>
-              <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
-                coming soon - stored preference for future update
-              </Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Appearance */}
+          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+              appearance
+            </Text>
+
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: Spacing.md,
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                  dark mode
+                </Text>
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
+                  coming soon - stored preference for future update
+                </Text>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={handleThemeToggle}
+                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
+                thumbColor={isDarkMode ? Colors.primary : Colors.textSecondary}
+                ios_backgroundColor={Colors.surface3}
+              />
             </View>
-            <Switch
-              value={isDarkMode}
-              onValueChange={handleThemeToggle}
-              trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
-              thumbColor={isDarkMode ? Colors.primary : Colors.textSecondary}
-              ios_backgroundColor={Colors.surface3}
-            />
           </View>
-        </View>
+
+          {/* Notifications */}
+          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+              notifications
+            </Text>
+
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: Spacing.md,
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                  maintenance reminders
+                </Text>
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
+                  get notified when services are due
+                </Text>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleNotificationToggle}
+                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
+                thumbColor={notificationsEnabled ? Colors.primary : Colors.textSecondary}
+                ios_backgroundColor={Colors.surface3}
+              />
+            </View>
+
+            {notificationsEnabled && (
+              <View style={{ marginTop: Spacing.md }}>
+                <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+                  remind me before service is due
+                </Text>
+                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                  {TIMING_OPTIONS.map((days) => (
+                    <TouchableOpacity
+                      key={days}
+                      onPress={() => handleTimingChange(days)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: Spacing.sm,
+                        borderRadius: 12,
+                        backgroundColor: notificationTiming === days ? Colors.primary + '20' : Colors.surface1,
+                        borderWidth: 1,
+                        borderColor: notificationTiming === days ? Colors.primary : Colors.glassBorder,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={[Typography.caption, {
+                        color: notificationTiming === days ? Colors.primary : Colors.textSecondary,
+                        fontFamily: notificationTiming === days ? 'Nunito_600SemiBold' : 'Nunito_400Regular',
+                      }]}>
+                        {days}d
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -819,6 +926,9 @@ export default function GarageScreen() {
   const handleServiceLogged = () => {
     // Refresh vehicles list to update any mileage changes
     loadVehicles();
+    // Re-schedule notifications since service dates changed
+    const { scheduleServiceNotifications } = require('../../lib/notifications');
+    scheduleServiceNotifications();
   };
 
   const handleOnboardingAddVehicle = () => {
