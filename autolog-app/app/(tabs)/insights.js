@@ -12,6 +12,173 @@ import { useSettings } from '../../lib/SettingsContext';
 import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline } from '../../components/DataViz';
 
 
+const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
+  const { formatCostShort, formatDistance, formatEfficiency, currencySymbol, formatDistanceUnit } = useSettings();
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    calculateMonthlySummary();
+  }, [vehicles, selectedVehicleId]);
+
+  const calculateMonthlySummary = async () => {
+    try {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const filterVehicles = selectedVehicleId === 'all'
+        ? vehicles
+        : vehicles.filter(v => v.id === selectedVehicleId);
+
+      let totalSpent = 0;
+      let serviceCount = 0;
+      let fuelCount = 0;
+      let totalMiles = 0;
+      let totalGallons = 0;
+
+      for (const vehicle of filterVehicles) {
+        const services = await ServiceStorage.getByVehicleId(vehicle.id);
+        const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
+
+        const monthServices = services.filter(s => {
+          const d = new Date(s.date);
+          return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        });
+        totalSpent += monthServices.reduce((sum, s) => sum + (s.cost || 0), 0);
+        serviceCount += monthServices.length;
+
+        const monthFuel = fuelLogs.filter(f => {
+          const d = new Date(f.date);
+          return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+        });
+        totalSpent += monthFuel.reduce((sum, f) => sum + (f.totalCost || 0), 0);
+        fuelCount += monthFuel.length;
+        totalGallons += monthFuel.reduce((sum, f) => sum + (f.gallons || 0), 0);
+
+        // Estimate miles driven this month from fuel logs
+        const sortedFuel = [...monthFuel].sort((a, b) => a.odometer - b.odometer);
+        if (sortedFuel.length >= 2) {
+          totalMiles += sortedFuel[sortedFuel.length - 1].odometer - sortedFuel[0].odometer;
+        }
+      }
+
+      const avgMPG = totalGallons > 0 && totalMiles > 0 ? totalMiles / totalGallons : null;
+
+      setSummary({ monthName, totalSpent, serviceCount, fuelCount, totalMiles, avgMPG });
+    } catch (error) {
+      console.error('Error calculating monthly summary:', error);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (!summary) return;
+
+      const text = [
+        `Car Story — ${summary.monthName}`,
+        `Total Spent: ${formatCostShort(summary.totalSpent)}`,
+        `Services: ${summary.serviceCount}`,
+        `Fill-ups: ${summary.fuelCount}`,
+        summary.totalMiles > 0 ? `${formatDistanceUnit()} Driven: ${Math.round(summary.totalMiles).toLocaleString()}` : null,
+        summary.avgMPG ? `Avg ${formatEfficiency(summary.avgMPG)}` : null,
+        '',
+        'Tracked with Car Story',
+      ].filter(Boolean).join('\n');
+
+      if (Platform.OS === 'web') {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+          Alert.alert('Copied', 'Monthly summary copied to clipboard');
+        }
+      } else {
+        const filePath = `${FileSystem.cacheDirectory}monthly-summary.txt`;
+        await FileSystem.writeAsStringAsync(filePath, text);
+        await Sharing.shareAsync(filePath, { mimeType: 'text/plain', dialogTitle: 'Share Monthly Summary' });
+      }
+    } catch (error) {
+      console.error('Error sharing summary:', error);
+    }
+  };
+
+  if (!summary || (summary.totalSpent === 0 && summary.serviceCount === 0 && summary.fuelCount === 0)) return null;
+
+  return (
+    <View style={[Shared.card, { marginBottom: Spacing.lg, overflow: 'hidden' }]}>
+      {/* Gradient accent bar */}
+      <View style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+        backgroundColor: Colors.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      }} />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg }}>
+        <View>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+            monthly summary
+          </Text>
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            {summary.monthName.toLowerCase()}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleShare}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: Colors.primary + '15',
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: Colors.primary + '30',
+          }}
+        >
+          <Ionicons name="share-outline" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+          <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>share</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Main stat */}
+      <View style={{ alignItems: 'center', marginBottom: Spacing.lg }}>
+        <Text style={[Typography.hero, { color: Colors.textPrimary, fontSize: 36 }]}>
+          {formatCostShort(summary.totalSpent)}
+        </Text>
+        <Text style={[Typography.caption, { color: Colors.textSecondary }]}>total spent</Text>
+      </View>
+
+      {/* Stats grid */}
+      <View style={{
+        flexDirection: 'row', justifyContent: 'space-around',
+        backgroundColor: Colors.surface1 + '60', borderRadius: 12,
+        paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.glassBorder,
+      }}>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>{summary.serviceCount}</Text>
+          <Text style={[Typography.small, { color: Colors.textSecondary }]}>services</Text>
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>{summary.fuelCount}</Text>
+          <Text style={[Typography.small, { color: Colors.textSecondary }]}>fill-ups</Text>
+        </View>
+        {summary.totalMiles > 0 && (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>{Math.round(summary.totalMiles).toLocaleString()}</Text>
+            <Text style={[Typography.small, { color: Colors.textSecondary }]}>{formatDistanceUnit()}</Text>
+          </View>
+        )}
+        {summary.avgMPG && (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>{summary.avgMPG.toFixed(1)}</Text>
+            <Text style={[Typography.small, { color: Colors.textSecondary }]}>avg MPG</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
+
 const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) => {
   const { formatDistanceUnit } = useSettings();
   return (
@@ -1304,6 +1471,9 @@ export default function InsightsScreen() {
             />
           </View>
         )}
+
+        {/* Monthly Summary Card */}
+        <MonthlySummaryCard vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
 
         {/* Action Items — overdue and due soon */}
         {(() => {
