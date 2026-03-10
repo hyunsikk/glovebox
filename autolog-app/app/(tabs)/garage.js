@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Animated, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Animated, Alert, Image, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
-import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage } from '../../lib/storage';
+import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage, DataUtils } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { addSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
@@ -654,6 +657,101 @@ const SettingsModal = ({ visible, onClose }) => {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const handleExportData = async () => {
+    try {
+      setExporting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const data = await DataUtils.exportData();
+      const jsonString = JSON.stringify(data, null, 2);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `car-story-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        Alert.alert('Export Complete', 'Backup file downloaded.');
+      } else {
+        const fileName = `car-story-backup-${new Date().toISOString().split('T')[0]}.json`;
+        const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+        await FileSystem.writeAsStringAsync(filePath, jsonString, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(filePath, {
+          mimeType: 'application/json',
+          dialogTitle: 'Save Car Story Backup',
+          UTI: 'public.json',
+        });
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      Alert.alert('Export Failed', 'Could not export your data. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets?.[0];
+      if (!file) return;
+
+      setImporting(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const content = await FileSystem.readAsStringAsync(file.uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      const data = JSON.parse(content);
+
+      if (!DataUtils.validateImportData(data)) {
+        Alert.alert('Invalid File', 'This file does not contain valid Car Story backup data.');
+        setImporting(false);
+        return;
+      }
+
+      Alert.alert(
+        'Restore Backup',
+        `This will replace your current data with the backup from ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'unknown date'}.\n\n${data.vehicles?.length || 0} vehicles, ${data.services?.length || 0} services, ${data.fuelLogs?.length || 0} fuel logs.\n\nThis cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => setImporting(false) },
+          {
+            text: 'Restore',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await DataUtils.importData(data);
+                Alert.alert('Import Complete', 'Your data has been restored successfully.');
+                onClose();
+              } catch (err) {
+                Alert.alert('Import Failed', 'Could not restore the backup.');
+              } finally {
+                setImporting(false);
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error importing data:', error);
+      Alert.alert('Import Failed', 'Could not read the backup file.');
+      setImporting(false);
+    }
+  };
+
   const TIMING_OPTIONS = [3, 7, 14, 30];
 
   return (
@@ -782,6 +880,45 @@ const SettingsModal = ({ visible, onClose }) => {
                 </View>
               </View>
             )}
+          </View>
+
+          {/* Data Backup */}
+          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
+            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
+              data backup
+            </Text>
+
+            <TouchableOpacity
+              style={[Shared.buttonPrimary, { marginBottom: Spacing.md }]}
+              onPress={handleExportData}
+              disabled={exporting}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="cloud-upload-outline" size={20} color={Colors.textPrimary} style={{ marginRight: Spacing.sm }} />
+                <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
+                  {exporting ? 'exporting...' : 'export backup'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[Shared.buttonSecondary]}
+              onPress={handleImportData}
+              disabled={importing}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="cloud-download-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+                <Text style={[Typography.body, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
+                  {importing ? 'importing...' : 'import backup'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <Text style={[Typography.caption, { color: Colors.textTertiary, marginTop: Spacing.md, textAlign: 'center' }]}>
+              export saves all vehicles, services, fuel logs, issues, and settings as a JSON file
+            </Text>
           </View>
         </ScrollView>
       </View>

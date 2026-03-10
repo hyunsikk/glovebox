@@ -898,14 +898,18 @@ export const DataUtils = {
     }
   },
 
-  // Export all data
+  // Export all data (vehicles, services, fuel, issues, snapshots, reminders, settings, images)
   exportData: async () => {
     try {
-      const [vehicles, services, settings, images] = await Promise.all([
+      const [vehicles, services, settings, images, fuelLogs, issues, snapshots, reminders] = await Promise.all([
         VehicleStorage.getAll(),
         ServiceStorage.getAll(),
         SettingsStorage.get(),
         ImageStorage.getAll(),
+        FuelStorage.getAll(),
+        IssueStorage.getAll(),
+        SnapshotStorage.getAll(),
+        ReminderStorage.getAll(),
       ]);
 
       return {
@@ -913,8 +917,12 @@ export const DataUtils = {
         services,
         settings,
         images,
+        fuelLogs,
+        issues,
+        snapshots,
+        reminders,
         exportedAt: getCurrentDate(),
-        version: '1.0.0',
+        version: '1.1.0',
       };
     } catch (error) {
       console.error('Error exporting data:', error);
@@ -922,20 +930,32 @@ export const DataUtils = {
     }
   },
 
+  // Validate import data structure
+  validateImportData: (data) => {
+    if (!data || typeof data !== 'object') return false;
+    if (!data.version) return false;
+    // Must have at least one data array
+    return !!(data.vehicles || data.services || data.fuelLogs || data.issues);
+  },
+
   // Import data
   importData: async (data) => {
     try {
-      if (data.vehicles) {
-        await AsyncStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(data.vehicles));
-      }
-      if (data.services) {
-        await AsyncStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(data.services));
-      }
+      const setIfPresent = async (key, value) => {
+        if (value) await AsyncStorage.setItem(key, JSON.stringify(value));
+      };
+
+      await Promise.all([
+        setIfPresent(STORAGE_KEYS.VEHICLES, data.vehicles),
+        setIfPresent(STORAGE_KEYS.SERVICES, data.services),
+        setIfPresent(STORAGE_KEYS.IMAGES, data.images),
+        setIfPresent(STORAGE_KEYS.FUEL_LOGS, data.fuelLogs),
+        setIfPresent(STORAGE_KEYS.ISSUES, data.issues),
+        setIfPresent(STORAGE_KEYS.SNAPSHOTS, data.snapshots),
+        setIfPresent(STORAGE_KEYS.REMINDERS, data.reminders),
+      ]);
       if (data.settings) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(data.settings));
-      }
-      if (data.images) {
-        await AsyncStorage.setItem(STORAGE_KEYS.IMAGES, JSON.stringify(data.images));
       }
       return true;
     } catch (error) {
