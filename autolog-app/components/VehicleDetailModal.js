@@ -1275,7 +1275,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
   const handleLogService = (serviceName) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setPreselectedServiceType(serviceName || null);
+    // Guard against event objects being passed as serviceName from onPress
+    const name = (typeof serviceName === 'string') ? serviceName : null;
+    setPreselectedServiceType(name);
     setShowLogServiceModal(true);
   };
 
