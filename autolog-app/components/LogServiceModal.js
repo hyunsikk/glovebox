@@ -11,6 +11,7 @@ import {
   Platform,
   Image,
   Animated,
+  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -153,6 +154,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
   const [customServiceType, setCustomServiceType] = useState('');
   const [previousService, setPreviousService] = useState(null);
   const [showServiceTemplate, setShowServiceTemplate] = useState(false);
+  const [updateOdometer, setUpdateOdometer] = useState(true);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -426,9 +428,9 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         }
       }
       
-      // Update vehicle's current mileage if this is the highest
+      // Update vehicle's current mileage if toggle is on
       const enteredMileage = parseInt(formData.mileage);
-      const mileageUpdated = enteredMileage > selectedVehicle.currentMileage;
+      const mileageUpdated = updateOdometer && enteredMileage > 0;
       if (mileageUpdated) {
         await VehicleStorage.update(selectedVehicle.id, {
           currentMileage: enteredMileage
@@ -440,29 +442,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         ? `\n\nVehicle mileage updated to ${enteredMileage.toLocaleString()} mi.`
         : '';
 
-      // If mileage entered is lower than current, offer to update
-      const shouldOfferUpdate = enteredMileage && enteredMileage < selectedVehicle.currentMileage;
-
-      const alertButtons = shouldOfferUpdate
-        ? [
-            {
-              text: 'Update Mileage',
-              onPress: async () => {
-                await VehicleStorage.update(selectedVehicle.id, { currentMileage: enteredMileage });
-                onServiceLogged(savedService);
-                handleClose();
-              },
-            },
-            {
-              text: 'Keep Current',
-              style: 'cancel',
-              onPress: () => {
-                onServiceLogged(savedService);
-                handleClose();
-              },
-            },
-          ]
-        : [
+      const alertButtons = [
             {
               text: 'OK',
               onPress: () => {
@@ -474,7 +454,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       Alert.alert(
         'Service Logged! 🔧',
-        `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}${shouldOfferUpdate ? `\n\nVehicle mileage is ${selectedVehicle.currentMileage.toLocaleString()} mi but this record is ${enteredMileage.toLocaleString()} mi. Update?` : ''}`,
+        `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}`,
         alertButtons,
       );
 
@@ -698,6 +678,35 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             Last recorded: {selectedVehicle.currentMileage.toLocaleString()} mi
           </Text>
         )}
+      </View>
+
+      {/* Update Odometer Toggle */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: Colors.surface1,
+        padding: Spacing.md,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: updateOdometer ? Colors.primary + '40' : Colors.glassBorder,
+        marginBottom: Spacing.lg,
+      }}>
+        <View>
+          <Text style={[Typography.body, { color: Colors.textPrimary }]}>Update vehicle odometer</Text>
+          <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+            {selectedVehicle?.currentMileage ? `Currently ${selectedVehicle.currentMileage.toLocaleString()} mi` : 'Set vehicle mileage'}
+          </Text>
+        </View>
+        <Switch
+          value={updateOdometer}
+          onValueChange={(val) => {
+            Haptics.selectionAsync();
+            setUpdateOdometer(val);
+          }}
+          trackColor={{ false: Colors.surface1, true: Colors.primary + '60' }}
+          thumbColor={updateOdometer ? Colors.primary : Colors.textSecondary}
+        />
       </View>
 
       {/* Cost Input */}

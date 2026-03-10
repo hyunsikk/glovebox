@@ -1419,8 +1419,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       } else {
         await FuelStorage.add(logData);
       }
-      // Update vehicle odometer if higher
-      if (logData.odometer > vehicleData.currentMileage) {
+      // Update vehicle odometer if toggle was on
+      if (logData._updateOdometer && logData.odometer > 0) {
         await VehicleStorage.update(vehicle.id, { currentMileage: logData.odometer });
         setVehicleData(prev => ({ ...prev, currentMileage: logData.odometer }));
       }

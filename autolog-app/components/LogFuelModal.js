@@ -34,7 +34,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const [kWh, setKWh] = useState('');
   const [costPerKWh, setCostPerKWh] = useState('');
   const [notes, setNotes] = useState('');
-  const [costMode, setCostMode] = useState('per_unit');
+  const [costMode, setCostMode] = useState('total');
+  const [updateOdometer, setUpdateOdometer] = useState(true);
   const [octane, setOctane] = useState(null);
   const [chargerType, setChargerType] = useState(null);
 
@@ -52,7 +53,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
         setKWh(editLog.kWh?.toString() || '');
         setCostPerKWh(editLog.costPerKWh?.toString() || '');
         setNotes(editLog.notes || '');
-        setCostMode(editLog.totalCost && !editLog.pricePerGallon ? 'total' : 'per_unit');
+        setCostMode(editLog.pricePerGallon ? 'per_unit' : 'total');
+        setUpdateOdometer(false); // Don't update odometer when editing existing
         setOctane(editLog.octane || null);
         setChargerType(editLog.chargerType || null);
       } else {
@@ -69,7 +71,8 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
         setKWh('');
         setCostPerKWh('');
         setNotes('');
-        setCostMode('per_unit');
+        setCostMode('total');
+        setUpdateOdometer(true);
         setOctane(null);
         setChargerType(null);
       }
@@ -118,11 +121,11 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     if (isNaN(odo) || odo < 0) errors.push('Invalid odometer reading');
 
     if (type === 'fuel') {
-      if (!gallons) errors.push('Gallons is required');
-      if (!totalCost && !pricePerGallon) errors.push('Enter price or total cost');
+      if (!totalCost && !pricePerGallon) errors.push('Enter total cost or price per gallon');
+      if (costMode === 'per_unit' && !gallons) errors.push('Gallons is required when entering price per gallon');
     } else {
-      if (!kWh) errors.push('kWh is required');
-      if (!totalCost && !costPerKWh) errors.push('Enter cost per kWh or total cost');
+      if (!totalCost && !costPerKWh) errors.push('Enter total cost or cost per kWh');
+      if (costMode === 'per_unit' && !kWh) errors.push('kWh is required when entering cost per kWh');
     }
 
     return errors;
@@ -149,14 +152,16 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     };
 
     if (type === 'fuel') {
-      logData.gallons = parseFloat(gallons);
+      logData.gallons = gallons ? parseFloat(gallons) : null;
       logData.pricePerGallon = parseFloat(pricePerGallon) || null;
       logData.octane = octane;
     } else {
-      logData.kWh = parseFloat(kWh);
+      logData.kWh = kWh ? parseFloat(kWh) : null;
       logData.costPerKWh = parseFloat(costPerKWh) || null;
       logData.chargerType = chargerType;
     }
+
+    logData._updateOdometer = updateOdometer;
 
     if (isEditing) {
       logData.id = editLog.id;
@@ -293,34 +298,131 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               </View>
             </View>
 
-            {/* Quantity */}
+            {/* Total Cost (always shown — the simple path) */}
+            <View style={{ marginBottom: Spacing.lg }}>
+              <SectionLabel>Total Cost *</SectionLabel>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[Shared.input, { paddingLeft: 32 }]}
+                  placeholder={type === 'fuel' ? '48.63' : '14.01'}
+                  placeholderTextColor={Colors.arcticSilver}
+                  value={totalCost}
+                  onChangeText={setTotalCost}
+                  keyboardType="decimal-pad"
+                />
+                <Text style={[Typography.body, {
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: [{ translateY: -10 }],
+                  color: Colors.textSecondary,
+                }]}>
+                  $
+                </Text>
+              </View>
+            </View>
+
+            {/* Detailed breakdown (optional, expandable) */}
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.selectionAsync();
+                setCostMode(costMode === 'total' ? 'per_unit' : 'total');
+              }}
+              style={{ 
+                marginBottom: Spacing.lg, 
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <Ionicons 
+                name={costMode === 'per_unit' ? 'chevron-up' : 'chevron-down'} 
+                size={14} 
+                color={Colors.primary} 
+                style={{ marginRight: 4 }} 
+              />
+              <Text style={[Typography.caption, { color: Colors.primary }]}>
+                {costMode === 'per_unit' ? 'hide details' : type === 'fuel' ? 'add gallons & price per gallon' : 'add kWh & cost per kWh'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Detailed quantity/unit price fields */}
+            {costMode === 'per_unit' && (
+              <>
+                {type === 'fuel' ? (
+                  <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
+                    <View style={{ flex: 1 }}>
+                      <SectionLabel>Gallons</SectionLabel>
+                      <TextInput
+                        style={Shared.input}
+                        placeholder="12.5"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={gallons}
+                        onChangeText={setGallons}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <SectionLabel>Price/Gal</SectionLabel>
+                      <TextInput
+                        style={Shared.input}
+                        placeholder="3.89"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={pricePerGallon}
+                        onChangeText={setPricePerGallon}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
+                    <View style={{ flex: 1 }}>
+                      <SectionLabel>kWh</SectionLabel>
+                      <TextInput
+                        style={Shared.input}
+                        placeholder="45.2"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={kWh}
+                        onChangeText={setKWh}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <SectionLabel>Cost/kWh</SectionLabel>
+                      <TextInput
+                        style={Shared.input}
+                        placeholder="0.31"
+                        placeholderTextColor={Colors.arcticSilver}
+                        value={costPerKWh}
+                        onChangeText={setCostPerKWh}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Computed total from details */}
+                {totalCost && parseFloat(totalCost) > 0 && (
+                  <View style={{
+                    backgroundColor: Colors.primary + '10',
+                    padding: Spacing.md,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: Colors.primary + '20',
+                    marginBottom: Spacing.lg,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={[Typography.body, { color: Colors.textSecondary }]}>total cost</Text>
+                    <Text style={[Typography.h2, { color: Colors.primary }]}>${parseFloat(totalCost).toFixed(2)}</Text>
+                  </View>
+                )}
+              </>
+            )}
+
             {type === 'fuel' ? (
               <>
-                <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
-                  <View style={{ flex: 1 }}>
-                    <SectionLabel>Gallons *</SectionLabel>
-                    <TextInput
-                      style={Shared.input}
-                      placeholder="12.5"
-                      placeholderTextColor={Colors.arcticSilver}
-                      value={gallons}
-                      onChangeText={setGallons}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SectionLabel>{costMode === 'per_unit' ? 'Price/Gal' : 'Total Cost *'}</SectionLabel>
-                    <TextInput
-                      style={Shared.input}
-                      placeholder={costMode === 'per_unit' ? '3.89' : '48.63'}
-                      placeholderTextColor={Colors.arcticSilver}
-                      value={costMode === 'per_unit' ? pricePerGallon : totalCost}
-                      onChangeText={costMode === 'per_unit' ? setPricePerGallon : setTotalCost}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                </View>
-
                 {/* Full Tank Toggle */}
                 <View style={{
                   flexDirection: 'row',
@@ -392,31 +494,6 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               </>
             ) : (
               <>
-                <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
-                  <View style={{ flex: 1 }}>
-                    <SectionLabel>kWh *</SectionLabel>
-                    <TextInput
-                      style={Shared.input}
-                      placeholder="45.2"
-                      placeholderTextColor={Colors.arcticSilver}
-                      value={kWh}
-                      onChangeText={setKWh}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SectionLabel>{costMode === 'per_unit' ? 'Cost/kWh' : 'Total Cost *'}</SectionLabel>
-                    <TextInput
-                      style={Shared.input}
-                      placeholder={costMode === 'per_unit' ? '0.31' : '14.01'}
-                      placeholderTextColor={Colors.arcticSilver}
-                      value={costMode === 'per_unit' ? costPerKWh : totalCost}
-                      onChangeText={costMode === 'per_unit' ? setCostPerKWh : setTotalCost}
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                </View>
-
                 {/* Charger Type (optional) */}
                 <SectionLabel>Charger Type (optional)</SectionLabel>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg }}>
@@ -457,36 +534,34 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               </>
             )}
 
-            {/* Cost Mode Toggle */}
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.selectionAsync();
-                setCostMode(costMode === 'per_unit' ? 'total' : 'per_unit');
-              }}
-              style={{ marginBottom: Spacing.lg, alignSelf: 'flex-start' }}
-            >
-              <Text style={[Typography.caption, { color: Colors.primary }]}>
-                {costMode === 'per_unit' ? 'enter total cost instead →' : 'enter per-unit price instead →'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Computed Total (when in per_unit mode) */}
-            {costMode === 'per_unit' && totalCost && parseFloat(totalCost) > 0 && (
-              <View style={{
-                backgroundColor: Colors.primary + '10',
-                padding: Spacing.md,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: Colors.primary + '20',
-                marginBottom: Spacing.lg,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <Text style={[Typography.body, { color: Colors.textSecondary }]}>total cost</Text>
-                <Text style={[Typography.h2, { color: Colors.primary }]}>${parseFloat(totalCost).toFixed(2)}</Text>
+            {/* Update Odometer Toggle */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: Colors.surface1,
+              padding: Spacing.md,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: updateOdometer ? Colors.primary + '40' : Colors.glassBorder,
+              marginBottom: Spacing.lg,
+            }}>
+              <View>
+                <Text style={[Typography.body, { color: Colors.textPrimary }]}>Update odometer</Text>
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                  {vehicle?.currentMileage ? `Currently ${vehicle.currentMileage.toLocaleString()} mi` : 'Set vehicle mileage'}
+                </Text>
               </View>
-            )}
+              <Switch
+                value={updateOdometer}
+                onValueChange={(val) => {
+                  Haptics.selectionAsync();
+                  setUpdateOdometer(val);
+                }}
+                trackColor={{ false: Colors.surface1, true: Colors.primary + '60' }}
+                thumbColor={updateOdometer ? Colors.primary : Colors.textSecondary}
+              />
+            </View>
 
             {/* Station / Location */}
             <SectionLabel>Station (optional)</SectionLabel>
