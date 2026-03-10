@@ -1136,8 +1136,6 @@ export default function GarageScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.lg, paddingBottom: 100 }}
       >
-        <DashboardSummary vehicles={vehicles} />
-        
         {vehicles.map((vehicle) => (
           <VehicleCard
             key={vehicle.id}

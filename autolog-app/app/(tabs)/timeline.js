@@ -776,140 +776,143 @@ export default function TimelineScreen() {
 
   return (
     <View style={Shared.container}>
-      {/* Summary Header */}
-      <View style={[Shared.card, { marginTop: Spacing.lg, marginBottom: Spacing.md }]}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-              {hasActiveFilters || selectedVehicleId !== 'all'
-                ? `${allTimelineEntries.length} of ${services.length + fuelLogs.length + issues.length + snapshots.length} entries`
-                : `${services.length + fuelLogs.length + issues.length + snapshots.length} entries logged`}
-            </Text>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              {hasActiveFilters || selectedVehicleId !== 'all'
-                ? `filtered results`
-                : `across ${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''}`}
-            </Text>
-          </View>
-          
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[Typography.hero, { 
-              color: Colors.success,
-              fontSize: 24,
-            }]}>
-              ${totalCostFiltered.toFixed(0)}
-            </Text>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              {hasActiveFilters || selectedVehicleId !== 'all' ? `of $${totalCostAll.toFixed(0)}` : 'total spent'}
-            </Text>
+      {/* All content in ScrollView to prevent chips from being hidden */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Summary Header */}
+        <View style={[Shared.card, { marginTop: Spacing.lg, marginBottom: Spacing.md }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+                {hasActiveFilters || selectedVehicleId !== 'all'
+                  ? `${allTimelineEntries.length} of ${services.length + fuelLogs.length + issues.length + snapshots.length} entries`
+                  : `${services.length + fuelLogs.length + issues.length + snapshots.length} entries logged`}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                {hasActiveFilters || selectedVehicleId !== 'all'
+                  ? `filtered results`
+                  : `across ${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''}`}
+              </Text>
+            </View>
+            
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[Typography.hero, { 
+                color: Colors.success,
+                fontSize: 24,
+              }]}>
+                ${totalCostFiltered.toFixed(0)}
+              </Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                {hasActiveFilters || selectedVehicleId !== 'all' ? `of $${totalCostAll.toFixed(0)}` : 'total spent'}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Vehicle Filter */}
-      {vehicles.length > 1 && (
-        <VehicleFilterChips
-          vehicles={vehicles}
-          selectedVehicleId={selectedVehicleId}
-          onVehicleSelect={setSelectedVehicleId}
-        />
-      )}
-
-      {/* Search Bar */}
-      <View style={{ marginBottom: Spacing.sm }}>
-        <View style={[Shared.input, {
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: Spacing.md,
-        }]}>
-          <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
-          <TextInput
-            style={{
-              flex: 1,
-              color: Colors.textPrimary,
-              fontSize: 15,
-              fontFamily: 'Nunito_400Regular',
-              height: '100%',
-            }}
-            placeholder="Search services, vendors, notes..."
-            placeholderTextColor={Colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
+        {/* Vehicle Filter */}
+        {vehicles.length > 1 && (
+          <VehicleFilterChips
+            vehicles={vehicles}
+            selectedVehicleId={selectedVehicleId}
+            onVehicleSelect={setSelectedVehicleId}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+        )}
 
-      {/* Filter Chips + Sort */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: Spacing.md }}>
-        {/* Sort toggle */}
-        <TouchableOpacity
-          onPress={cycleSortMode}
-          activeOpacity={0.8}
-          style={{
-            paddingHorizontal: Spacing.md,
-            paddingVertical: Spacing.sm,
-            borderRadius: 20,
-            marginRight: Spacing.sm,
-            marginBottom: Spacing.sm,
-            backgroundColor: Colors.surface2,
-            borderWidth: 1,
-            borderColor: Colors.glassBorder,
+        {/* Search Bar */}
+        <View style={{ marginBottom: Spacing.sm }}>
+          <View style={[Shared.input, {
             flexDirection: 'row',
             alignItems: 'center',
-          }}
-        >
-          <Ionicons name="swap-vertical" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
-          <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
-            {currentSortLabel}
-          </Text>
-        </TouchableOpacity>
+            paddingHorizontal: Spacing.md,
+          }]}>
+            <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+            <TextInput
+              style={{
+                flex: 1,
+                color: Colors.textPrimary,
+                fontSize: 15,
+                fontFamily: 'Nunito_400Regular',
+                height: '100%',
+              }}
+              placeholder="Search services, vendors, notes..."
+              placeholderTextColor={Colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-        <FilterChip label="This Year" active={activeFilters.has('thisYear')} onPress={() => toggleFilter('thisYear')} />
-        <FilterChip label="Last Year" active={activeFilters.has('lastYear')} onPress={() => toggleFilter('lastYear')} />
-        <FilterChip label="Oil Changes" active={activeFilters.has('oil')} onPress={() => toggleFilter('oil')} />
-        <FilterChip label="Brakes" active={activeFilters.has('brakes')} onPress={() => toggleFilter('brakes')} />
-        <FilterChip label=">$200" active={activeFilters.has('expensive')} onPress={() => toggleFilter('expensive')} />
-        
-        {hasActiveFilters && (
+        {/* Filter Chips + Sort */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: Spacing.md }}>
+          {/* Sort toggle */}
           <TouchableOpacity
-            onPress={clearFilters}
+            onPress={cycleSortMode}
             activeOpacity={0.8}
             style={{
               paddingHorizontal: Spacing.md,
               paddingVertical: Spacing.sm,
               borderRadius: 20,
+              marginRight: Spacing.sm,
               marginBottom: Spacing.sm,
-              backgroundColor: Colors.danger + '20',
+              backgroundColor: Colors.surface2,
               borderWidth: 1,
-              borderColor: Colors.danger + '40',
+              borderColor: Colors.glassBorder,
+              flexDirection: 'row',
+              alignItems: 'center',
             }}
           >
-            <Text style={[Typography.caption, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
-              Clear All
+            <Ionicons name="swap-vertical" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+            <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
+              {currentSortLabel}
             </Text>
           </TouchableOpacity>
-        )}
-      </View>
 
-      {/* Results */}
-      {allTimelineEntries.length === 0 ? (
-        <View style={{ alignItems: 'center', paddingTop: Spacing.section }}>
-          <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
-          <Text style={[Typography.body, { color: Colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
-            No entries match your filters
-          </Text>
+          <FilterChip label="This Year" active={activeFilters.has('thisYear')} onPress={() => toggleFilter('thisYear')} />
+          <FilterChip label="Last Year" active={activeFilters.has('lastYear')} onPress={() => toggleFilter('lastYear')} />
+          <FilterChip label="Oil Changes" active={activeFilters.has('oil')} onPress={() => toggleFilter('oil')} />
+          <FilterChip label="Brakes" active={activeFilters.has('brakes')} onPress={() => toggleFilter('brakes')} />
+          <FilterChip label=">$200" active={activeFilters.has('expensive')} onPress={() => toggleFilter('expensive')} />
+          
+          {hasActiveFilters && (
+            <TouchableOpacity
+              onPress={clearFilters}
+              activeOpacity={0.8}
+              style={{
+                paddingHorizontal: Spacing.md,
+                paddingVertical: Spacing.sm,
+                borderRadius: 20,
+                marginBottom: Spacing.sm,
+                backgroundColor: Colors.danger + '20',
+                borderWidth: 1,
+                borderColor: Colors.danger + '40',
+              }}
+            >
+              <Text style={[Typography.caption, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
+                Clear All
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
+
+        {/* Results */}
+        {allTimelineEntries.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingTop: Spacing.section }}>
+            <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
+            <Text style={[Typography.body, { color: Colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
+              No entries match your filters
+            </Text>
+          </View>
+        ) : (
+          <View>
           {Object.entries(groupedEntries).map(([month, entries]) => {
             const monthCost = entries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0);
             return (
@@ -956,8 +959,9 @@ export default function TimelineScreen() {
               </View>
             );
           })}
-        </ScrollView>
+        </View>
       )}
+      </ScrollView>
 
       {/* Floating Add Button */}
       <TouchableOpacity

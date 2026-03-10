@@ -1154,13 +1154,23 @@ export default function InsightsScreen() {
           type="bar"
         />
 
-        {/* MPG Over Time */}
-        {mpgTrends.length > 0 && (
-          <ChartCard
-            title="fuel efficiency (MPG)"
-            data={mpgTrends.map(item => ({ month: item.date, value: item.value }))}
-            type="line"
-          />
+        {/* MPG Over Time — only show with 3+ data points for reliability */}
+        {mpgTrends.length >= 3 && (
+          <View>
+            <ChartCard
+              title="fuel efficiency (MPG)"
+              data={mpgTrends.map(item => ({ month: item.date, value: item.value }))}
+              type="line"
+            />
+            <Text style={[Typography.small, { 
+              color: Colors.textTertiary, 
+              textAlign: 'center', 
+              marginTop: -Spacing.md,
+              marginBottom: Spacing.lg,
+            }]}>
+              Calculated from consecutive full-tank fill-ups with odometer readings
+            </Text>
+          </View>
         )}
 
         {/* Fuel Cost Per Month */}

@@ -1071,13 +1071,15 @@ const CategoryView = ({ category, onBack, onArticlePress }) => (
   </ScrollView>
 );
 
-// Featured articles - most universally useful
+// Featured articles — curated essentials every car owner should know
 const featuredArticles = [
-  { categoryId: 'engine', articleIndex: 0, title: 'Oil Change Intervals' },
-  { categoryId: 'brakes', articleIndex: 0, title: 'When to Replace Brake Pads' },
-  { categoryId: 'tires', articleIndex: 0, title: 'Tire Pressure Basics' },
-  { categoryId: 'battery', articleIndex: 0, title: 'Battery Maintenance' },
-  { categoryId: 'fluids', articleIndex: 0, title: 'Checking Fluid Levels' },
+  { categoryId: 'engine', articleIndex: 0 },    // Oil Change Intervals
+  { categoryId: 'engine', articleIndex: 4 },     // Understanding Check Engine Light
+  { categoryId: 'brakes', articleIndex: 0 },     // Brake Pad Replacement
+  { categoryId: 'tires', articleIndex: 1 },      // Proper Tire Pressure
+  { categoryId: 'electrical', articleIndex: 0 }, // Battery Maintenance
+  { categoryId: 'diy', articleIndex: 3 },        // When to DIY vs Go to a Shop
+  { categoryId: 'money', articleIndex: 2 },      // Preventive vs Reactive Maintenance
 ];
 
 export default function LearnScreen() {
@@ -1217,7 +1219,7 @@ export default function LearnScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
               <Text style={{ fontSize: 20, marginRight: Spacing.sm }}>⭐</Text>
               <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
-                Featured Articles
+                Essential Reading
               </Text>
             </View>
             

@@ -48,7 +48,7 @@ export default function TabLayout() {
         name="timeline"
         options={{
           title: 'timeline',
-          headerTitle: 'service timeline',
+          headerTitle: 'timeline',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="time-outline" size={size} color={color} />
           ),

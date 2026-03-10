@@ -1985,15 +1985,11 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   </TouchableOpacity>
                 </View>
 
-                {/* Maintenance Schedule Section (Collapsible - Default Collapsed) */}
+                {/* Maintenance Section (Collapsible - Default Collapsed) - Schedule + Reminders merged */}
                 <CollapsibleSection 
-                  title="Maintenance Schedule" 
+                  title="Maintenance" 
                   defaultExpanded={false}
-                  hasContent={maintenanceSchedule.length > 0 || (() => {
-                    const overdueItems = maintenanceSchedule.filter(s => s.status === 'overdue');
-                    const dueSoonItems = maintenanceSchedule.filter(s => s.status === 'due_soon');
-                    return overdueItems.length > 0 || dueSoonItems.length > 0;
-                  })()}
+                  hasContent={maintenanceSchedule.length > 0 || true}
                 >
                   {/* Service Status Summary */}
                   {(() => {
@@ -2118,15 +2114,13 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       </Text>
                     </View>
                   )}
-                </CollapsibleSection>
-
-                {/* Recurring Reminders Section (Collapsible - Default Collapsed) */}
-                <CollapsibleSection 
-                  title="Maintenance Reminders" 
-                  defaultExpanded={false}
-                  hasContent={true}
-                >
-                  <MaintenanceReminders vehicleId={vehicleData.id} />
+                  {/* Custom Reminders */}
+                  <View style={{ marginTop: Spacing.lg, paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.glassBorder }}>
+                    <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.md }]}>
+                      Custom Reminders
+                    </Text>
+                    <MaintenanceReminders vehicleId={vehicleData.id} />
+                  </View>
                 </CollapsibleSection>
 
                 {/* Activity Log Section (Collapsible - Default Collapsed) - Merged Fuel + Service History */}
