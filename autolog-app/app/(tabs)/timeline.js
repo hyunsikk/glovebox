@@ -572,6 +572,7 @@ export default function TimelineScreen() {
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState(new Set());
+  const [activeTypeFilters, setActiveTypeFilters] = useState(new Set()); // service, fuel, issue, snapshot
   const [sortMode, setSortMode] = useState('newest'); // newest | oldest | expensive
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
 
@@ -625,9 +626,23 @@ export default function TimelineScreen() {
     });
   };
 
+  const toggleTypeFilter = (type) => {
+    Haptics.selectionAsync();
+    setActiveTypeFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  };
+
   const clearFilters = () => {
     Haptics.selectionAsync();
     setActiveFilters(new Set());
+    setActiveTypeFilters(new Set());
     setSearchQuery('');
   };
 
@@ -638,77 +653,82 @@ export default function TimelineScreen() {
     setSortMode(modes[(idx + 1) % modes.length]);
   };
 
-  const hasActiveFilters = activeFilters.size > 0 || searchQuery.trim().length > 0;
+  const hasActiveFilters = activeFilters.size > 0 || activeTypeFilters.size > 0 || searchQuery.trim().length > 0;
 
-  // Filter and sort services
-  const filteredServices = useMemo(() => {
+  // Unified global search + filter across ALL entry types
+  const allTimelineEntries = useMemo(() => {
     const now = new Date();
     const thisYear = now.getFullYear();
     const lastYear = thisYear - 1;
     const query = searchQuery.trim().toLowerCase();
 
-    let result = services.filter(s => {
-      // Vehicle filter
-      if (selectedVehicleId !== 'all' && s.vehicleId !== selectedVehicleId) {
-        return false;
-      }
+    // Build all entries with type tags
+    const serviceEntries = services.map(s => ({ ...s, _type: 'service' }));
+    const fuelEntries = fuelLogs.map(f => ({ ...f, _type: 'fuel', cost: f.totalCost || 0 }));
+    const issueEntries = issues.map(i => ({ ...i, _type: 'issue', cost: i.cost || 0 }));
+    const snapshotEntries = snapshots.map(s => ({ ...s, _type: 'snapshot', cost: 0 }));
+    
+    let allEntries = [...serviceEntries, ...fuelEntries, ...issueEntries, ...snapshotEntries];
 
-      // Search query
-      if (query) {
-        const vehicle = vehicles.find(v => v.id === s.vehicleId);
+    // Vehicle filter
+    if (selectedVehicleId !== 'all') {
+      allEntries = allEntries.filter(e => e.vehicleId === selectedVehicleId);
+    }
+
+    // Type filter
+    if (activeTypeFilters.size > 0) {
+      allEntries = allEntries.filter(e => activeTypeFilters.has(e._type));
+    }
+
+    // Search query — searches across all entry types
+    if (query) {
+      allEntries = allEntries.filter(entry => {
+        const vehicle = vehicles.find(v => v.id === entry.vehicleId);
         const vehicleName = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model} ${vehicle.nickname || ''}` : '';
-        const searchable = [
-          s.serviceType,
-          s.vendor,
-          s.notes,
-          vehicleName,
-        ].filter(Boolean).join(' ').toLowerCase();
-        if (!searchable.includes(query)) return false;
-      }
+        
+        let searchable = vehicleName;
+        if (entry._type === 'service') {
+          searchable += ` ${entry.serviceType || ''} ${entry.vendor || ''} ${entry.notes || ''}`;
+        } else if (entry._type === 'fuel') {
+          searchable += ` ${entry.station || ''} ${entry.notes || ''} fuel gas charge`;
+        } else if (entry._type === 'issue') {
+          searchable += ` ${entry.title || ''} ${entry.description || ''}`;
+        } else if (entry._type === 'snapshot') {
+          searchable += ` ${entry.title || ''} ${entry.notes || ''} snapshot`;
+        }
+        
+        return searchable.toLowerCase().includes(query);
+      });
+    }
 
-      // Filters (OR within same category would be complex; these are AND)
-      if (activeFilters.has('thisYear')) {
-        if (new Date(s.date).getFullYear() !== thisYear) return false;
-      }
-      if (activeFilters.has('lastYear')) {
-        if (new Date(s.date).getFullYear() !== lastYear) return false;
-      }
-      if (activeFilters.has('oil')) {
-        if (!s.serviceType?.toLowerCase().includes('oil')) return false;
-      }
-      if (activeFilters.has('brakes')) {
-        if (!s.serviceType?.toLowerCase().includes('brake')) return false;
-      }
-      if (activeFilters.has('expensive')) {
-        if (!s.cost || s.cost <= 200) return false;
-      }
-
-      return true;
-    });
+    // Date/category filters
+    if (activeFilters.has('thisYear')) {
+      allEntries = allEntries.filter(e => new Date(e.date).getFullYear() === thisYear);
+    }
+    if (activeFilters.has('lastYear')) {
+      allEntries = allEntries.filter(e => new Date(e.date).getFullYear() === lastYear);
+    }
+    if (activeFilters.has('oil')) {
+      allEntries = allEntries.filter(e => e._type === 'service' && e.serviceType?.toLowerCase().includes('oil'));
+    }
+    if (activeFilters.has('brakes')) {
+      allEntries = allEntries.filter(e => e._type === 'service' && e.serviceType?.toLowerCase().includes('brake'));
+    }
+    if (activeFilters.has('expensive')) {
+      allEntries = allEntries.filter(e => e.cost && e.cost > 200);
+    }
 
     // Sort
     if (sortMode === 'newest') {
-      result.sort((a, b) => new Date(b.date) - new Date(a.date));
+      allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
     } else if (sortMode === 'oldest') {
-      result.sort((a, b) => new Date(a.date) - new Date(b.date));
+      allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
     } else if (sortMode === 'expensive') {
-      result.sort((a, b) => (b.cost || 0) - (a.cost || 0));
+      allEntries.sort((a, b) => (b.cost || 0) - (a.cost || 0));
     }
 
-    return result;
-  }, [services, searchQuery, activeFilters, sortMode]);
-
-  // Merge services, fuel logs, issues, and snapshots into unified timeline entries
-  const allTimelineEntries = useMemo(() => {
-    const serviceEntries = filteredServices.map(s => ({ ...s, _type: 'service' }));
-    const fuelEntries = fuelLogs.filter(f => selectedVehicleId === 'all' || f.vehicleId === selectedVehicleId)
-                               .map(f => ({ ...f, _type: 'fuel', cost: f.totalCost || 0 }));
-    const issueEntries = issues.filter(i => selectedVehicleId === 'all' || i.vehicleId === selectedVehicleId)
-                               .map(i => ({ ...i, _type: 'issue', cost: i.cost || 0 }));
-    const snapshotEntries = snapshots.filter(s => selectedVehicleId === 'all' || s.vehicleId === selectedVehicleId)
-                                     .map(s => ({ ...s, _type: 'snapshot', cost: 0 }));
-    return [...serviceEntries, ...fuelEntries, ...issueEntries, ...snapshotEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [filteredServices, fuelLogs, issues, snapshots, selectedVehicleId]);
+    return allEntries;
+  }, [services, fuelLogs, issues, snapshots, vehicles, searchQuery, activeFilters, activeTypeFilters, sortMode, selectedVehicleId]);
 
   // Group by month
   const groupedEntries = useMemo(() => {
@@ -728,12 +748,7 @@ export default function TimelineScreen() {
     }, {});
   }, [allTimelineEntries]);
 
-  const totalCostAll = services.reduce((sum, s) => sum + (s.cost || 0), 0)
-    + fuelLogs.reduce((sum, f) => sum + (f.totalCost || 0), 0)
-    + issues.reduce((sum, i) => sum + (i.cost || 0), 0)
-    + snapshots.reduce((sum, s) => sum + 0, 0); // snapshots don't have cost
-  // Snapshots don't have cost, they're just point-in-time records
-  const totalCostFiltered = allTimelineEntries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0);
+  // No longer showing cost summary here — that's Insights' job
 
   const handleLogService = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -782,47 +797,19 @@ export default function TimelineScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Summary Header */}
-        <View style={[Shared.card, { marginTop: Spacing.lg, marginBottom: Spacing.md }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
-              <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-                {hasActiveFilters || selectedVehicleId !== 'all'
-                  ? `${allTimelineEntries.length} of ${services.length + fuelLogs.length + issues.length + snapshots.length} entries`
-                  : `${services.length + fuelLogs.length + issues.length + snapshots.length} entries logged`}
-              </Text>
-              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                {hasActiveFilters || selectedVehicleId !== 'all'
-                  ? `filtered results`
-                  : `across ${vehicles.length} vehicle${vehicles.length !== 1 ? 's' : ''}`}
-              </Text>
-            </View>
-            
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[Typography.hero, { 
-                color: Colors.success,
-                fontSize: 24,
-              }]}>
-                ${totalCostFiltered.toFixed(0)}
-              </Text>
-              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                {hasActiveFilters || selectedVehicleId !== 'all' ? `of $${totalCostAll.toFixed(0)}` : 'total spent'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
         {/* Vehicle Filter */}
         {vehicles.length > 1 && (
-          <VehicleFilterChips
-            vehicles={vehicles}
-            selectedVehicleId={selectedVehicleId}
-            onVehicleSelect={setSelectedVehicleId}
-          />
+          <View style={{ marginTop: Spacing.md }}>
+            <VehicleFilterChips
+              vehicles={vehicles}
+              selectedVehicleId={selectedVehicleId}
+              onVehicleSelect={setSelectedVehicleId}
+            />
+          </View>
         )}
 
         {/* Search Bar */}
-        <View style={{ marginBottom: Spacing.sm }}>
+        <View style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
           <View style={[Shared.input, {
             flexDirection: 'row',
             alignItems: 'center',
@@ -837,7 +824,7 @@ export default function TimelineScreen() {
                 fontFamily: 'Nunito_400Regular',
                 height: '100%',
               }}
-              placeholder="Search services, vendors, notes..."
+              placeholder="Search all records..."
               placeholderTextColor={Colors.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -850,6 +837,49 @@ export default function TimelineScreen() {
             )}
           </View>
         </View>
+
+        {/* Type Filter Chips */}
+        <View style={{ flexDirection: 'row', marginBottom: Spacing.sm }}>
+          {[
+            { key: 'service', label: '🔧 Services', count: services.length },
+            { key: 'fuel', label: '⛽ Fuel', count: fuelLogs.length },
+            { key: 'issue', label: '🚨 Issues', count: issues.length },
+            { key: 'snapshot', label: '📸 Snapshots', count: snapshots.length },
+          ].map(({ key, label, count }) => {
+            const isActive = activeTypeFilters.has(key);
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => toggleTypeFilter(key)}
+                activeOpacity={0.8}
+                style={{
+                  paddingHorizontal: Spacing.md,
+                  paddingVertical: Spacing.sm,
+                  borderRadius: 20,
+                  marginRight: Spacing.xs,
+                  backgroundColor: isActive ? Colors.primary : Colors.glassBackground,
+                  borderWidth: 1,
+                  borderColor: isActive ? Colors.primary : Colors.glassBorder,
+                }}
+              >
+                <Text style={[Typography.caption, { 
+                  color: isActive ? Colors.textPrimary : Colors.textSecondary,
+                  fontFamily: isActive ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
+                  fontSize: 11,
+                }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Results count */}
+        {hasActiveFilters && (
+          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+            {allTimelineEntries.length} of {services.length + fuelLogs.length + issues.length + snapshots.length} entries
+          </Text>
+        )}
 
         {/* Filter Chips + Sort */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: Spacing.md }}>

@@ -1077,6 +1077,77 @@ export default function InsightsScreen() {
           </View>
         )}
 
+        {/* Action Items — overdue and due soon */}
+        {(() => {
+          const allOverdue = vehicleInsights.flatMap(v => 
+            v.overdueServices.map(s => ({ ...s, vehicle: v.vehicle }))
+          );
+          const allDueSoon = vehicleInsights.flatMap(v => 
+            v.dueSoonServices.map(s => ({ ...s, vehicle: v.vehicle }))
+          );
+          
+          if (allOverdue.length === 0 && allDueSoon.length === 0) return null;
+          
+          return (
+            <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+                <Text style={{ fontSize: 18, marginRight: Spacing.sm }}>⚠️</Text>
+                <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
+                  needs attention
+                </Text>
+              </View>
+              
+              {allOverdue.map((item, i) => (
+                <View key={`overdue-${i}`} style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: Spacing.sm,
+                  borderBottomWidth: i < allOverdue.length + allDueSoon.length - 1 ? 1 : 0,
+                  borderBottomColor: Colors.glassBorder,
+                }}>
+                  <View style={{
+                    width: 8, height: 8, borderRadius: 4,
+                    backgroundColor: Colors.danger,
+                    marginRight: Spacing.sm,
+                  }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
+                      {item.service}
+                    </Text>
+                    <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                      {item.vehicle.nickname || `${item.vehicle.year} ${item.vehicle.make} ${item.vehicle.model}`} • Overdue by {Math.abs(item.daysUntilDue)} days
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              
+              {allDueSoon.map((item, i) => (
+                <View key={`due-${i}`} style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: Spacing.sm,
+                  borderBottomWidth: i < allDueSoon.length - 1 ? 1 : 0,
+                  borderBottomColor: Colors.glassBorder,
+                }}>
+                  <View style={{
+                    width: 8, height: 8, borderRadius: 4,
+                    backgroundColor: Colors.warning,
+                    marginRight: Spacing.sm,
+                  }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Typography.body, { color: Colors.textPrimary }]}>
+                      {item.service}
+                    </Text>
+                    <Text style={[Typography.small, { color: Colors.textSecondary }]}>
+                      {item.vehicle.nickname || `${item.vehicle.year} ${item.vehicle.make} ${item.vehicle.model}`} • Due in {item.daysUntilDue} days
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
         {/* Key Metrics Row */}
         <View style={{ flexDirection: 'row', marginBottom: Spacing.lg }}>
           <MetricCard
