@@ -11,7 +11,7 @@ import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage, DataUtils } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
-import { addSampleData } from '../../lib/sampleData';
+import { addSampleData, clearSampleData } from '../../lib/sampleData';
 import AddVehicleModal from '../../components/AddVehicleModal';
 import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
@@ -915,6 +915,32 @@ const SettingsModal = ({ visible, onClose, themeContext }) => {
   );
 };
 
+const DEMO_LOADED_KEY = '@autolog_demo_loaded';
+
+const DemoBanner = ({ onClear }) => (
+  <TouchableOpacity
+    onPress={onClear}
+    activeOpacity={0.8}
+    style={{
+      backgroundColor: Colors.primary + '15',
+      borderWidth: 1,
+      borderColor: Colors.primary + '30',
+      borderRadius: 12,
+      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
+      marginBottom: Spacing.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+    }}
+  >
+    <Ionicons name="sparkles-outline" size={16} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+    <Text style={[Typography.caption, { color: Colors.primary, flex: 1 }]}>
+      exploring demo data — tap to clear & start fresh
+    </Text>
+    <Ionicons name="close-circle-outline" size={16} color={Colors.primary} />
+  </TouchableOpacity>
+);
+
 export default function GarageScreen() {
   const themeContext = useTheme();
   const [vehicles, setVehicles] = useState([]);
@@ -925,7 +951,50 @@ export default function GarageScreen() {
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   // Removed FAB multi-action state - now simple Add Vehicle button
+
+  // Auto-load demo data on first launch
+  useEffect(() => {
+    const checkAndLoadDemo = async () => {
+      try {
+        const demoLoaded = await AsyncStorage.getItem(DEMO_LOADED_KEY);
+        if (!demoLoaded) {
+          const existingVehicles = await VehicleStorage.getAll();
+          if (existingVehicles.length === 0) {
+            await addSampleData();
+            await AsyncStorage.setItem(DEMO_LOADED_KEY, 'true');
+            setIsDemoMode(true);
+            loadVehicles();
+          }
+        } else {
+          // Check if demo mode is still active (user hasn't cleared yet)
+          const cleared = await AsyncStorage.getItem(DEMO_LOADED_KEY);
+          if (cleared === 'true') {
+            setIsDemoMode(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking demo data:', error);
+      }
+    };
+    checkAndLoadDemo();
+  }, []);
+
+  const handleClearDemoData = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setLoading(true);
+      await clearSampleData();
+      await AsyncStorage.setItem(DEMO_LOADED_KEY, 'cleared');
+      setIsDemoMode(false);
+      loadVehicles();
+    } catch (error) {
+      console.error('Error clearing demo data:', error);
+      Alert.alert('Error', 'Failed to clear demo data');
+      setLoading(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -1126,6 +1195,7 @@ export default function GarageScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.lg, paddingBottom: 100 }}
       >
+        {isDemoMode && <DemoBanner onClear={handleClearDemoData} />}
         {vehicles.map((vehicle) => (
           <VehicleCard
             key={vehicle.id}
