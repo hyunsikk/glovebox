@@ -10,6 +10,7 @@ import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } 
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
 import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline } from '../../components/DataViz';
+import BenchmarkComparison from '../../components/BenchmarkComparison';
 
 
 const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
@@ -1688,6 +1689,9 @@ export default function InsightsScreen() {
 
         {/* Cost Forecast */}
         <CostForecast vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+
+        {/* Cost Benchmarks */}
+        <BenchmarkComparison vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
 
         {/* Vehicle Comparison */}
         {selectedVehicleId === 'all' && vehicles.length >= 2 && (
