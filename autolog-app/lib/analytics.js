@@ -152,20 +152,31 @@ export const HealthScore = {
 
 // Cost Analytics
 export const CostAnalytics = {
-  // Calculate cost per mile
+  // Calculate cost per mile (returns null if insufficient data for N/A display)
   getCostPerMile: async (vehicleId) => {
     try {
       const vehicle = await VehicleStorage.getById(vehicleId);
-      if (!vehicle) return 0;
+      if (!vehicle) return null;
 
       const services = await ServiceStorage.getByVehicleId(vehicleId);
       const totalCost = services.reduce((sum, service) => sum + (service.cost || 0), 0);
-      const milesDriven = vehicle.currentMileage - (vehicle.initialMileage || 0);
-      
-      return milesDriven > 0 ? totalCost / milesDriven : 0;
+      let milesDriven = vehicle.currentMileage - (vehicle.initialMileage || 0);
+
+      // If initialMileage not set or equals currentMileage, try to estimate from service records
+      if (milesDriven <= 0 && services.length >= 2) {
+        const sortedServices = [...services].sort((a, b) => (a.mileage || 0) - (b.mileage || 0));
+        const earliest = sortedServices[0]?.mileage;
+        const latest = sortedServices[sortedServices.length - 1]?.mileage;
+        if (earliest && latest && latest > earliest) {
+          milesDriven = latest - earliest;
+        }
+      }
+
+      if (milesDriven <= 0 || totalCost <= 0) return null;
+      return totalCost / milesDriven;
     } catch (error) {
       console.error('Error calculating cost per mile:', error);
-      return 0;
+      return null;
     }
   },
 
@@ -224,9 +235,11 @@ export const CostAnalytics = {
       const currentDate = new Date();
       
       // Estimate monthly mileage based on vehicle data
-      const monthsOwned = monthsBetween(new Date(vehicle.createdAt), currentDate) || 1;
-      const totalMilesDriven = vehicle.currentMileage - (vehicle.initialMileage || vehicle.currentMileage);
-      const avgMilesPerMonth = totalMilesDriven / monthsOwned || 1000; // Default 1000 miles/month
+      const ownershipStart = getOwnershipStartDate(vehicle);
+      const monthsOwned = monthsBetween(ownershipStart, currentDate) || 1;
+      const totalMilesDriven = vehicle.currentMileage - (vehicle.initialMileage || 0);
+      // Fall back to ~30 mi/day (~900 mi/month) if no mileage data
+      const avgMilesPerMonth = totalMilesDriven > 0 ? totalMilesDriven / monthsOwned : 900;
 
       for (let month = 1; month <= 12; month++) {
         const futureDate = new Date(currentDate);
@@ -296,7 +309,7 @@ export const CostAnalytics = {
       if (!vehicle) return null;
 
       const userCostPerMile = await CostAnalytics.getCostPerMile(vehicleId);
-      
+
       // Static average data (in a real app, this would come from a database)
       const averageData = {
         'Toyota': 0.08,
@@ -310,12 +323,12 @@ export const CostAnalytics = {
       };
 
       const averageCostPerMile = averageData[vehicle.make] || 0.08;
-      const percentageDifference = userCostPerMile > 0 
+      const percentageDifference = userCostPerMile != null && userCostPerMile > 0
         ? Math.round(((userCostPerMile - averageCostPerMile) / averageCostPerMile) * 100)
         : 0;
 
       return {
-        userCostPerMile: Math.round(userCostPerMile * 100) / 100,
+        userCostPerMile: userCostPerMile != null ? Math.round(userCostPerMile * 100) / 100 : null,
         averageCostPerMile,
         percentageDifference,
         isAboveAverage: percentageDifference > 0,

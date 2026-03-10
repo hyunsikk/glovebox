@@ -454,8 +454,15 @@ const VehicleComparison = ({ vehicles }) => {
           const totalSpent = services.reduce((sum, s) => sum + (s.cost || 0), 0) +
                            fuelLogs.reduce((sum, f) => sum + (f.totalCost || 0), 0);
           
-          const milesDriven = Math.max(0, (vehicle.currentMileage || 0) - (vehicle.initialMileage || 0));
-          const costPerMile = milesDriven > 0 ? totalSpent / milesDriven : 0;
+          let milesDriven = Math.max(0, (vehicle.currentMileage || 0) - (vehicle.initialMileage || 0));
+          // If no mileage range, try to estimate from service records
+          if (milesDriven <= 0 && services.length >= 2) {
+            const sortedServices = [...services].sort((a, b) => (a.mileage || 0) - (b.mileage || 0));
+            const earliest = sortedServices[0]?.mileage;
+            const latest = sortedServices[sortedServices.length - 1]?.mileage;
+            if (earliest && latest && latest > earliest) milesDriven = latest - earliest;
+          }
+          const costPerMile = milesDriven > 0 ? totalSpent / milesDriven : null;
 
           // Calculate average MPG
           let avgMPG = 0;
