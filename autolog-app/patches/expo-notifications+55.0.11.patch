@@ -1,19 +1,19 @@
 diff --git a/node_modules/expo-notifications/ios/ExpoNotifications/Permissions/PermissionsModule.swift b/node_modules/expo-notifications/ios/ExpoNotifications/Permissions/PermissionsModule.swift
-index cdddb13..cf66c39 100644
+index cdddb13..2aecc0a 100644
 --- a/node_modules/expo-notifications/ios/ExpoNotifications/Permissions/PermissionsModule.swift
 +++ b/node_modules/expo-notifications/ios/ExpoNotifications/Permissions/PermissionsModule.swift
-@@ -39,7 +39,13 @@ public class PermissionsModule: Module {
+@@ -38,11 +38,9 @@ public class PermissionsModule: Module {
+       // iOS safely handles repeated calls to `requestAuthorization(options:)`.
        // Expo Go notifications permissions are not scoped
        let resolver: EXPromiseResolveBlock = { result in
-         if let permission = result as? [AnyHashable: Any] {
+-        if let permission = result as? [AnyHashable: Any] {
 -          promise.resolver(EXPermissionsService.parsePermission(fromRequester: permission))
-+          // Inline parsePermissionFromRequester to avoid Swift bridging issue
-+          var parsed = permission
-+          let statusKey = "status" as AnyHashable
-+          if parsed[statusKey] == nil {
-+            parsed[statusKey] = EXPermissionsService.permissionString(for: .undetermined)
-+          }
-+          promise.resolver(parsed)
-         } else {
-           promise.legacyRejecter("ERR_PERMISSIONS_REQUEST_NOTIFICATIONS", "Unexpected permission result type", nil)
-         }
+-        } else {
+-          promise.legacyRejecter("ERR_PERMISSIONS_REQUEST_NOTIFICATIONS", "Unexpected permission result type", nil)
+-        }
++        // Pass permission result directly — avoids Swift bridging issue
++        // with EXPermissionsService.parsePermission(fromRequester:)
++        promise.resolver(result)
+       }
+       requester.requestAuthorizationOptions(options, resolver: resolver, rejecter: promise.legacyRejecter)
+     }
