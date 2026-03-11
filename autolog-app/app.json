@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Car Story — Vehicle Tracker",
+    "name": "Car Story \u2014 Maintenance Log",
     "slug": "glovebox-app",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.teamam.glovebox",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Car Story needs access to your photos to attach images to vehicle profiles and service records.",
         "NSCameraUsageDescription": "Car Story needs camera access to take photos of your vehicle and service receipts.",
