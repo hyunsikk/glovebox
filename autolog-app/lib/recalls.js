@@ -22,7 +22,7 @@ const FETCH_TIMEOUT_MS = 10000;
 // Stable, content-based id. Must NOT depend on array position: NHTSA can return
 // recalls in a different order between fetches, and a positional id would cause
 // re-notification (or skipped detection) of already-seen recalls.
-const recallId = (recall) =>
+export const recallId = (recall) =>
   recall?.NHTSACampaignNumber ||
   [recall?.Component, recall?.Summary, recall?.Remedy].filter(Boolean).join('|').slice(0, 160) ||
   null;
