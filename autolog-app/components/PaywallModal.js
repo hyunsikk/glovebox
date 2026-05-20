@@ -58,8 +58,10 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
     }
   };
 
+  // fullScreen (not pageSheet) so it presents correctly even when opened from
+  // inside another modal — iOS forbids a sheet over a sheet.
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <View style={Shared.modalHeader}>
           <View style={{ width: 32 }} />

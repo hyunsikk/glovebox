@@ -115,7 +115,16 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const validate = () => {
     const errors = [];
     if (!date) errors.push('Date is required');
-    
+
+    // Reject future dates. Parse at local noon and compare against end-of-today
+    // so "today" isn't rejected due to a UTC-vs-local offset.
+    if (date) {
+      const entryDate = new Date(date + 'T12:00:00');
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (entryDate > endOfToday) errors.push('Date cannot be in the future');
+    }
+
     // Odometer is optional
     if (odometer) {
       const odo = parseInt(odometer);

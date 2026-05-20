@@ -14,6 +14,7 @@ import {
   getInitialNotificationVehicleId,
 } from '../lib/notifications';
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
+import { DataUtils } from '../lib/storage';
 
 /**
  * Catches render-time errors anywhere in the tree so a single bad component
@@ -56,6 +57,8 @@ function RootLayoutInner() {
 
   useEffect(() => {
     (async () => {
+      // Migrate stored data before anything reads it.
+      await DataUtils.runMigrations();
       await requestNotificationPermissions();
       await scheduleServiceNotifications();
       // Load any cached remote vehicle data, then check for updates in the

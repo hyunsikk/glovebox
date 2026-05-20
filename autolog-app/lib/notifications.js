@@ -67,15 +67,20 @@ export async function scheduleServiceNotifications() {
               trigger: { seconds: 5 },
             });
           } else if (service.daysUntilDue <= daysBeforeDue && service.daysUntilDue >= 0) {
-            // Schedule notification for the due date minus the notification window
-            const triggerSeconds = Math.max(60, service.daysUntilDue * 24 * 60 * 60);
+            // Fire on the due date. A wall-clock date trigger survives reboots and
+            // timezone shifts, unlike a multi-million-second interval timer.
+            const fireDate = new Date(Date.now() + service.daysUntilDue * 24 * 60 * 60 * 1000);
+            // Date triggers must be in the future; nudge same-day ones forward.
+            if (fireDate.getTime() <= Date.now() + 60 * 1000) {
+              fireDate.setTime(Date.now() + 60 * 1000);
+            }
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: `Upcoming: ${service.service}`,
                 body: `${vehicleName} — due in ${service.daysUntilDue} day${service.daysUntilDue !== 1 ? 's' : ''}`,
                 data: { vehicleId: vehicle.id, serviceType: service.service },
               },
-              trigger: { seconds: triggerSeconds },
+              trigger: { type: 'date', date: fireDate.getTime() },
             });
           }
         }

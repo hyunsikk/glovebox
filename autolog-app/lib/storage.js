@@ -12,6 +12,12 @@ const STORAGE_KEYS = {
   REMINDERS: '@autolog_reminders',
 };
 
+// On-device data schema version. Bump this and add a matching entry in
+// DataUtils.runMigrations when a stored shape changes, so existing installs
+// migrate forward instead of silently breaking.
+export const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION_KEY = '@autolog_schema_version';
+
 // Utility functions
 const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -84,7 +90,7 @@ export const VehicleStorage = {
       // Read every affected collection up front, filter in memory, then commit
       // in a single multiSet so a concurrent write can't restore deleted rows
       // mid-cascade (read-modify-write hazard).
-      const [vehicles, services, images, issues, snapshots, fuelLogs, reminders] = await Promise.all([
+      const [vehicles, services, images, issues, snapshots, fuelLogs, reminders, documents] = await Promise.all([
         VehicleStorage.getAll(),
         ServiceStorage.getAll(),
         ImageStorage.getAll(),
@@ -92,6 +98,7 @@ export const VehicleStorage = {
         SnapshotStorage.getAll(),
         FuelStorage.getAll(),
         ReminderStorage.getAll(),
+        DocumentStorage.getAll(),
       ]);
 
       await AsyncStorage.multiSet([
@@ -102,6 +109,7 @@ export const VehicleStorage = {
         [STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots.filter(s => s.vehicleId !== vehicleId))],
         [STORAGE_KEYS.FUEL_LOGS, JSON.stringify(fuelLogs.filter(f => f.vehicleId !== vehicleId))],
         [STORAGE_KEYS.REMINDERS, JSON.stringify(reminders.filter(r => r.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.DOCUMENTS, JSON.stringify(documents.filter(d => d.vehicleId !== vehicleId))],
       ]);
 
       return true;
@@ -970,12 +978,55 @@ export const ReminderStorage = {
 
 // Utility functions for data operations
 export const DataUtils = {
+  // Current persisted schema version (0 = unversioned/legacy install).
+  getSchemaVersion: async () => {
+    try {
+      const v = await AsyncStorage.getItem(SCHEMA_VERSION_KEY);
+      return v == null ? 0 : (parseInt(v, 10) || 0);
+    } catch {
+      return 0;
+    }
+  },
+
+  // Run any pending migrations in order, then stamp the current version.
+  // Each migration must be idempotent and keyed by the version it upgrades TO.
+  // Failures are swallowed so a migration bug never bricks app startup; the
+  // version is only stamped after all steps succeed, so a failed run retries.
+  runMigrations: async () => {
+    try {
+      const current = await DataUtils.getSchemaVersion();
+      if (current >= SCHEMA_VERSION) return current;
+
+      const migrations = {
+        // Example for a future shape change:
+        // 2: async () => { /* transform stored records */ },
+      };
+
+      for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
+        if (migrations[v]) await migrations[v]();
+      }
+      await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
+      return SCHEMA_VERSION;
+    } catch (error) {
+      console.error('Schema migration failed:', error);
+      return null;
+    }
+  },
+
   // Clear all app data
   clearAllData: async () => {
     try {
       // Remove every storage key, not just a subset, so a reset leaves no
-      // orphaned fuel/issue/snapshot/reminder/document records behind.
-      await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
+      // orphaned fuel/issue/snapshot/reminder/document records behind. Also clear
+      // the Pro entitlement mirror/cache + dev unlock so a reset doesn't leave a
+      // free user wrongly entitled (real purchases re-sync from RevenueCat).
+      await AsyncStorage.multiRemove([
+        ...Object.values(STORAGE_KEYS),
+        SCHEMA_VERSION_KEY,
+        '@autolog_pro_entitled',
+        '@autolog_pro_cached',
+        '@autolog_dev_pro',
+      ]);
       return true;
     } catch (error) {
       console.error('Error clearing all data:', error);

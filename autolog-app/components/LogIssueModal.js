@@ -235,6 +235,13 @@ export default function LogIssueModal({
     if (form.cost && (isNaN(parseFloat(form.cost)) || parseFloat(form.cost) < 0)) {
       newErrors.cost = 'Please enter a valid cost';
     }
+    // Reject future dates (local-noon parse vs end-of-today, timezone-safe).
+    if (form.date) {
+      const entryDate = new Date(form.date + 'T12:00:00');
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (entryDate > endOfToday) newErrors.date = 'Date cannot be in the future';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
