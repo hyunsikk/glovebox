@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { ThemeProvider, useTheme } from '../lib/ThemeContext';
 import { SettingsProvider } from '../lib/SettingsContext';
@@ -15,6 +15,7 @@ import {
 } from '../lib/notifications';
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
 import { DataUtils } from '../lib/storage';
+import { scheduleAutoBackup } from '../lib/backup';
 
 /**
  * Catches render-time errors anywhere in the tree so a single bad component
@@ -78,6 +79,15 @@ function RootLayoutInner() {
 
     return () => sub.remove();
   }, [router]);
+
+  // Auto-backup when the app goes to the background (debounced; respects the
+  // user's toggle). Cheap insurance against data loss between manual backups.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'background' || s === 'inactive') scheduleAutoBackup();
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <>
