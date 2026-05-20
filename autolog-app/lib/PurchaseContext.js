@@ -21,7 +21,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- configuration -----------------------------------------------------------
-export const RC_API_KEY_IOS = '';      // e.g. 'appl_xxxxxxxx' — empty = dev-stub mode
+export const RC_API_KEY_IOS = 'appl_OIyNCXXdwgontzBWsnzGilUMskm';  // RevenueCat public Apple SDK key (safe to ship in client)
 export const RC_API_KEY_ANDROID = '';   // e.g. 'goog_xxxxxxxx'
 export const ENTITLEMENT_ID = 'pro';
 export const PRODUCT_ID = 'dev.teamam.glovebox.pro';
