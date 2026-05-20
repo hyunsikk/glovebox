@@ -1,0 +1,139 @@
+import React, { useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Colors, Typography, Spacing, Shared } from '../theme';
+import { usePurchases } from '../lib/PurchaseContext';
+
+const BENEFITS = [
+  { icon: 'car-sport', title: 'Unlimited vehicles', sub: 'Track your whole garage, not just one car' },
+  { icon: 'analytics', title: 'Full insights', sub: 'Cost trends, benchmarks, and spending breakdowns' },
+  { icon: 'document-text', title: 'PDF service report', sub: 'Export records for resale or warranty claims' },
+  { icon: 'cloud-upload', title: 'Backup & restore', sub: 'Keep your history safe across devices' },
+  { icon: 'images', title: 'Unlimited photos', sub: 'Attach receipts and vehicle photos freely' },
+];
+
+// Headline tailored to where the paywall was triggered from.
+const CONTEXT_COPY = {
+  vehicle_limit: 'Add unlimited vehicles',
+  export: 'Export a full service report',
+  insights: 'Unlock your full insights',
+  default: 'Unlock Car Story Pro',
+};
+
+export default function PaywallModal({ visible, onClose, context = 'default' }) {
+  const { purchasePro, restore, priceString, isStub, isPro } = usePurchases();
+  const [busy, setBusy] = useState(false);
+
+  const headline = CONTEXT_COPY[context] || CONTEXT_COPY.default;
+
+  const handleUnlock = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBusy(true);
+    const res = await purchasePro();
+    setBusy(false);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose?.();
+    } else if (res.error) {
+      Alert.alert('Purchase failed', res.error);
+    }
+    // cancelled: silently dismiss nothing
+  };
+
+  const handleRestore = async () => {
+    setBusy(true);
+    const res = await restore();
+    setBusy(false);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose?.();
+    } else {
+      Alert.alert('Nothing to restore', 'No previous Pro purchase was found for this account.');
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        <View style={Shared.modalHeader}>
+          <View style={{ width: 32 }} />
+          <Text style={[Typography.caption, { color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>
+            car story pro
+          </Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Ionicons name="close" size={26} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.horizontalLarge, paddingBottom: Spacing.section }}>
+          {/* Hero */}
+          <View style={{ alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.xl }}>
+            <View style={{
+              width: 72, height: 72, borderRadius: 22,
+              backgroundColor: Colors.primary + '1A',
+              borderWidth: 1, borderColor: Colors.primary + '40',
+              justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.lg,
+            }}>
+              <Ionicons name="star" size={36} color={Colors.primary} />
+            </View>
+            <Text style={[Typography.hero, { color: Colors.textPrimary, textAlign: 'center' }]}>{headline}</Text>
+            <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm }]}>
+              One payment. Yours forever. No subscription.
+            </Text>
+          </View>
+
+          {/* Benefits */}
+          <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
+            {BENEFITS.map((b, i) => (
+              <View
+                key={b.icon}
+                style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  paddingVertical: Spacing.md,
+                  borderBottomWidth: i < BENEFITS.length - 1 ? 1 : 0,
+                  borderBottomColor: Colors.glassBorder,
+                }}
+              >
+                <View style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  backgroundColor: Colors.success + '18',
+                  justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md,
+                }}>
+                  <Ionicons name={b.icon} size={20} color={Colors.success} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.h2, { color: Colors.textPrimary, fontSize: 16 }]}>{b.title}</Text>
+                  <Text style={[Typography.caption, { color: Colors.textSecondary }]}>{b.sub}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {isStub && (
+            <Text style={[Typography.small, { color: Colors.warning, textAlign: 'center', marginTop: Spacing.md }]}>
+              dev mode — unlock simulated locally (no real charge)
+            </Text>
+          )}
+        </ScrollView>
+
+        {/* Footer CTA */}
+        <View style={{ paddingHorizontal: Spacing.horizontalLarge, paddingBottom: Spacing.xxl, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.glassBorder }}>
+          <TouchableOpacity style={[Shared.buttonPrimary, { height: 54 }]} onPress={handleUnlock} disabled={busy} activeOpacity={0.85}>
+            {busy ? (
+              <ActivityIndicator color={Colors.pearlWhite} />
+            ) : (
+              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 17, color: '#FFFFFF' }}>
+                {isPro ? 'You have Pro ✓' : `Unlock Pro — ${priceString}`}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleRestore} disabled={busy} style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
+            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>Restore purchase</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}

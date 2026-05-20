@@ -28,6 +28,8 @@ import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
 import DatePickerField from './DatePickerField';
+import PaywallModal from './PaywallModal';
+import { usePurchases } from '../lib/PurchaseContext';
 
 // CollapsibleSection component defined at top of file
 const CollapsibleSection = ({ title, children, defaultExpanded = false, hasContent = true }) => {
@@ -1141,6 +1143,13 @@ const MaintenanceReminders = ({ vehicleId }) => {
 
 export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService, onServiceLogged }) {
   const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, distanceLabel, formatEfficiency, formatVolume, formatVolumeUnit, currencySymbol } = useSettings();
+  const { isPro } = usePurchases();
+  const [showPaywall, setShowPaywall] = useState(false);
+  // Gate the per-vehicle PDF report behind Pro (keeps it consistent with Settings).
+  const requestReport = (id) => {
+    if (!isPro) { setShowPaywall(true); return; }
+    generateReport(id);
+  };
   const [vehicleData, setVehicleData] = useState(null);
   const [services, setServices] = useState([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState([]);
@@ -1648,7 +1657,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.selectionAsync();
-                    generateReport(vehicle.id);
+                    requestReport(vehicle.id);
                   }}
                   style={{ padding: 4 }}
                 >
@@ -2523,7 +2532,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     style={[Shared.buttonSecondary, { marginBottom: Spacing.lg, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      generateReport(vehicleData.id);
+                      requestReport(vehicleData.id);
                     }}
                     activeOpacity={0.9}
                   >
@@ -2828,6 +2837,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
         </View>
       </KeyboardAvoidingView>
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context="export" />
     </Modal>
   );
 }

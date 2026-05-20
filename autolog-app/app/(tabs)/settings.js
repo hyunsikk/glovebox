@@ -7,7 +7,10 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { useTheme } from '../../lib/ThemeContext';
+import { usePurchases } from '../../lib/PurchaseContext';
+import PaywallModal from '../../components/PaywallModal';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
+import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
 
 const UNITS_KEY = '@autolog_units';
 const CURRENCY_KEY = '@autolog_currency';
@@ -75,9 +78,30 @@ const OptionPicker = ({ options, selected, onSelect, colors }) => (
 
 export default function SettingsScreen() {
   const { isDark, colors, toggleTheme } = useTheme();
+  const { isPro, isStub, priceString, restore } = usePurchases();
   const [units, setUnits] = useState('imperial'); // imperial | metric
   const [currency, setCurrency] = useState('USD');
   const [stats, setStats] = useState({ vehicles: 0, services: 0, fuelLogs: 0 });
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [dbMeta, setDbMeta] = useState(getDataMeta());
+  const [dbUpdating, setDbUpdating] = useState(false);
+
+  // The background launch check may finish after this screen mounts; re-read.
+  useEffect(() => {
+    const t = setTimeout(() => setDbMeta(getDataMeta()), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const handleUpdateDB = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setDbUpdating(true);
+    const r = await checkForUpdate({ force: true });
+    setDbUpdating(false);
+    setDbMeta(getDataMeta());
+    if (r.updated) Alert.alert('Database updated', `Now at version ${r.version} (${r.vehicleCount} vehicles).`);
+    else if (r.upToDate) Alert.alert('Up to date', 'You already have the latest vehicle database.');
+    else Alert.alert('Update failed', 'Could not reach the data server. Your existing data is unchanged.');
+  }, []);
 
   useEffect(() => {
     loadPreferences();
@@ -164,6 +188,10 @@ export default function SettingsScreen() {
 
   const generateReport = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!isPro) {
+      setShowPaywall(true);
+      return;
+    }
     setGeneratingReport(true);
     try {
       const vehicles = await VehicleStorage.getAll();
@@ -319,7 +347,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
     } finally {
       setGeneratingReport(false);
     }
-  }, [reportVehicleId]);
+  }, [reportVehicleId, isPro]);
 
   const handleClearData = () => {
     Alert.alert(
@@ -521,7 +549,76 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           <Text style={[Typography.body, { color: colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
             {generatingReport ? 'generating...' : 'generate report'}
           </Text>
+          {!isPro && !generatingReport && (
+            <View style={{ backgroundColor: colors.primary + '20', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 9, color: colors.primary, letterSpacing: 0.5 }}>PRO</Text>
+            </View>
+          )}
         </TouchableOpacity>
+      </View>
+
+      {/* Vehicle Data */}
+      <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
+        vehicle database
+      </Text>
+      <View style={[Shared.card]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
+            <Ionicons name="server-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[Typography.body, { color: colors.textPrimary }]}>
+              {dbMeta.vehicleCount.toLocaleString()} vehicles{dbMeta.version ? ` · v${dbMeta.version}` : ' · built-in'}
+            </Text>
+            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+              {dbMeta.updatedAt ? `updated ${new Date(dbMeta.updatedAt).toLocaleDateString()}` : 'tap update to fetch the latest'}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleUpdateDB} disabled={dbUpdating} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '30' }}>
+            {dbUpdating ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={[Typography.caption, { color: colors.primary, fontFamily: 'Nunito_700Bold' }]}>update</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Pro */}
+      <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
+        car story pro
+      </Text>
+      <View style={[Shared.card]}>
+        {isPro ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
+              <Ionicons name="star" size={18} color={colors.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[Typography.body, { color: colors.textPrimary, fontFamily: 'Nunito_700Bold' }]}>Pro unlocked</Text>
+              <Text style={[Typography.caption, { color: colors.textSecondary }]}>Thanks for your support{isStub ? ' (dev mode)' : ''}</Text>
+            </View>
+            <Ionicons name="checkmark-circle" size={22} color={colors.success} />
+          </View>
+        ) : (
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
+                <Ionicons name="star-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[Typography.body, { color: colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>Unlock everything</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>Unlimited vehicles, full insights, PDF reports</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={[Shared.buttonPrimary, { marginBottom: 0 }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPaywall(true); }} activeOpacity={0.85}>
+              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FFFFFF' }}>Unlock Pro — {priceString}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={async () => { const r = await restore(); Alert.alert(r.success ? 'Restored' : 'Nothing to restore', r.success ? 'Pro is now unlocked.' : 'No previous purchase found.'); }} style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
+              <Text style={[Typography.caption, { color: colors.textSecondary }]}>Restore purchase</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* About */}
@@ -540,6 +637,8 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xl }]}>
         your data stays on your device. always.
       </Text>
+
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context="export" />
     </ScrollView>
   );
 }

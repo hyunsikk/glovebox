@@ -17,6 +17,8 @@ import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
 import OnboardingModal from '../../components/OnboardingModal';
 import { HealthScoreDialSmall } from '../../components/HealthScoreDial';
+import PaywallModal from '../../components/PaywallModal';
+import { usePurchases } from '../../lib/PurchaseContext';
 import { useTheme } from '../../lib/ThemeContext';
 import { Modal, Switch } from 'react-native';
 
@@ -964,6 +966,8 @@ export default function GarageScreen() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const { isPro } = usePurchases();
   // Removed FAB multi-action state - now simple Add Vehicle button
 
   // Auto-load demo data on first launch
@@ -1071,6 +1075,11 @@ export default function GarageScreen() {
 
   const handleAddVehicle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Free tier: one vehicle. Hitting the wall opens the paywall.
+    if (!isPro && vehicles.length >= 1) {
+      setShowPaywall(true);
+      return;
+    }
     setShowAddVehicleModal(true);
   };
 
@@ -1278,6 +1287,12 @@ export default function GarageScreen() {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         themeContext={themeContext}
+      />
+
+      <PaywallModal
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        context="vehicle_limit"
       />
     </View>
   );

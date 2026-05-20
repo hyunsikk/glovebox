@@ -1,21 +1,43 @@
 /**
  * Vehicle Database - Lazy-loading wrapper for vehicles.json
- * 
- * This module provides efficient access to vehicle data by building a lightweight index
- * on first access and lazy-loading the full data only when needed.
+ *
+ * Offline-first with remote updates: the app ships a bundled copy of
+ * vehicles.json as the baseline. On launch (throttled) and on demand it checks
+ * a manifest on the public carstory-data Pages site; if a newer version exists
+ * it downloads, validates, caches it to disk, and serves that instead — so data
+ * updates reach users without an App Store release.
  */
 
-let _data = null;
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+
+const MANIFEST_URL = 'https://hyunsikk.github.io/carstory-data/data/manifest.json';
+const SUPPORTED_SCHEMA = 1;                  // ignore remote data with a newer schema
+const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DATA_FILE = (FileSystem.documentDirectory || '') + 'vehicles_remote.json';
+const K_VERSION = '@autolog_vehicledb_version';
+const K_UPDATED = '@autolog_vehicledb_updated';
+const K_LASTCHECK = '@autolog_vehicledb_lastcheck';
+
+let _bundled = null;   // bundled baseline (offline-first)
+let _remote = null;    // cached/remote data once loaded
 let _index = null;
+let _meta = { source: 'bundled', version: 0, updatedAt: null, vehicleCount: 0 };
 
-/**
- * Lazy-load the full vehicle data
- */
+function bundled() {
+  if (!_bundled) _bundled = require('../content/v1/vehicles.json');
+  return _bundled;
+}
+
+/** Active dataset: remote if loaded, else the bundled baseline. */
 function getData() {
-  if (!_data) {
-    _data = require('../content/v1/vehicles.json');
-  }
-  return _data;
+  return _remote || bundled();
+}
+
+function setActive(data, meta) {
+  _remote = data;
+  _index = null; // rebuilt lazily from the new data
+  _meta = { ..._meta, ...meta };
 }
 
 /**
@@ -127,4 +149,87 @@ export function getVehicleSchedule(make, model, years) {
     return { schedule: vehicleInfo.schedule, isGeneric: false };
   }
   return { schedule: GENERIC_SCHEDULE, isGeneric: true };
+}
+
+// --- Remote update layer -----------------------------------------------------
+
+async function fetchJson(url, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Load any previously-downloaded dataset from disk into memory. Call once at
+ * startup, before screens read the DB. No-op (keeps bundled) if none cached.
+ */
+export async function initVehicleDB() {
+  try {
+    const version = parseInt((await AsyncStorage.getItem(K_VERSION)) || '0', 10);
+    if (version > 0 && FileSystem.documentDirectory) {
+      const json = await FileSystem.readAsStringAsync(DATA_FILE).catch(() => null);
+      if (json) {
+        const data = JSON.parse(json);
+        if (Array.isArray(data?.vehicles) && data.vehicles.length > 0) {
+          const updatedAt = await AsyncStorage.getItem(K_UPDATED);
+          setActive(data, { source: 'remote', version, updatedAt, vehicleCount: data.vehicles.length });
+        }
+      }
+    }
+  } catch (e) {
+    // keep the bundled baseline on any failure
+  }
+}
+
+/**
+ * Check the manifest and download a newer dataset if available.
+ * @param {{force?: boolean}} opts - force ignores the once-a-day throttle.
+ * @returns {Promise<object>} result describing what happened.
+ */
+export async function checkForUpdate({ force = false } = {}) {
+  try {
+    const lastCheck = parseInt((await AsyncStorage.getItem(K_LASTCHECK)) || '0', 10);
+    if (!force && Date.now() - lastCheck < CHECK_INTERVAL_MS) {
+      return { skipped: 'throttled' };
+    }
+
+    const manifest = await fetchJson(MANIFEST_URL, 10000);
+    await AsyncStorage.setItem(K_LASTCHECK, String(Date.now()));
+
+    if (typeof manifest?.version !== 'number' || !manifest.url) return { error: 'bad manifest' };
+    if ((manifest.schema || 1) > SUPPORTED_SCHEMA) return { skipped: 'schema' };
+
+    const currentVersion = parseInt((await AsyncStorage.getItem(K_VERSION)) || '0', 10);
+    if (manifest.version <= currentVersion) return { upToDate: true, version: currentVersion };
+
+    const data = await fetchJson(manifest.url, 20000);
+    // Integrity: structural + count check. HTTPS covers tampering; the count
+    // check catches a truncated/partial download. (sha256 verify is a planned
+    // hardening step once expo-crypto is added.)
+    if (!Array.isArray(data?.vehicles) || data.vehicles.length === 0) return { error: 'invalid data' };
+    if (manifest.vehicleCount && data.vehicles.length !== manifest.vehicleCount) return { error: 'count mismatch' };
+
+    const updatedAt = new Date().toISOString();
+    if (FileSystem.documentDirectory) {
+      await FileSystem.writeAsStringAsync(DATA_FILE, JSON.stringify(data)).catch(() => {});
+    }
+    await AsyncStorage.multiSet([[K_VERSION, String(manifest.version)], [K_UPDATED, updatedAt]]);
+    setActive(data, { source: 'remote', version: manifest.version, updatedAt, vehicleCount: data.vehicles.length });
+    return { updated: true, version: manifest.version, vehicleCount: data.vehicles.length };
+  } catch (e) {
+    await AsyncStorage.setItem(K_LASTCHECK, String(Date.now())).catch(() => {});
+    return { error: e?.message || 'update failed' };
+  }
+}
+
+/** Metadata about the active dataset, for display in Settings. */
+export function getDataMeta() {
+  const vehicleCount = _meta.vehicleCount || (getData().vehicles?.length || 0);
+  return { ..._meta, vehicleCount };
 }
