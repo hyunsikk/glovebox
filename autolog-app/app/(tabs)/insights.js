@@ -1188,7 +1188,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
 };
 
 export default function InsightsScreen() {
-  const { formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
+  const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
   const { isPro, loading: purchasesLoading } = usePurchases();
   const [showPaywall, setShowPaywall] = useState(false);
   const [vehicles, setVehicles] = useState([]);
@@ -1729,7 +1729,7 @@ export default function InsightsScreen() {
             {costPerMile !== null && (
               <StatTrendCard
                 title={`cost per ${formatDistanceUnit()}`}
-                value={formatCostShort(costPerMile)}
+                value={formatCost(costPerMile)}
                 trend={avgCostTrend}
                 trendLabel="vs prior 3mo"
                 sparkData={monthlySparkline}

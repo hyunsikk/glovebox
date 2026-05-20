@@ -14,6 +14,7 @@ import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
 import { addSampleData, clearSampleData } from '../../lib/sampleData';
 import { scheduleServiceNotifications } from '../../lib/notifications';
+import { recordPositiveEvent } from '../../lib/reviewPrompt';
 import AddVehicleModal from '../../components/AddVehicleModal';
 import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
@@ -854,6 +855,9 @@ export default function GarageScreen() {
     Promise.resolve(scheduleServiceNotifications()).catch(e =>
       console.error('Failed to reschedule notifications:', e?.message)
     );
+    // Logging a service is a core "win" — a good moment to ask for a rating
+    // (self-gated: only after a few events, at most once per version).
+    recordPositiveEvent();
   };
 
   const handleOnboardingAddVehicle = () => {
