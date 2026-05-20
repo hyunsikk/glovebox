@@ -30,6 +30,7 @@ import DatePickerField from './DatePickerField';
 import PaywallModal from './PaywallModal';
 import ProLockedCard from './ProLockedCard';
 import { usePurchases } from '../lib/PurchaseContext';
+import { fetchRecalls } from '../lib/recalls';
 
 // CollapsibleSection component defined at top of file
 const CollapsibleSection = ({ title, children, defaultExpanded = false, hasContent = true }) => {
@@ -567,7 +568,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
   );
 };
 
-const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
+const RecallCheck = ({ vehicleId, make, model, year }) => {
   const [recalls, setRecalls] = useState([]);
   const [dismissedIds, setDismissedIds] = useState(new Set());
   const [sectionHidden, setSectionHidden] = useState(false);
@@ -618,53 +619,27 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
     await AsyncStorage.removeItem(`recalls_dismissed_${vehicleId}`);
   };
 
+  // Cache-first load on mount; the shared lib handles the 24h TTL and refresh.
   const loadCachedRecalls = async () => {
     try {
-      const cached = await AsyncStorage.getItem(`recalls_${vehicleId}`);
-      if (cached) {
-        const data = JSON.parse(cached);
-        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-
-        if (cacheAge < oneDayMs) {
-          setRecalls(data.recalls);
-          setLastChecked(new Date(data.timestamp));
-          return;
-        }
-      }
-      // If no cache or cache expired, check recalls
-      checkRecalls();
+      const { recalls: data, timestamp } = await fetchRecalls({ id: vehicleId, make, model, year });
+      setRecalls(data);
+      if (timestamp) setLastChecked(new Date(timestamp));
     } catch (error) {
-      console.error('Error loading cached recalls:', error);
+      console.error('Error loading recalls:', error);
+      setError('Failed to check recalls');
     }
   };
 
+  // Manual "Check Now" — force a fresh fetch past the cache.
   const checkRecalls = async () => {
     if (!make || !model || !year) return;
-
     setLoading(true);
     setError(null);
-
     try {
-      const response = await fetch(
-        `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch recalls');
-      }
-
-      const data = await response.json();
-      const recallData = data.results || [];
-
-      // Cache results
-      await AsyncStorage.setItem(`recalls_${vehicleId}`, JSON.stringify({
-        recalls: recallData,
-        timestamp: new Date().toISOString()
-      }));
-
-      setRecalls(recallData);
-      setLastChecked(new Date());
+      const { recalls: data, timestamp } = await fetchRecalls({ id: vehicleId, make, model, year }, { force: true });
+      setRecalls(data);
+      setLastChecked(timestamp ? new Date(timestamp) : new Date());
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
       console.error('Error checking recalls:', error);
@@ -732,6 +707,8 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
               paddingVertical: Spacing.xs,
             }}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Hide recall alerts"
           >
             <Ionicons name="eye-off-outline" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -1649,7 +1626,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
               onPress={onClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -2061,7 +2038,6 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   isPro ? (
                     <RecallCheck
                       vehicleId={vehicleData.id}
-                      vin={vehicleData.vin}
                       make={vehicleData.make}
                       model={vehicleData.model}
                       year={vehicleData.year}
@@ -2612,7 +2588,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={() => setEditingService(null)}
                     style={{ padding: 4 }}
                   >
-                    <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                    <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
                   </TouchableOpacity>
 
                   <Text style={[Typography.h2, { color: Colors.text }]}>

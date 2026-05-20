@@ -67,7 +67,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
             car story pro
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={26} color={Colors.textSecondary} />
+            <Ionicons name="close" size={26} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
           </TouchableOpacity>
         </View>
 

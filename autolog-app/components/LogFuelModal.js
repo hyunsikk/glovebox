@@ -233,7 +233,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             borderBottomColor: Colors.glassBorder,
           }}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
               {isEditing ? 'Edit Entry' : 'Log Fuel'}

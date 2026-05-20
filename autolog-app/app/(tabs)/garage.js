@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Animated, Alert, Image, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -151,6 +152,9 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
           }}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={vehicle.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          accessibilityState={{ selected: !!vehicle.isFavorite }}
         >
           <Ionicons
             name={vehicle.isFavorite ? 'star' : 'star-outline'}
@@ -782,7 +786,7 @@ const SettingsModal = ({ visible, onClose, themeContext }) => {
             onPress={onClose}
             style={{ padding: 4 }}
           >
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
+            <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
           </TouchableOpacity>
 
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
@@ -969,6 +973,20 @@ export default function GarageScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const { isPro, loading: purchasesLoading } = usePurchases();
   // Removed FAB multi-action state - now simple Add Vehicle button
+
+  // Open a specific vehicle when arriving from a notification tap.
+  const { openVehicleId } = useLocalSearchParams();
+  const router = useRouter();
+  useEffect(() => {
+    if (!openVehicleId || vehicles.length === 0) return;
+    const target = vehicles.find((v) => String(v.id) === String(openVehicleId));
+    if (target) {
+      setSelectedVehicle(target);
+      setShowVehicleDetailModal(true);
+    }
+    // Clear the param so re-focusing the tab doesn't reopen the modal.
+    router.setParams({ openVehicleId: undefined });
+  }, [openVehicleId, vehicles]);
 
   // Auto-load demo data on first launch
   useEffect(() => {
@@ -1255,6 +1273,8 @@ export default function GarageScreen() {
         }}
         onPress={handleAddVehicle}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel="Add vehicle"
       >
         <Ionicons name="add" size={28} color={Colors.textPrimary} />
       </TouchableOpacity>

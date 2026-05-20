@@ -896,7 +896,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
               onPress={handleClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>

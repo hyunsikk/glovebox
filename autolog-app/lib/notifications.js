@@ -98,6 +98,31 @@ export async function scheduleServiceNotifications() {
   }
 }
 
+// --- Tap handling -----------------------------------------------------------
+// Both service and recall notifications carry { vehicleId } in their data
+// payload. These helpers surface that id so the UI can open the right vehicle.
+
+// Warm taps (app already running). Returns a subscription with .remove().
+export function addNotificationResponseListener(onVehicle) {
+  if (Platform.OS === 'web') return { remove: () => {} };
+  return Notifications.addNotificationResponseReceivedListener((response) => {
+    const data = response?.notification?.request?.content?.data;
+    if (data?.vehicleId != null) onVehicle(String(data.vehicleId));
+  });
+}
+
+// Cold start (app launched by tapping a notification). Call once on mount.
+export async function getInitialNotificationVehicleId() {
+  if (Platform.OS === 'web') return null;
+  try {
+    const response = await Notifications.getLastNotificationResponseAsync();
+    const data = response?.notification?.request?.content?.data;
+    return data?.vehicleId != null ? String(data.vehicleId) : null;
+  } catch {
+    return null;
+  }
+}
+
 // Cancel all scheduled notifications
 export async function cancelAllNotifications() {
   if (Platform.OS === 'web') return;
