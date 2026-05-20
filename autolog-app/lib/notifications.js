@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { VehicleStorage, SettingsStorage } from './storage';
 import { ServiceDue } from './analytics';
+import { syncRecallNotifications } from './recalls';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -82,6 +83,16 @@ export async function scheduleServiceNotifications() {
         console.error(`Error scheduling notifications for ${vehicleName}:`, err);
       }
     }
+
+    // Pro-only: alert on newly-published NHTSA safety recalls. Runs last so the
+    // cancelAll above never wipes the immediate recall notifications it fires.
+    // No-ops for free users (gated inside syncRecallNotifications).
+    await syncRecallNotifications(vehicles, ({ title, body, data }) =>
+      Notifications.scheduleNotificationAsync({
+        content: { title, body, data },
+        trigger: { seconds: 2 },
+      })
+    );
   } catch (error) {
     console.error('Error scheduling service notifications:', error);
   }

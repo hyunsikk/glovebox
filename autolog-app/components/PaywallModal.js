@@ -5,19 +5,22 @@ import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { usePurchases } from '../lib/PurchaseContext';
 
+// Every benefit listed here is actually gated behind the Pro entitlement.
+// Backup/restore and photo attachments stay free for all users by design, so
+// they are deliberately not advertised here.
 const BENEFITS = [
   { icon: 'car-sport', title: 'Unlimited vehicles', sub: 'Track your whole garage, not just one car' },
-  { icon: 'analytics', title: 'Full insights', sub: 'Cost trends, benchmarks, and spending breakdowns' },
+  { icon: 'shield-checkmark', title: 'Recall alerts', sub: 'Automatic NHTSA safety recall checks for your cars' },
+  { icon: 'trending-up', title: 'Cost forecast & benchmarks', sub: 'See what maintenance will cost and how you compare' },
   { icon: 'document-text', title: 'PDF service report', sub: 'Export records for resale or warranty claims' },
-  { icon: 'cloud-upload', title: 'Backup & restore', sub: 'Keep your history safe across devices' },
-  { icon: 'images', title: 'Unlimited photos', sub: 'Attach receipts and vehicle photos freely' },
 ];
 
 // Headline tailored to where the paywall was triggered from.
 const CONTEXT_COPY = {
   vehicle_limit: 'Add unlimited vehicles',
   export: 'Export a full service report',
-  insights: 'Unlock your full insights',
+  insights: 'Unlock forecasts & benchmarks',
+  recalls: 'Check for safety recalls',
   default: 'Unlock Car Story Pro',
 };
 
@@ -48,6 +51,8 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose?.();
+    } else if (res.error) {
+      Alert.alert('Restore failed', 'Could not reach the store. Check your connection and try again.');
     } else {
       Alert.alert('Nothing to restore', 'No previous Pro purchase was found for this account.');
     }
@@ -119,7 +124,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
 
         {/* Footer CTA */}
         <View style={{ paddingHorizontal: Spacing.horizontalLarge, paddingBottom: Spacing.xxl, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.glassBorder }}>
-          <TouchableOpacity style={[Shared.buttonPrimary, { height: 54 }]} onPress={handleUnlock} disabled={busy} activeOpacity={0.85}>
+          <TouchableOpacity style={[Shared.buttonPrimary, { height: 54, opacity: isPro ? 0.6 : 1 }]} onPress={handleUnlock} disabled={busy || isPro} activeOpacity={0.85}>
             {busy ? (
               <ActivityIndicator color={Colors.pearlWhite} />
             ) : (

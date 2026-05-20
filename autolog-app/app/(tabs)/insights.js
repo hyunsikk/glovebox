@@ -11,6 +11,9 @@ import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../li
 import { useSettings } from '../../lib/SettingsContext';
 import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline, LineChart } from '../../components/DataViz';
 import BenchmarkComparison from '../../components/BenchmarkComparison';
+import ProLockedCard from '../../components/ProLockedCard';
+import PaywallModal from '../../components/PaywallModal';
+import { usePurchases } from '../../lib/PurchaseContext';
 
 
 const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
@@ -1183,6 +1186,8 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
 
 export default function InsightsScreen() {
   const { formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
+  const { isPro } = usePurchases();
+  const [showPaywall, setShowPaywall] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
   const [fleetSummary, setFleetSummary] = useState(null);
@@ -1793,11 +1798,20 @@ export default function InsightsScreen() {
           </View>
         )}
 
-        {/* Cost Forecast */}
-        <CostForecast vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
-
-        {/* Cost Benchmarks */}
-        <BenchmarkComparison vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+        {/* Cost Forecast + Benchmarks — forward-looking intelligence, Pro-gated */}
+        {isPro ? (
+          <>
+            <CostForecast vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+            <BenchmarkComparison vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
+          </>
+        ) : (
+          <ProLockedCard
+            icon="trending-up"
+            title="cost forecast & benchmarks"
+            sub="Project upcoming maintenance costs and see how your spending compares"
+            onUnlock={() => setShowPaywall(true)}
+          />
+        )}
 
         {/* Vehicle Comparison */}
         {selectedVehicleId === 'all' && vehicles.length >= 2 && (
@@ -1978,6 +1992,8 @@ export default function InsightsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context="insights" />
     </View>
   );
 }

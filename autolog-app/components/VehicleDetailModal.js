@@ -22,13 +22,14 @@ import LogFuelModal from './LogFuelModal';
 import LogIssueModal from './LogIssueModal';
 import TakeSnapshotModal from './TakeSnapshotModal';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
-import { pickImageAsync, convertToBase64, getThumbnailUri } from '../lib/imageUtils';
+import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
 import DatePickerField from './DatePickerField';
 import PaywallModal from './PaywallModal';
+import ProLockedCard from './ProLockedCard';
 import { usePurchases } from '../lib/PurchaseContext';
 
 // CollapsibleSection component defined at top of file
@@ -675,15 +676,12 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
   };
 
   const formatDate = (dateString) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric', 
-        year: 'numeric'
-      });
-    } catch {
-      return dateString;
-    }
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    // new Date() of an unparseable string returns an Invalid Date object (it
+    // does not throw), whose toLocaleDateString() is the literal "Invalid Date".
+    if (isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   if (sectionHidden) {
@@ -1145,10 +1143,16 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, distanceLabel, formatEfficiency, formatVolume, formatVolumeUnit, currencySymbol } = useSettings();
   const { isPro } = usePurchases();
   const [showPaywall, setShowPaywall] = useState(false);
+  // Which feature triggered the paywall — drives the contextual headline.
+  const [paywallContext, setPaywallContext] = useState('export');
   // Gate the per-vehicle PDF report behind Pro (keeps it consistent with Settings).
   const requestReport = (id) => {
-    if (!isPro) { setShowPaywall(true); return; }
+    if (!isPro) { setPaywallContext('export'); setShowPaywall(true); return; }
     generateReport(id);
+  };
+  const requestRecalls = () => {
+    setPaywallContext('recalls');
+    setShowPaywall(true);
   };
   const [vehicleData, setVehicleData] = useState(null);
   const [services, setServices] = useState([]);
@@ -1471,9 +1475,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       Haptics.selectionAsync();
       const imageData = await pickImageAsync();
       if (imageData) {
-        const base64 = await convertToBase64(imageData.uri);
+        const stored = await persistImage(imageData.uri);
         const photoRecord = {
-          uri: base64 || imageData.uri,
+          uri: stored || imageData.uri,
           serviceId: editingService.id,
           vehicleId: vehicleData.id,
         };
@@ -1692,9 +1696,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       const imageData = await pickImageAsync();
                       if (imageData) {
                         try {
-                          const base64Uri = await convertToBase64(imageData.uri);
-                          await VehicleStorage.update(vehicleData.id, { photoUri: base64Uri });
-                          setVehicleData(prev => ({ ...prev, photoUri: base64Uri }));
+                          const storedUri = await persistImage(imageData.uri);
+                          await VehicleStorage.update(vehicleData.id, { photoUri: storedUri });
+                          setVehicleData(prev => ({ ...prev, photoUri: storedUri }));
                           onVehicleUpdated && onVehicleUpdated();
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         } catch (e) {
@@ -2051,15 +2055,27 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   </View>
                 )}
 
-                {/* Recall Check */}
-                {vehicleData.vin && (
-                  <RecallCheck 
-                    vehicleId={vehicleData.id}
-                    vin={vehicleData.vin}
-                    make={vehicleData.make}
-                    model={vehicleData.model}
-                    year={vehicleData.year}
-                  />
+                {/* Recall Check — NHTSA keys on make/model/year (VIN not required).
+                    Pro-gated; free users see a teaser that opens the paywall. */}
+                {vehicleData.make && vehicleData.model && vehicleData.year && (
+                  isPro ? (
+                    <RecallCheck
+                      vehicleId={vehicleData.id}
+                      vin={vehicleData.vin}
+                      make={vehicleData.make}
+                      model={vehicleData.model}
+                      year={vehicleData.year}
+                    />
+                  ) : (
+                    <View style={{ marginTop: Spacing.lg }}>
+                      <ProLockedCard
+                        icon="shield-checkmark"
+                        title="recall alerts"
+                        sub="Automatic NHTSA safety recall checks for this vehicle"
+                        onUnlock={requestRecalls}
+                      />
+                    </View>
+                  )
                 )}
               </View>
             </CollapsibleSection>
@@ -2837,7 +2853,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
         </View>
       </KeyboardAvoidingView>
-      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context="export" />
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context={paywallContext} />
     </Modal>
   );
 }

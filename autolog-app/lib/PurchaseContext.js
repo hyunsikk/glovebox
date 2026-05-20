@@ -28,6 +28,10 @@ export const PRODUCT_ID = 'dev.teamam.glovebox.pro';
 export const PRO_PRICE_STRING = '$4.99';
 
 const DEV_UNLOCK_KEY = '@autolog_dev_pro';
+const PRO_CACHE_KEY = '@autolog_pro_cached'; // last-known entitlement (offline/error fallback)
+// Mirror of the live entitlement, readable by non-React code (the recall
+// notification scheduler in lib/recalls.js) that can't reach this context.
+const PRO_FLAG_KEY = '@autolog_pro_entitled';
 
 // Use the real SDK only on a native platform with a configured key.
 const apiKey = Platform.select({ ios: RC_API_KEY_IOS, android: RC_API_KEY_ANDROID, default: '' });
@@ -58,9 +62,18 @@ export function PurchaseProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [priceString, setPriceString] = useState(PRO_PRICE_STRING);
 
-  const applyCustomerInfo = useCallback((info) => {
+  // Keep the non-React flag mirror in sync with every entitlement change so the
+  // recall notification scheduler gates correctly on the next background run.
+  useEffect(() => {
+    AsyncStorage.setItem(PRO_FLAG_KEY, isPro ? 'true' : 'false').catch(() => {});
+  }, [isPro]);
+
+  const applyCustomerInfo = useCallback(async (info) => {
     const active = !!info?.entitlements?.active?.[ENTITLEMENT_ID];
     setIsPro(active);
+    // Cache the last-known entitlement so a later offline/error launch doesn't
+    // wrongly lock out a paying user.
+    try { await AsyncStorage.setItem(PRO_CACHE_KEY, active ? 'true' : 'false'); } catch (e) { /* ignore */ }
   }, []);
 
   useEffect(() => {
@@ -68,9 +81,12 @@ export function PurchaseProvider({ children }) {
     (async () => {
       try {
         if (Purchases) {
+          // Optimistically restore last-known entitlement before the network call.
+          const cached = await AsyncStorage.getItem(PRO_CACHE_KEY).catch(() => null);
+          if (cached === 'true') setIsPro(true);
           Purchases.configure({ apiKey });
           const info = await Purchases.getCustomerInfo();
-          applyCustomerInfo(info);
+          await applyCustomerInfo(info);
           listener = (info) => applyCustomerInfo(info);
           Purchases.addCustomerInfoUpdateListener(listener);
           // Pull live price string from the offering when available.
@@ -85,8 +101,9 @@ export function PurchaseProvider({ children }) {
           setIsPro(unlocked === 'true');
         }
       } catch (e) {
-        console.warn('Purchase init failed, defaulting to locked:', e?.message);
-        setIsPro(false);
+        console.warn('Purchase init failed, falling back to cached entitlement:', e?.message);
+        const cached = await AsyncStorage.getItem(PRO_CACHE_KEY).catch(() => null);
+        setIsPro(cached === 'true');
       } finally {
         setLoading(false);
       }

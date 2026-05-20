@@ -78,11 +78,12 @@ const OptionPicker = ({ options, selected, onSelect, colors }) => (
 
 export default function SettingsScreen() {
   const { isDark, colors, toggleTheme } = useTheme();
-  const { isPro, isStub, priceString, restore } = usePurchases();
+  const { isPro, isStub, priceString, restore, loading: purchasesLoading } = usePurchases();
   const [units, setUnits] = useState('imperial'); // imperial | metric
   const [currency, setCurrency] = useState('USD');
   const [stats, setStats] = useState({ vehicles: 0, services: 0, fuelLogs: 0 });
   const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallContext, setPaywallContext] = useState('default');
   const [dbMeta, setDbMeta] = useState(getDataMeta());
   const [dbUpdating, setDbUpdating] = useState(false);
 
@@ -188,7 +189,8 @@ export default function SettingsScreen() {
 
   const generateReport = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!isPro) {
+    if (!isPro && !purchasesLoading) {
+      setPaywallContext('export');
       setShowPaywall(true);
       return;
     }
@@ -347,7 +349,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
     } finally {
       setGeneratingReport(false);
     }
-  }, [reportVehicleId, isPro]);
+  }, [reportVehicleId, isPro, purchasesLoading]);
 
   const handleClearData = () => {
     Alert.alert(
@@ -608,10 +610,10 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.body, { color: colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>Unlock everything</Text>
-                <Text style={[Typography.caption, { color: colors.textSecondary }]}>Unlimited vehicles, full insights, PDF reports</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>Unlimited vehicles, recall alerts, forecasts, PDF reports</Text>
               </View>
             </View>
-            <TouchableOpacity style={[Shared.buttonPrimary, { marginBottom: 0 }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowPaywall(true); }} activeOpacity={0.85}>
+            <TouchableOpacity style={[Shared.buttonPrimary, { marginBottom: 0 }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setPaywallContext('default'); setShowPaywall(true); }} activeOpacity={0.85}>
               <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FFFFFF' }}>Unlock Pro — {priceString}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={async () => { const r = await restore(); Alert.alert(r.success ? 'Restored' : 'Nothing to restore', r.success ? 'Pro is now unlocked.' : 'No previous purchase found.'); }} style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
@@ -638,7 +640,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         your data stays on your device. always.
       </Text>
 
-      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context="export" />
+      <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context={paywallContext} />
     </ScrollView>
   );
 }
