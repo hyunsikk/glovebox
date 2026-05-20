@@ -44,18 +44,20 @@ export function SettingsProvider({ children }) {
     });
   }, []);
 
-  // Listen for changes from settings screen
+  // Listen for changes written by the settings screen. Empty deps so the
+  // interval is created once (no churn); functional updates compare against the
+  // latest value without needing units/currency in the dependency array.
   useEffect(() => {
     const interval = setInterval(async () => {
       const [u, c] = await Promise.all([
         AsyncStorage.getItem(UNITS_KEY),
         AsyncStorage.getItem(CURRENCY_KEY),
       ]);
-      if (u && u !== units) setUnits(u);
-      if (c && c !== currency) setCurrency(c);
+      if (u) setUnits(prev => (u !== prev ? u : prev));
+      if (c) setCurrency(prev => (c !== prev ? c : prev));
     }, 2000); // poll every 2s — lightweight
     return () => clearInterval(interval);
-  }, [units, currency]);
+  }, []);
 
   const isMetric = units === 'metric';
   const cc = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.USD;

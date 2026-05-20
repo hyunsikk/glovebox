@@ -136,6 +136,10 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   };
 
   const handleSave = () => {
+    if (!vehicle?.id) {
+      Alert.alert('Error', 'No vehicle selected.');
+      return;
+    }
     const errors = validate();
     if (errors.length > 0) {
       Alert.alert('Missing Info', errors.join('\n'));

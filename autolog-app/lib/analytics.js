@@ -52,7 +52,7 @@ export const HealthScore = {
       const services = await ServiceStorage.getByVehicleId(vehicleId);
       const schedule = getMaintenanceSchedule(vehicle.make, vehicle.model);
       
-      if (schedule.length === 0) return 100; // No schedule data available
+      if (schedule.length === 0) return null; // No schedule data — score is unknown, not perfect
 
       let totalServices = 0;
       let onTimeServices = 0;
@@ -89,7 +89,9 @@ export const HealthScore = {
         }
       }
 
-      return totalServices > 0 ? Math.round((onTimeServices / totalServices) * 100) : 100;
+      // No services were due yet (new car / not enough time or mileage): score is
+      // unknown rather than a misleading perfect 100.
+      return totalServices > 0 ? Math.round((onTimeServices / totalServices) * 100) : null;
     } catch (error) {
       console.error('Error calculating health score:', error);
       return 0;
@@ -119,11 +121,11 @@ export const HealthScore = {
         if (!lastService) continue;
 
         const lastServiceDate = new Date(lastService.date);
-        const mileageDue = new Date();
         const dailyMiles = estimateDailyMiles(vehicle);
-        mileageDue.setDate(lastServiceDate.getDate() + 
+        const mileageDue = new Date(lastServiceDate);
+        mileageDue.setDate(mileageDue.getDate() +
           Math.round(scheduledService.mileInterval / dailyMiles));
-        
+
         const timeDue = new Date(lastServiceDate);
         timeDue.setMonth(timeDue.getMonth() + scheduledService.monthInterval);
         
@@ -236,7 +238,8 @@ export const CostAnalytics = {
       
       // Estimate monthly mileage based on vehicle data
       const ownershipStart = getOwnershipStartDate(vehicle);
-      const monthsOwned = monthsBetween(ownershipStart, currentDate) || 1;
+      // Math.max guards a future purchase date (negative months would invert the rate).
+      const monthsOwned = Math.max(1, monthsBetween(ownershipStart, currentDate));
       const totalMilesDriven = vehicle.currentMileage - (vehicle.initialMileage || 0);
       // Fall back to ~30 mi/day (~900 mi/month) if no mileage data
       const avgMilesPerMonth = totalMilesDriven > 0 ? totalMilesDriven / monthsOwned : 900;
@@ -367,11 +370,11 @@ export const ServiceDue = {
         if (!lastService) continue;
 
         const lastServiceDate = new Date(lastService.date);
-        const mileageDue = new Date();
         const dailyMiles = estimateDailyMiles(vehicle);
-        mileageDue.setDate(lastServiceDate.getDate() + 
+        const mileageDue = new Date(lastServiceDate);
+        mileageDue.setDate(mileageDue.getDate() +
           Math.round(scheduledService.mileInterval / dailyMiles));
-        
+
         const timeDue = new Date(lastServiceDate);
         timeDue.setMonth(timeDue.getMonth() + scheduledService.monthInterval);
         
@@ -421,18 +424,23 @@ export const FleetAnalytics = {
         vehiclesNeedingAttention: 0,
       };
 
+      let scoredCount = 0;
       for (const vehicle of vehicles) {
         const cost = await CostAnalytics.getTotalCost(vehicle.id);
         const healthScore = await HealthScore.calculate(vehicle.id);
         const hasOverdue = await ServiceDue.hasOverdueServices(vehicle.id);
 
         summary.totalCost += cost;
-        summary.averageHealthScore += healthScore;
+        if (typeof healthScore === 'number') {
+          summary.averageHealthScore += healthScore;
+          scoredCount++;
+        }
         if (hasOverdue) summary.vehiclesNeedingAttention++;
       }
 
-      if (vehicles.length > 0) {
-        summary.averageHealthScore = Math.round(summary.averageHealthScore / vehicles.length);
+      // Average only over vehicles that actually have a score (skip unknowns).
+      if (scoredCount > 0) {
+        summary.averageHealthScore = Math.round(summary.averageHealthScore / scoredCount);
       }
 
       return summary;

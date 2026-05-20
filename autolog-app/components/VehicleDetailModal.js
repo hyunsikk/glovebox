@@ -24,7 +24,6 @@ import TakeSnapshotModal from './TakeSnapshotModal';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
 import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import manufacturerDB from '../content/v1/vehicles.json';
 import { getVehicleSchedule } from '../lib/vehicleDB';
 import { generateReport } from './ReportGenerator';
 import DatePickerField from './DatePickerField';
@@ -1141,13 +1140,14 @@ const MaintenanceReminders = ({ vehicleId }) => {
 
 export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicleUpdated, onLogService, onServiceLogged }) {
   const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, distanceLabel, formatEfficiency, formatVolume, formatVolumeUnit, currencySymbol } = useSettings();
-  const { isPro } = usePurchases();
+  const { isPro, loading: purchasesLoading } = usePurchases();
   const [showPaywall, setShowPaywall] = useState(false);
   // Which feature triggered the paywall — drives the contextual headline.
   const [paywallContext, setPaywallContext] = useState('export');
   // Gate the per-vehicle PDF report behind Pro (keeps it consistent with Settings).
+  // Don't gate while entitlement is still loading (avoids paywalling a Pro user).
   const requestReport = (id) => {
-    if (!isPro) { setPaywallContext('export'); setShowPaywall(true); return; }
+    if (!isPro && !purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); return; }
     generateReport(id);
   };
   const requestRecalls = () => {
@@ -1277,10 +1277,10 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       }
       setServicePhotosMap(photosMap);
 
-      // Load reminders
+      // Load reminders from the canonical store (the old per-vehicle key was
+      // never written, so this state was always empty).
       try {
-        const remRaw = await AsyncStorage.getItem(`reminders_${vehicle.id}`);
-        setReminders(remRaw ? JSON.parse(remRaw) : []);
+        setReminders(await ReminderStorage.getByVehicleId(vehicle.id));
       } catch { setReminders([]); }
 
       // Load maintenance schedule (manufacturer-specific or generic fallback)

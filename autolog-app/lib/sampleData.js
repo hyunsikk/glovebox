@@ -14,6 +14,7 @@ export const addSampleData = async () => {
       purchaseDate: '2022-03-10',
       vin: '2T3P1RFV0NW123456',
       location: 'Home garage',
+      isSample: true,
     });
 
     const vehicle2 = await VehicleStorage.add({
@@ -25,6 +26,7 @@ export const addSampleData = async () => {
       currentMileage: 24200,
       purchaseDate: '2021-01-15',
       vin: '19XFC2F59LE012345',
+      isSample: true,
     });
 
     const vehicle3 = await VehicleStorage.add({
@@ -37,6 +39,7 @@ export const addSampleData = async () => {
       purchaseDate: '2021-06-20',
       vin: 'WBA5R1C52M7D12345',
       location: 'Parking garage',
+      isSample: true,
     });
 
     // ─── Vehicle 1: Toyota RAV4 — Services ───

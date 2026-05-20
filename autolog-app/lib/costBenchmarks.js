@@ -243,8 +243,8 @@ export function compareToBenchmark(make, userAnnualCost, userCostPerMile) {
   let verdict = 'average';
   if (annualPct < -15) verdict = 'excellent';
   else if (annualPct < -5) verdict = 'good';
-  else if (annualPct > 15) verdict = 'high';
   else if (annualPct > 30) verdict = 'very high';
+  else if (annualPct > 15) verdict = 'high';
   
   return {
     benchmark,

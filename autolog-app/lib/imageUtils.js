@@ -1,5 +1,31 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { Alert, Platform } from 'react-native';
+
+/**
+ * Persist a picked image durably and cheaply:
+ * - Native: copy the file into the app's documentDirectory and return that
+ *   stable path. The picker's original URI points at a cache the OS can purge,
+ *   and we must NOT inline image bytes into AsyncStorage.
+ * - Web: fall back to a base64 data URL (no FileSystem available).
+ * On any failure, returns the original URI so the flow never hard-fails.
+ */
+export const persistImage = async (uri) => {
+  try {
+    if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
+      return await convertToBase64(uri);
+    }
+    const dir = `${FileSystem.documentDirectory}images/`;
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+    const ext = (uri.split('.').pop() || 'jpg').split('?')[0].slice(0, 5);
+    const dest = `${dir}img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    await FileSystem.copyAsync({ from: uri, to: dest });
+    return dest;
+  } catch (error) {
+    console.error('Error persisting image, using original uri:', error);
+    return uri;
+  }
+};
 
 // Resize image to max width while maintaining aspect ratio
 export const resizeImageUri = async (uri, maxWidth = 800) => {
@@ -161,4 +187,5 @@ export default {
   validateImageSize,
   resizeImageUri,
   convertToBase64,
+  persistImage,
 };

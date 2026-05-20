@@ -108,10 +108,21 @@ export function applyTheme(mode) {
   Object.keys(updatedShared).forEach(key => {
     Shared[key] = updatedShared[key];
   });
+
+  // Typography bakes text colors from Colors, so rebuild it too. (It must be a
+  // plain object — StyleSheet.create would freeze the colors at import time and
+  // leave bare Typography.* text stuck in the original theme.)
+  const updatedTypography = buildTypography();
+  Object.keys(updatedTypography).forEach(key => {
+    Typography[key] = updatedTypography[key];
+  });
 }
 
-// Premium Typography Hierarchy - ALL text should use these
-export const Typography = StyleSheet.create({
+// Premium Typography Hierarchy - ALL text should use these.
+// Plain object (NOT StyleSheet.create) so applyTheme can refresh the baked
+// text colors when the user switches between light and dark mode.
+function buildTypography() {
+  return {
   // Hero - Screen titles (32px Bold) - lowercase style
   hero: {
     fontFamily: 'Nunito_700Bold',
@@ -167,7 +178,10 @@ export const Typography = StyleSheet.create({
     lineHeight: 38,
     color: Colors.textPrimary,
   },
-});
+  };
+}
+
+export const Typography = buildTypography();
 
 // Spacing system
 export const Spacing = {

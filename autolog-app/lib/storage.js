@@ -81,35 +81,29 @@ export const VehicleStorage = {
   // Delete vehicle
   delete: async (vehicleId) => {
     try {
-      const vehicles = await VehicleStorage.getAll();
-      const filteredVehicles = vehicles.filter(v => v.id !== vehicleId);
-      
-      await AsyncStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(filteredVehicles));
-      
-      // Also delete all services, images, issues, and snapshots for this vehicle
-      await ServiceStorage.deleteByVehicleId(vehicleId);
-      await ImageStorage.deleteByVehicleId(vehicleId);
-      
-      // Delete all issues for this vehicle
-      const issues = await IssueStorage.getAll();
-      const filteredIssues = issues.filter(i => i.vehicleId !== vehicleId);
-      await AsyncStorage.setItem(STORAGE_KEYS.ISSUES, JSON.stringify(filteredIssues));
+      // Read every affected collection up front, filter in memory, then commit
+      // in a single multiSet so a concurrent write can't restore deleted rows
+      // mid-cascade (read-modify-write hazard).
+      const [vehicles, services, images, issues, snapshots, fuelLogs, reminders] = await Promise.all([
+        VehicleStorage.getAll(),
+        ServiceStorage.getAll(),
+        ImageStorage.getAll(),
+        IssueStorage.getAll(),
+        SnapshotStorage.getAll(),
+        FuelStorage.getAll(),
+        ReminderStorage.getAll(),
+      ]);
 
-      // Delete all snapshots for this vehicle
-      const snapshots = await SnapshotStorage.getAll();
-      const filteredSnapshots = snapshots.filter(s => s.vehicleId !== vehicleId);
-      await AsyncStorage.setItem(STORAGE_KEYS.SNAPSHOTS, JSON.stringify(filteredSnapshots));
+      await AsyncStorage.multiSet([
+        [STORAGE_KEYS.VEHICLES, JSON.stringify(vehicles.filter(v => v.id !== vehicleId))],
+        [STORAGE_KEYS.SERVICES, JSON.stringify(services.filter(s => s.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.IMAGES, JSON.stringify(images.filter(i => i.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.ISSUES, JSON.stringify(issues.filter(i => i.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.SNAPSHOTS, JSON.stringify(snapshots.filter(s => s.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.FUEL_LOGS, JSON.stringify(fuelLogs.filter(f => f.vehicleId !== vehicleId))],
+        [STORAGE_KEYS.REMINDERS, JSON.stringify(reminders.filter(r => r.vehicleId !== vehicleId))],
+      ]);
 
-      // Delete all fuel logs for this vehicle
-      const fuelLogs = await FuelStorage.getAll();
-      const filteredFuel = fuelLogs.filter(f => f.vehicleId !== vehicleId);
-      await AsyncStorage.setItem(STORAGE_KEYS.FUEL_LOGS, JSON.stringify(filteredFuel));
-
-      // Delete all reminders for this vehicle
-      const reminders = await ReminderStorage.getAll();
-      const filteredReminders = reminders.filter(r => r.vehicleId !== vehicleId);
-      await AsyncStorage.setItem(STORAGE_KEYS.REMINDERS, JSON.stringify(filteredReminders));
-      
       return true;
     } catch (error) {
       console.error('Error deleting vehicle:', error);
@@ -246,22 +240,25 @@ export const ServiceStorage = {
 };
 
 // User Settings Storage Functions
+const DEFAULT_SETTINGS = {
+  notifications: true,
+  notificationTiming: 7, // days before due
+  units: 'imperial', // imperial/metric
+  currency: 'USD',
+  onboardingComplete: false,
+  premiumStatus: false,
+};
+
 export const SettingsStorage = {
   // Get user settings
   get: async () => {
     try {
       const settingsString = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
-      return settingsString ? JSON.parse(settingsString) : {
-        notifications: true,
-        notificationTiming: 7, // days before due
-        units: 'imperial', // imperial/metric
-        currency: 'USD',
-        onboardingComplete: false,
-        premiumStatus: false,
-      };
+      return settingsString ? JSON.parse(settingsString) : { ...DEFAULT_SETTINGS };
     } catch (error) {
       console.error('Error getting user settings:', error);
-      return {};
+      // Return defaults (not {}) so callers destructuring settings.units don't get undefined.
+      return { ...DEFAULT_SETTINGS };
     }
   },
 
@@ -976,12 +973,9 @@ export const DataUtils = {
   // Clear all app data
   clearAllData: async () => {
     try {
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.VEHICLES,
-        STORAGE_KEYS.SERVICES,
-        STORAGE_KEYS.USER_SETTINGS,
-        STORAGE_KEYS.IMAGES,
-      ]);
+      // Remove every storage key, not just a subset, so a reset leaves no
+      // orphaned fuel/issue/snapshot/reminder/document records behind.
+      await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
       return true;
     } catch (error) {
       console.error('Error clearing all data:', error);

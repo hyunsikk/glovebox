@@ -90,13 +90,14 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
     setSelectedVehicle(vehicle);
     setIsManualEntry(false);
     
-    // Pre-fill form with selected vehicle data
-    setFormData({
-      ...formData,
+    // Pre-fill form with selected vehicle data (functional update to avoid a
+    // stale formData snapshot when the user typed just before selecting).
+    setFormData(prev => ({
+      ...prev,
       make: vehicle.make,
       model: vehicle.model,
       year: '', // User needs to specify exact year
-    });
+    }));
     setStep('details');
   };
 

@@ -5,6 +5,9 @@ import { Colors, Typography, Spacing, Shared } from '../theme';
 
 export default function DatePickerField({ value, onChange, label, error, maxDate }) {
   const [showPicker, setShowPicker] = useState(false);
+  // iOS: stage the spinner selection here and only commit it on "Done", so
+  // "Cancel" (or accidentally spinning then cancelling) doesn't mutate the value.
+  const [pendingDate, setPendingDate] = useState(null);
 
   const dateValue = value ? new Date(value + 'T12:00:00') : new Date();
   const max = maxDate || new Date();
@@ -22,14 +25,28 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
   const handleChange = (event, selectedDate) => {
     if (Platform.OS === 'android') {
       setShowPicker(false);
+      if (event.type === 'dismissed') return;
+      if (selectedDate) onChange(toISODate(selectedDate));
+      return;
     }
-    if (event.type === 'dismissed') return;
-    if (selectedDate) {
-      onChange(toISODate(selectedDate));
-    }
+    // iOS: stage only — commit happens in handleConfirmIOS.
+    if (selectedDate) setPendingDate(selectedDate);
+  };
+
+  const openPicker = () => {
+    setPendingDate(null);
+    setShowPicker(true);
+  };
+
+  const cancelIOS = () => {
+    setPendingDate(null);
+    setShowPicker(false);
   };
 
   const handleConfirmIOS = () => {
+    if (pendingDate) onChange(toISODate(pendingDate));
+    else if (!value) onChange(toISODate(dateValue)); // commit default if never scrolled
+    setPendingDate(null);
     setShowPicker(false);
   };
 
@@ -80,7 +97,7 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
           { justifyContent: 'center' },
           error && { borderColor: Colors.danger, borderWidth: 2 },
         ]}
-        onPress={() => setShowPicker(true)}
+        onPress={openPicker}
         activeOpacity={0.7}
       >
         <Text style={[Typography.body, {
@@ -123,7 +140,7 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
                 borderBottomWidth: 1,
                 borderBottomColor: Colors.glassBorder,
               }}>
-                <TouchableOpacity onPress={() => setShowPicker(false)}>
+                <TouchableOpacity onPress={cancelIOS}>
                   <Text style={[Typography.body, { color: Colors.textSecondary }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleConfirmIOS}>
@@ -131,7 +148,7 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
                 </TouchableOpacity>
               </View>
               <DateTimePicker
-                value={dateValue}
+                value={pendingDate || dateValue}
                 mode="date"
                 display="spinner"
                 maximumDate={max}

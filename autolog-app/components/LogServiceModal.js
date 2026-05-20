@@ -361,9 +361,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       }
     }
 
-    // Validate date
-    const serviceDate = new Date(formData.date);
+    // Validate date. Parse at local noon and compare against end-of-today so a
+    // date entered for "today" isn't rejected due to UTC-vs-local offset.
+    const serviceDate = new Date(formData.date + 'T12:00:00');
     const today = new Date();
+    today.setHours(23, 59, 59, 999);
     if (serviceDate > today) {
       errors.push('Service date cannot be in the future');
     }

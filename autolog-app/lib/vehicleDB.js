@@ -216,8 +216,12 @@ export async function checkForUpdate({ force = false } = {}) {
     if (manifest.vehicleCount && data.vehicles.length !== manifest.vehicleCount) return { error: 'count mismatch' };
 
     const updatedAt = new Date().toISOString();
+    // Persist to disk FIRST. If this throws, the outer catch handles it and we
+    // do NOT advance the stored version — otherwise a failed write would leave
+    // AsyncStorage pointing at a version with no backing file, permanently
+    // wedging the app on bundled data.
     if (FileSystem.documentDirectory) {
-      await FileSystem.writeAsStringAsync(DATA_FILE, JSON.stringify(data)).catch(() => {});
+      await FileSystem.writeAsStringAsync(DATA_FILE, JSON.stringify(data));
     }
     await AsyncStorage.multiSet([[K_VERSION, String(manifest.version)], [K_UPDATED, updatedAt]]);
     setActive(data, { source: 'remote', version: manifest.version, updatedAt, vehicleCount: data.vehicles.length });

@@ -967,7 +967,7 @@ export default function GarageScreen() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const { isPro } = usePurchases();
+  const { isPro, loading: purchasesLoading } = usePurchases();
   // Removed FAB multi-action state - now simple Add Vehicle button
 
   // Auto-load demo data on first launch
@@ -1075,8 +1075,11 @@ export default function GarageScreen() {
 
   const handleAddVehicle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Free tier: one vehicle. Hitting the wall opens the paywall.
-    if (!isPro && vehicles.length >= 1) {
+    // Free tier: one real vehicle. Demo/sample vehicles don't count toward the
+    // limit. Don't gate while entitlement is still loading (avoids flashing the
+    // paywall at a Pro user on cold start).
+    const realCount = vehicles.filter(v => !v.isSample).length;
+    if (!isPro && !purchasesLoading && realCount >= 1) {
       setShowPaywall(true);
       return;
     }
@@ -1149,7 +1152,8 @@ export default function GarageScreen() {
   };
 
   const handleOnboardingAddVehicle = () => {
-    setShowAddVehicleModal(true);
+    // Route through the gated handler so the free-tier limit is enforced here too.
+    handleAddVehicle();
   };
 
   const handleOnboardingClose = () => {

@@ -67,8 +67,9 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
     if (!formData.date.trim()) {
       newErrors.date = 'Date is required';
     } else {
-      const serviceDate = new Date(formData.date);
+      const serviceDate = new Date(formData.date + 'T12:00:00');
       const today = new Date();
+      today.setHours(23, 59, 59, 999);
       if (serviceDate > today) {
         newErrors.date = 'Service date cannot be in the future';
       }
@@ -78,9 +79,8 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
       newErrors.cost = 'Please enter a valid cost';
     }
 
-    if (!formData.mileage.trim()) {
-      newErrors.mileage = 'Mileage is required';
-    } else if (isNaN(parseInt(formData.mileage))) {
+    // Mileage is optional (matches LogServiceModal); only validate format if given.
+    if (formData.mileage && formData.mileage.trim() && isNaN(parseInt(formData.mileage))) {
       newErrors.mileage = 'Please enter a valid mileage';
     }
 

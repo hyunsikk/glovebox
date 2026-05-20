@@ -158,7 +158,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
             {service.serviceType}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-            {vehicle?.nickname || `${vehicle?.year} ${vehicle?.make} ${vehicle?.model}`}
+            {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
           </Text>
         </View>
 
@@ -253,7 +253,7 @@ const FuelCard = ({ fuelLog, vehicle }) => {
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
             {isFuel
               ? `${formatVolume(fuelLog.gallons)}${fuelLog.fullTank ? '' : ' (partial)'}`
-              : `${fuelLog.kWh} kWh`}
+              : `${fuelLog.kWh != null ? fuelLog.kWh : '--'} kWh`}
           </Text>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
             {vehicle?.nickname || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Unknown')}
