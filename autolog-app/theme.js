@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 
 // Premium Automotive-Tech Color System
 export const Colors = {

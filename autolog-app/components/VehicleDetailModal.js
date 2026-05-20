@@ -773,7 +773,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
               {activeRecalls.slice(0, 3).map((recall, index) => {
                 const recallId = recall.NHTSACampaignNumber || `recall_${recalls.indexOf(recall)}`;
                 return (
-                  <View key={index} style={{
+                  <View key={recallId} style={{
                     backgroundColor: Colors.surface2,
                     borderRadius: 8,
                     padding: Spacing.md,
@@ -1128,6 +1128,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     generateReport(id);
   };
   const requestRecalls = () => {
+    if (purchasesLoading) return; // don't paywall a Pro user mid entitlement-load
     setPaywallContext('recalls');
     setShowPaywall(true);
   };
@@ -2035,8 +2036,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                 {/* Recall Check — NHTSA keys on make/model/year (VIN not required).
                     Pro-gated; free users see a teaser that opens the paywall. */}
                 {vehicleData.make && vehicleData.model && vehicleData.year && (
-                  isPro ? (
+                  purchasesLoading ? null : isPro ? (
                     <RecallCheck
+                      key={vehicleData.id}
                       vehicleId={vehicleData.id}
                       make={vehicleData.make}
                       model={vehicleData.model}

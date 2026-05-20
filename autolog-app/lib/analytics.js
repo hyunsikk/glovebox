@@ -420,6 +420,7 @@ export const FleetAnalytics = {
       const summary = {
         totalVehicles: vehicles.length,
         totalCost: 0,
+        totalServices: 0,
         averageHealthScore: 0,
         vehiclesNeedingAttention: 0,
       };
@@ -429,8 +430,10 @@ export const FleetAnalytics = {
         const cost = await CostAnalytics.getTotalCost(vehicle.id);
         const healthScore = await HealthScore.calculate(vehicle.id);
         const hasOverdue = await ServiceDue.hasOverdueServices(vehicle.id);
+        const services = await ServiceStorage.getByVehicleId(vehicle.id);
 
         summary.totalCost += cost;
+        summary.totalServices += services.length;
         if (typeof healthScore === 'number') {
           summary.averageHealthScore += healthScore;
           scoredCount++;
@@ -449,6 +452,7 @@ export const FleetAnalytics = {
       return {
         totalVehicles: 0,
         totalCost: 0,
+        totalServices: 0,
         averageHealthScore: 0,
         vehiclesNeedingAttention: 0,
       };
