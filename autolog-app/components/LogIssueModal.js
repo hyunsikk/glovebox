@@ -140,9 +140,9 @@ const StatusPicker = ({ value, onSelect, disabled = false }) => (
 
 export default function LogIssueModal({ 
   visible, 
-  onClose, 
-  onIssueLogged, 
-  vehicles, 
+  onClose,
+  onIssueLogged,
+  vehicles = [],
   selectedVehicle,
   editingIssue = null,
 }) {
@@ -260,7 +260,7 @@ export default function LogIssueModal({
         description: form.description.trim(),
         severity: form.severity,
         status: form.status,
-        date: form.date + 'T00:00:00.000Z',
+        date: form.date + 'T12:00:00', // local noon — avoids UTC off-by-one display
         odometer: form.odometer ? parseInt(form.odometer) : undefined,
         cost: form.cost ? parseFloat(form.cost) : undefined,
         resolvedServiceId: form.resolvedServiceId || undefined,

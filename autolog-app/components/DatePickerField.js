@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Shared } from '../theme';
+import { useTheme } from '../lib/ThemeContext';
 
 export default function DatePickerField({ value, onChange, label, error, maxDate }) {
+  const { isDark } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
   // iOS: stage the spinner selection here and only commit it on "Done", so
   // "Cancel" (or accidentally spinning then cancelling) doesn't mutate the value.
@@ -154,7 +156,7 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
                 maximumDate={max}
                 onChange={handleChange}
                 textColor={Colors.textPrimary}
-                themeVariant="dark"
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             </View>
           </View>

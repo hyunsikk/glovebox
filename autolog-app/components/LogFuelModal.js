@@ -178,13 +178,15 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
       fullTank,
     };
 
+    // Keep a literal 0 (e.g. free/employer-paid fuel); only null out blank/NaN.
+    const num = (v) => (v !== '' && v != null && !isNaN(parseFloat(v)) ? parseFloat(v) : null);
     if (type === 'fuel') {
-      logData.gallons = gallons ? parseFloat(gallons) : null;
-      logData.pricePerGallon = parseFloat(pricePerGallon) || null;
+      logData.gallons = num(gallons);
+      logData.pricePerGallon = num(pricePerGallon);
       logData.octane = octane;
     } else {
-      logData.kWh = kWh ? parseFloat(kWh) : null;
-      logData.costPerKWh = parseFloat(costPerKWh) || null;
+      logData.kWh = num(kWh);
+      logData.costPerKWh = num(costPerKWh);
       logData.chargerType = chargerType;
     }
 

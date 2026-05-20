@@ -158,6 +158,7 @@ export const DonutChart = ({ segments, size = 180, strokeWidth = 22, centerLabel
 export const HorizontalBarChart = ({ data, formatValue, maxBarWidth }) => {
   const reveal = useReveal([JSON.stringify(data?.map(d => d.value))]);
   const uid = useRef('bar' + Math.random().toString(36).slice(2, 8)).current;
+  if (!data || data.length === 0) return null;
   const maxVal = Math.max(...data.map(d => d.value), 1);
   const barTrack = maxBarWidth || Dimensions.get('window').width - 140;
 

@@ -18,11 +18,9 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Car Story needs access to your photos to attach images to vehicle profiles and service records.",
         "NSCameraUsageDescription": "Car Story needs camera access to take photos of your vehicle and service receipts.",
-        "NSUserNotificationsUsageDescription": "Car Story sends reminders when maintenance is due and alerts you to new safety recalls for your vehicles.",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDisplayName": "Car Story"
       },
-      "newArchEnabled": false,
       "entitlements": {
         "aps-environment": "production"
       }
@@ -57,7 +55,6 @@
         "projectId": "fcec4e74-061f-4696-8b5d-5a0921fdf7bb"
       }
     },
-    "owner": "hsikk",
-    "newArchEnabled": false
+    "owner": "hsikk"
   }
 }
