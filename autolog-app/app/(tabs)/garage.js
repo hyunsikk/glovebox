@@ -26,6 +26,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
   const [dueSoonServices, setDueSoonServices] = useState([]);
   const [nextService, setNextService] = useState(null);
   const [openIssuesCount, setOpenIssuesCount] = useState(0);
+  const [healthScore, setHealthScore] = useState(null);
   const scaleValue = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
@@ -45,6 +46,10 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
       // Load open issues count
       const openIssues = await IssueStorage.getOpenByVehicleId(vehicle.id);
       setOpenIssuesCount(openIssues.length);
+
+      // Load health score for the gauge
+      const score = await HealthScore.calculate(vehicle.id);
+      if (typeof score === 'number' && !isNaN(score)) setHealthScore(score);
     } catch (error) {
       console.error('Error loading vehicle data:', error);
     }
@@ -184,6 +189,13 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
             </View>
           </View>
           
+          {/* Health Score Gauge */}
+          {healthScore !== null && (
+            <View style={{ marginRight: Spacing.sm }}>
+              <HealthScoreDialSmall score={healthScore} />
+            </View>
+          )}
+
           {/* Vehicle Photo */}
           {vehicle.photoUri && (
             <Image

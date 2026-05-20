@@ -1,12 +1,15 @@
 /**
- * Vehicle Health Score — Minimal Arc Bar
- * Thin semi-circle that fills with color, large number in center.
- * View-based (no SVG) for web compatibility.
+ * Vehicle Health Score — smooth semi-circular gauge (SVG).
+ * Gradient arc fills left → right across the top, with the score in the center.
  */
 
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Animated } from 'react-native';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '../theme';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const getScoreColor = (score) => {
   if (score >= 90) return Colors.success;
@@ -22,169 +25,73 @@ const getScoreLabel = (score) => {
   return 'needs care';
 };
 
-/**
- * Semi-circle arc using half-circle clipping.
- * Fills clockwise from left to right across a 180° arc.
- */
-const ArcBar = ({ score, width, strokeWidth }) => {
-  const color = getScoreColor(score);
-  const height = width / 2;
-  const fillPercent = Math.min(Math.max(score / 100, 0), 1);
-  const fillDegrees = fillPercent * 180;
-  const radius = width / 2;
-
-  return (
-    <View style={{ width, height: height + strokeWidth, overflow: 'hidden' }}>
-      {/* Track (gray semi-circle) */}
-      <View style={{
-        width,
-        height: width,
-        borderRadius: radius,
-        borderWidth: strokeWidth,
-        borderColor: Colors.surface1,
-        position: 'absolute',
-        top: 0,
-      }} />
-
-      {/* Filled arc — left quarter (0-90°) */}
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: width / 2,
-        height: height + strokeWidth,
-        overflow: 'hidden',
-      }}>
-        <View style={{
-          width,
-          height: width,
-          borderRadius: radius,
-          borderWidth: strokeWidth,
-          borderColor: 'transparent',
-          borderLeftColor: fillDegrees > 0 ? color : 'transparent',
-          borderBottomColor: fillDegrees > 90 ? color : 'transparent',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          transform: fillDegrees <= 90
-            ? [{ rotate: `${fillDegrees}deg` }]
-            : [{ rotate: '90deg' }],
-        }} />
-      </View>
-
-      {/* Filled arc — right quarter (90-180°) */}
-      {fillDegrees > 90 && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: width / 2,
-          width: width / 2,
-          height: height + strokeWidth,
-          overflow: 'hidden',
-        }}>
-          <View style={{
-            width,
-            height: width,
-            borderRadius: radius,
-            borderWidth: strokeWidth,
-            borderColor: 'transparent',
-            borderRightColor: color,
-            borderTopColor: fillDegrees >= 180 ? color : 'transparent',
-            position: 'absolute',
-            top: 0,
-            left: -width / 2,
-            transform: [{ rotate: `${fillDegrees - 90}deg` }],
-          }} />
-        </View>
-      )}
-    </View>
-  );
+const polarToCartesian = (cx, cy, r, angleDeg) => {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
 };
 
-/**
- * Simpler approach: use dot segments for the semi-circle arc
- * Looks cleaner and more reliable cross-platform
- */
-const DotArc = ({ score, width, strokeWidth }) => {
+// Arc from startAngle to endAngle, sweeping over the top. Angles: -90 = left, 0 = top, 90 = right.
+// sweep-flag 0 keeps the arc in the upper half (the visible region of the gauge).
+const describeArc = (cx, cy, r, startAngle, endAngle) => {
+  const start = polarToCartesian(cx, cy, r, startAngle);
+  const end = polarToCartesian(cx, cy, r, endAngle);
+  const largeArc = endAngle - startAngle <= 180 ? '0' : '1';
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+};
+
+const Gauge = ({ score, size, strokeWidth, gid }) => {
   const color = getScoreColor(score);
-  const totalDots = 30;
-  const filledDots = Math.round((score / 100) * totalDots);
-  const radius = (width - strokeWidth) / 2;
-  const centerX = width / 2;
-  const centerY = width / 2;
-  const dotSize = Math.max(strokeWidth, 3);
+  const frac = Math.min(Math.max(score / 100, 0), 1);
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - strokeWidth) / 2;
+  const height = size / 2 + strokeWidth;
 
-  const dots = [];
-  for (let i = 0; i < totalDots; i++) {
-    // Semi-circle: 180° to 0° (left to right across the top)
-    const angle = (180 - (i / (totalDots - 1)) * 180) * (Math.PI / 180);
-    const x = centerX + radius * Math.cos(angle) - dotSize / 2;
-    const y = centerY - radius * Math.sin(angle) - dotSize / 2;
-    const isFilled = i < filledDots;
+  const arcLen = Math.PI * r; // semicircle length
+  const reveal = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    reveal.setValue(0);
+    Animated.timing(reveal, { toValue: 1, duration: 800, useNativeDriver: false }).start();
+  }, [score]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dashOffset = reveal.interpolate({ inputRange: [0, 1], outputRange: [arcLen, arcLen * (1 - frac)] });
 
-    dots.push(
-      <View
-        key={i}
-        style={{
-          position: 'absolute',
-          left: x,
-          top: y,
-          width: dotSize,
-          height: dotSize,
-          borderRadius: dotSize / 2,
-          backgroundColor: isFilled ? color : Colors.surface1,
-          opacity: isFilled ? 1 : 0.3,
-          // Subtle glow on filled dots
-          ...(isFilled ? {
-            shadowColor: color,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.5,
-            shadowRadius: 2,
-          } : {}),
-        }}
-      />
-    );
-  }
+  const trackPath = describeArc(cx, cy, r, -90, 90);
 
   return (
-    <View style={{ width, height: width / 2 + dotSize }}>
-      {dots}
-    </View>
+    <Svg width={size} height={height}>
+      <Defs>
+        <LinearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
+          <Stop offset="0" stopColor={color} stopOpacity={0.65} />
+          <Stop offset="1" stopColor={color} stopOpacity={1} />
+        </LinearGradient>
+      </Defs>
+      <Path d={trackPath} stroke={Colors.surface1} strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+      <AnimatedPath
+        d={trackPath}
+        stroke={`url(#${gid})`}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        fill="none"
+        strokeDasharray={arcLen}
+        strokeDashoffset={dashOffset}
+      />
+    </Svg>
   );
 };
 
 export default function HealthScoreDial({ score = 0, size = 120 }) {
   const color = getScoreColor(score);
-  const strokeWidth = Math.max(Math.round(size * 0.035), 3);
+  const strokeWidth = Math.max(Math.round(size * 0.07), 6);
 
   return (
     <View style={{ width: size, alignItems: 'center' }}>
-      {/* Arc */}
-      <DotArc score={score} width={size} strokeWidth={strokeWidth} />
-
-      {/* Number + label overlaid in the center-bottom of the arc */}
-      <View style={{
-        position: 'absolute',
-        top: size * 0.12,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-      }}>
-        <Text style={{
-          fontFamily: 'Nunito_700Bold',
-          fontSize: Math.round(size * 0.3),
-          color: color,
-          lineHeight: Math.round(size * 0.34),
-        }}>
+      <Gauge score={score} size={size} strokeWidth={strokeWidth} gid={`hsd${size}`} />
+      <View style={{ position: 'absolute', top: size * 0.18, left: 0, right: 0, alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: Math.round(size * 0.3), color, lineHeight: Math.round(size * 0.34) }}>
           {Math.round(score)}
         </Text>
         {size >= 80 && (
-          <Text style={{
-            fontFamily: 'Nunito_500Medium',
-            fontSize: Math.round(size * 0.1),
-            color: Colors.textSecondary,
-            marginTop: -2,
-          }}>
+          <Text style={{ fontFamily: 'Nunito_500Medium', fontSize: Math.round(size * 0.1), color: Colors.textSecondary, marginTop: -2 }}>
             {getScoreLabel(score)}
           </Text>
         )}
@@ -193,25 +100,49 @@ export default function HealthScoreDial({ score = 0, size = 120 }) {
   );
 }
 
+// Compact full-ring gauge — reads far better than a semicircle at small sizes.
 export function HealthScoreDialSmall({ score = 0 }) {
   const color = getScoreColor(score);
+  const size = 44;
+  const strokeWidth = 4;
+  const frac = Math.min(Math.max(score / 100, 0), 1);
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+
+  const reveal = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    reveal.setValue(0);
+    Animated.timing(reveal, { toValue: 1, duration: 700, useNativeDriver: false }).start();
+  }, [score]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dashOffset = reveal.interpolate({ inputRange: [0, 1], outputRange: [circ, circ * (1 - frac)] });
 
   return (
-    <View style={{ width: 48, alignItems: 'center' }}>
-      <DotArc score={score} width={48} strokeWidth={2} />
-      <View style={{
-        position: 'absolute',
-        top: 6,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-      }}>
-        <Text style={{
-          fontFamily: 'Nunito_700Bold',
-          fontSize: 15,
-          color: color,
-          lineHeight: 18,
-        }}>
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <LinearGradient id="hsdSmall" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={color} stopOpacity={0.65} />
+            <Stop offset="1" stopColor={color} stopOpacity={1} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx={cx} cy={cy} r={r} stroke={Colors.surface3} strokeWidth={strokeWidth} fill="none" opacity={0.6} />
+        <AnimatedCircle
+          cx={cx}
+          cy={cy}
+          r={r}
+          stroke="url(#hsdSmall)"
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${cx} ${cy})`}
+        />
+      </Svg>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 14, color, lineHeight: 16 }}>
           {Math.round(score)}
         </Text>
       </View>

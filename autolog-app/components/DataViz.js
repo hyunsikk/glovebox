@@ -1,19 +1,83 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { View, Text, Animated, Dimensions } from 'react-native';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Rect, G } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '../theme';
 
-const CHART_COLORS = ['#2563EB', '#059669', '#D97706', '#DC2626', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// ---- geometry helpers -------------------------------------------------------
+
+// 0° at top, sweeping clockwise.
+const polarToCartesian = (cx, cy, r, angleDeg) => {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+};
+
+// Stroke arc path following the centerline from startAngle to endAngle.
+const arcPath = (cx, cy, r, startAngle, endAngle) => {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArc = endAngle - startAngle <= 180 ? '0' : '1';
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+};
+
+// Catmull-Rom → cubic bezier, for smooth lines through points.
+const smoothPath = (pts) => {
+  if (pts.length < 2) return '';
+  if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+  }
+  return d;
+};
+
+const polylineLength = (pts) => {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  return len || 1;
+};
+
+// Mount-time reveal value (0 → 1). Drives entrance animations.
+const useReveal = (deps = [], duration = 650) => {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    v.setValue(0);
+    Animated.timing(v, {
+      toValue: 1,
+      duration,
+      useNativeDriver: false,
+    }).start();
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  return v;
+};
+
+// ---- DonutChart -------------------------------------------------------------
 
 /**
- * Donut Chart — cost breakdown by category
- * Uses concentric arc segments via rotated half-circles
+ * Donut chart — accurate arc segments via SVG paths (replaces the old
+ * border-quadrant trick that quantised every segment to 25% steps).
  */
-export const DonutChart = ({ segments, size = 180, strokeWidth = 24, centerLabel, centerValue }) => {
-  // Build segments as colored arcs
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const total = segments.reduce((sum, s) => sum + s.value, 0);
-  
+export const DonutChart = ({ segments, size = 180, strokeWidth = 22, centerLabel, centerValue }) => {
+  const reveal = useReveal([JSON.stringify(segments?.map(s => s.value))]);
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - strokeWidth) / 2;
+  const total = (segments || []).reduce((sum, s) => sum + (s.value || 0), 0);
+
   if (total === 0) {
     return (
       <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
@@ -22,51 +86,52 @@ export const DonutChart = ({ segments, size = 180, strokeWidth = 24, centerLabel
     );
   }
 
-  let accumulated = 0;
-  const arcs = segments.filter(s => s.value > 0).map((seg, i) => {
-    const pct = seg.value / total;
-    const rotation = accumulated * 360;
-    accumulated += pct;
-    return { ...seg, pct, rotation, color: seg.color || CHART_COLORS[i % CHART_COLORS.length] };
-  });
+  const GAP = segments.filter(s => s.value > 0).length > 1 ? 3 : 0; // degrees between segments
+  let cursor = 0;
+  const arcs = segments
+    .filter(s => s.value > 0)
+    .map((seg, i) => {
+      const pct = seg.value / total;
+      const startAngle = cursor + GAP / 2;
+      const endAngle = cursor + pct * 360 - GAP / 2;
+      cursor += pct * 360;
+      return {
+        ...seg,
+        pct,
+        startAngle,
+        endAngle: Math.max(endAngle, startAngle + 0.5),
+        color: seg.color || CHART_COLORS[i % CHART_COLORS.length],
+      };
+    });
+
+  const scale = reveal.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] });
 
   return (
     <View style={{ alignItems: 'center' }}>
-      <View style={{ width: size, height: size, position: 'relative' }}>
-        {/* Background ring */}
-        <View style={{
-          position: 'absolute', width: size, height: size, borderRadius: size / 2,
-          borderWidth: strokeWidth, borderColor: Colors.surface3 || Colors.glassBorder,
-        }} />
-        
-        {/* Colored segments using border trick */}
-        {arcs.map((arc, i) => (
-          <View
-            key={i}
-            style={{
-              position: 'absolute', width: size, height: size, borderRadius: size / 2,
-              borderWidth: strokeWidth, borderColor: 'transparent',
-              borderTopColor: arc.color,
-              borderRightColor: arc.pct > 0.25 ? arc.color : 'transparent',
-              borderBottomColor: arc.pct > 0.5 ? arc.color : 'transparent',
-              borderLeftColor: arc.pct > 0.75 ? arc.color : 'transparent',
-              transform: [{ rotate: `${arc.rotation - 90}deg` }],
-            }}
-          />
-        ))}
-        
-        {/* Center content */}
-        <View style={{
-          position: 'absolute', top: strokeWidth, left: strokeWidth, right: strokeWidth, bottom: strokeWidth,
-          borderRadius: (size - strokeWidth * 2) / 2, backgroundColor: Colors.background,
-          justifyContent: 'center', alignItems: 'center',
-        }}>
-          {centerValue && <Text style={[Typography.h1, { color: Colors.textPrimary }]}>{centerValue}</Text>}
+      <Animated.View style={{ width: size, height: size, opacity: reveal, transform: [{ scale }] }}>
+        <Svg width={size} height={size}>
+          <Circle cx={cx} cy={cy} r={r} stroke={Colors.surface3} strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+          {arcs.length === 1 && arcs[0].pct > 0.999 ? (
+            <Circle cx={cx} cy={cy} r={r} stroke={arcs[0].color} strokeWidth={strokeWidth} fill="none" />
+          ) : (
+            arcs.map((arc, i) => (
+              <Path
+                key={i}
+                d={arcPath(cx, cy, r, arc.startAngle, arc.endAngle)}
+                stroke={arc.color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                fill="none"
+              />
+            ))
+          )}
+        </Svg>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+          {centerValue != null && <Text style={[Typography.h1, { color: Colors.textPrimary }]}>{centerValue}</Text>}
           {centerLabel && <Text style={[Typography.small, { color: Colors.textSecondary }]}>{centerLabel}</Text>}
         </View>
-      </View>
-      
-      {/* Legend */}
+      </Animated.View>
+
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: Spacing.md, gap: Spacing.sm }}>
         {arcs.map((arc, i) => (
           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginRight: Spacing.md }}>
@@ -81,100 +146,174 @@ export const DonutChart = ({ segments, size = 180, strokeWidth = 24, centerLabel
   );
 };
 
+// ---- HorizontalBarChart -----------------------------------------------------
+
 /**
- * Horizontal Bar Chart — compare values side by side
+ * Horizontal bars with gradient fill and a width-grow entrance animation.
  */
 export const HorizontalBarChart = ({ data, formatValue, maxBarWidth }) => {
+  const reveal = useReveal([JSON.stringify(data?.map(d => d.value))]);
   const maxVal = Math.max(...data.map(d => d.value), 1);
-  const barWidth = maxBarWidth || Dimensions.get('window').width - 140;
+  const barTrack = maxBarWidth || Dimensions.get('window').width - 140;
 
   return (
     <View>
-      {data.map((item, i) => (
-        <View key={i} style={{ marginBottom: Spacing.md }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={[Typography.caption, { color: Colors.textPrimary }]}>{item.label}</Text>
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              {formatValue ? formatValue(item.value) : item.value}
-            </Text>
+      {data.map((item, i) => {
+        const color = item.color || CHART_COLORS[i % CHART_COLORS.length];
+        const target = (item.value / maxVal) * barTrack;
+        const w = reveal.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(target, item.value > 0 ? 6 : 0)] });
+        return (
+          <View key={i} style={{ marginBottom: Spacing.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={[Typography.caption, { color: Colors.textPrimary }]}>{item.label}</Text>
+              <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                {formatValue ? formatValue(item.value) : item.value}
+              </Text>
+            </View>
+            <View style={{ height: 18, backgroundColor: Colors.surface3, borderRadius: 9, overflow: 'hidden' }}>
+              <Animated.View style={{ width: w, height: 18 }}>
+                <Svg width="100%" height={18}>
+                  <Defs>
+                    <LinearGradient id={`bar${i}`} x1="0" y1="0" x2="1" y2="0">
+                      <Stop offset="0" stopColor={color} stopOpacity={0.7} />
+                      <Stop offset="1" stopColor={color} stopOpacity={1} />
+                    </LinearGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width="100%" height="18" rx="9" fill={`url(#bar${i})`} />
+                </Svg>
+              </Animated.View>
+            </View>
           </View>
-          <View style={{ height: 20, backgroundColor: Colors.surface3 || Colors.glassBorder, borderRadius: 10, overflow: 'hidden' }}>
-            <View style={{
-              height: 20, borderRadius: 10,
-              backgroundColor: item.color || CHART_COLORS[i % CHART_COLORS.length],
-              width: `${(item.value / maxVal) * 100}%`,
-              minWidth: item.value > 0 ? 8 : 0,
-            }} />
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 };
 
+// ---- Sparkline --------------------------------------------------------------
+
 /**
- * Sparkline — tiny trend line for inline use
+ * Smooth sparkline with optional gradient area fill.
  */
-export const Sparkline = ({ data, width = 120, height = 40, color = Colors.primary, showDots = false }) => {
+export const Sparkline = ({ data, width = 120, height = 40, color = Colors.primary, showDots = false, fill = true }) => {
   if (!data || data.length < 2) return null;
-  
+  const pad = 4;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const stepX = width / (data.length - 1);
-  
-  const points = data.map((val, i) => ({
-    x: i * stepX,
-    y: height - ((val - min) / range) * (height - 8) - 4,
+  const stepX = (width - pad * 2) / (data.length - 1);
+  const pts = data.map((val, i) => ({
+    x: pad + i * stepX,
+    y: height - pad - ((val - min) / range) * (height - pad * 2),
   }));
-  
+  const line = smoothPath(pts);
+  const area = `${line} L ${pts[pts.length - 1].x} ${height} L ${pts[0].x} ${height} Z`;
+  const gid = `spark${Math.round(color.charCodeAt?.(1) || 0)}_${data.length}`;
+
   return (
-    <View style={{ width, height, position: 'relative' }}>
-      {/* Line segments */}
-      {points.slice(0, -1).map((p, i) => {
-        const next = points[i + 1];
-        const dx = next.x - p.x;
-        const dy = next.y - p.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        return (
-          <View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: p.x,
-              top: p.y,
-              width: length,
-              height: 2,
-              backgroundColor: color,
-              borderRadius: 1,
-              transform: [{ rotate: `${angle}deg` }],
-              transformOrigin: '0 0',
-            }}
-          />
-        );
-      })}
-      {/* Endpoint dot */}
-      {showDots && (
-        <View style={{
-          position: 'absolute',
-          left: points[points.length - 1].x - 3,
-          top: points[points.length - 1].y - 3,
-          width: 6, height: 6, borderRadius: 3,
-          backgroundColor: color,
-        }} />
+    <Svg width={width} height={height}>
+      {fill && (
+        <>
+          <Defs>
+            <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity={0.28} />
+              <Stop offset="1" stopColor={color} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Path d={area} fill={`url(#${gid})`} />
+        </>
       )}
+      <Path d={line} stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {showDots && <Circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={3} fill={color} />}
+    </Svg>
+  );
+};
+
+// ---- LineChart (new) --------------------------------------------------------
+
+/**
+ * Full trend chart: gridlines, smooth gradient area, animated line reveal,
+ * value dots, and x-axis labels. data: [{ label, value }].
+ */
+export const LineChart = ({ data, height = 170, color = Colors.primary, formatValue, showArea = true }) => {
+  const [width, setWidth] = useState(Dimensions.get('window').width - 80);
+  const reveal = useReveal([JSON.stringify(data?.map(d => d.value)), width]);
+
+  if (!data || data.length < 2) {
+    return (
+      <View style={{ height, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={[Typography.caption, { color: Colors.textTertiary }]}>not enough data yet</Text>
+      </View>
+    );
+  }
+
+  const padX = 8;
+  const padTop = 12;
+  const padBottom = 22;
+  const values = data.map(d => d.value);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 1);
+  const range = max - min || 1;
+  const stepX = (width - padX * 2) / (data.length - 1);
+  const yOf = (v) => padTop + (1 - (v - min) / range) * (height - padTop - padBottom);
+  const pts = data.map((d, i) => ({ x: padX + i * stepX, y: yOf(d.value), value: d.value, label: d.label }));
+
+  const line = smoothPath(pts);
+  const area = `${line} L ${pts[pts.length - 1].x} ${height - padBottom} L ${pts[0].x} ${height - padBottom} Z`;
+  const len = polylineLength(pts);
+  const dashOffset = reveal.interpolate({ inputRange: [0, 1], outputRange: [len, 0] });
+  const gridYs = [0.5, 1].map(f => padTop + f * (height - padTop - padBottom));
+
+  return (
+    <View
+      style={{ width: '100%' }}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w && Math.abs(w - width) > 1) setWidth(w);
+      }}
+    >
+      <Svg width={width} height={height}>
+        <Defs>
+          <LinearGradient id="lineArea" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={color} stopOpacity={0.25} />
+            <Stop offset="1" stopColor={color} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        {gridYs.map((gy, i) => (
+          <Line key={i} x1={padX} y1={gy} x2={width - padX} y2={gy} stroke={Colors.glassBorder} strokeWidth={1} />
+        ))}
+        {showArea && <AnimatedPath d={area} fill="url(#lineArea)" opacity={reveal} />}
+        <AnimatedPath
+          d={line}
+          stroke={color}
+          strokeWidth={2.5}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={len}
+          strokeDashoffset={dashOffset}
+        />
+        {pts.map((p, i) => (
+          <AnimatedCircle key={i} cx={p.x} cy={p.y} r={3} fill={Colors.background} stroke={color} strokeWidth={2} opacity={reveal} />
+        ))}
+      </Svg>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -padBottom + 4, paddingHorizontal: padX }}>
+        {data.map((d, i) => (
+          <Text key={i} style={[Typography.small, { color: Colors.textTertiary, fontSize: 9 }]} numberOfLines={1}>
+            {d.label}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 };
 
-/**
- * Stat Trend Card — value with sparkline and trend indicator
- */
+// ---- StatTrendCard ----------------------------------------------------------
+
 export const StatTrendCard = ({ title, value, trend, trendLabel, sparkData, color = Colors.primary, icon }) => {
   const trendColor = trend > 0 ? Colors.danger : trend < 0 ? Colors.success : Colors.textTertiary;
   const trendIcon = trend > 0 ? '↑' : trend < 0 ? '↓' : '→';
-  
+
   return (
     <View style={{
       backgroundColor: Colors.glassBackground,
@@ -183,9 +322,9 @@ export const StatTrendCard = ({ title, value, trend, trendLabel, sparkData, colo
       flex: 1, marginRight: Spacing.sm,
     }}>
       <Text style={[Typography.small, { color: Colors.textSecondary, marginBottom: 4 }]}>{title}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <Text style={[Typography.h1, { color: Colors.textPrimary }]}>{value}</Text>
-        {sparkData && <Sparkline data={sparkData} width={60} height={24} color={color} showDots />}
+        {sparkData && <Sparkline data={sparkData} width={64} height={28} color={color} showDots />}
       </View>
       {trend !== undefined && trend !== null && (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
@@ -201,37 +340,40 @@ export const StatTrendCard = ({ title, value, trend, trendLabel, sparkData, colo
   );
 };
 
+// ---- ProgressRing -----------------------------------------------------------
+
 /**
- * Progress Ring — simple circular progress (e.g. health score)
+ * Circular progress with gradient stroke and an animated sweep reveal.
  */
 export const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = Colors.primary, label }) => {
-  const pct = Math.min(Math.max(progress, 0), 100);
-  
+  const pct = Math.min(Math.max(progress, 0), 100) / 100;
+  const reveal = useReveal([progress]);
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = reveal.interpolate({ inputRange: [0, 1], outputRange: [circ, circ * (1 - pct)] });
+
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      {/* Background ring */}
-      <View style={{
-        position: 'absolute', width: size, height: size, borderRadius: size / 2,
-        borderWidth: strokeWidth, borderColor: Colors.surface3 || Colors.glassBorder,
-      }} />
-      {/* Progress arc */}
-      <View style={{
-        position: 'absolute', width: size, height: size, borderRadius: size / 2,
-        borderWidth: strokeWidth, borderColor: 'transparent',
-        borderTopColor: color,
-        borderRightColor: pct > 25 ? color : 'transparent',
-        borderBottomColor: pct > 50 ? color : 'transparent',
-        borderLeftColor: pct > 75 ? color : 'transparent',
-        transform: [{ rotate: '-90deg' }],
-      }} />
-      {/* Center */}
-      <View style={{
-        position: 'absolute', top: strokeWidth, left: strokeWidth, right: strokeWidth, bottom: strokeWidth,
-        borderRadius: (size - strokeWidth * 2) / 2,
-        justifyContent: 'center', alignItems: 'center',
-      }}>
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Circle cx={cx} cy={cy} r={r} stroke={Colors.surface3} strokeWidth={strokeWidth} fill="none" opacity={0.5} />
+        <AnimatedCircle
+          cx={cx}
+          cy={cy}
+          r={r}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${cx} ${cy})`}
+        />
+      </Svg>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ fontSize: size * 0.22, fontFamily: 'Nunito_700Bold', color: Colors.textPrimary }}>
-          {Math.round(pct)}
+          {Math.round(pct * 100)}
         </Text>
         {label && <Text style={{ fontSize: 9, color: Colors.textTertiary }}>{label}</Text>}
       </View>
@@ -239,33 +381,30 @@ export const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = Col
   );
 };
 
-/**
- * Calendar Heatmap — spending by day (GitHub-contributions style)
- */
+// ---- CalendarHeatmap --------------------------------------------------------
+
 export const CalendarHeatmap = ({ data, months = 3, colorScale = Colors.primary }) => {
-  // data: { [YYYY-MM-DD]: number }
   const today = new Date();
   const startDate = new Date(today);
   startDate.setMonth(startDate.getMonth() - months);
-  startDate.setDate(startDate.getDate() - startDate.getDay()); // start on Sunday
-  
+  startDate.setDate(startDate.getDate() - startDate.getDay());
+
   const days = [];
   const d = new Date(startDate);
   while (d <= today) {
     days.push(new Date(d));
     d.setDate(d.getDate() + 1);
   }
-  
+
   const values = days.map(day => {
     const key = day.toISOString().slice(0, 10);
     return { date: day, value: data[key] || 0 };
   });
-  
+
   const maxVal = Math.max(...values.map(v => v.value), 1);
   const cellSize = 12;
   const gap = 2;
-  
-  // Group by weeks
+
   const weeks = [];
   let currentWeek = [];
   values.forEach((v, i) => {
@@ -276,10 +415,7 @@ export const CalendarHeatmap = ({ data, months = 3, colorScale = Colors.primary 
     }
   });
 
-  const getOpacity = (val) => {
-    if (val === 0) return 0.08;
-    return 0.2 + (val / maxVal) * 0.8;
-  };
+  const getOpacity = (val) => (val === 0 ? 0.08 : 0.2 + (val / maxVal) * 0.8);
 
   return (
     <View>
@@ -287,14 +423,7 @@ export const CalendarHeatmap = ({ data, months = 3, colorScale = Colors.primary 
         {weeks.map((week, wi) => (
           <View key={wi} style={{ gap }}>
             {week.map((day, di) => (
-              <View
-                key={di}
-                style={{
-                  width: cellSize, height: cellSize, borderRadius: 3,
-                  backgroundColor: colorScale,
-                  opacity: getOpacity(day.value),
-                }}
-              />
+              <View key={di} style={{ width: cellSize, height: cellSize, borderRadius: 3, backgroundColor: colorScale, opacity: getOpacity(day.value) }} />
             ))}
           </View>
         ))}
@@ -312,4 +441,4 @@ export const CalendarHeatmap = ({ data, months = 3, colorScale = Colors.primary 
   );
 };
 
-export default { DonutChart, HorizontalBarChart, Sparkline, StatTrendCard, ProgressRing, CalendarHeatmap };
+export default { DonutChart, HorizontalBarChart, Sparkline, LineChart, StatTrendCard, ProgressRing, CalendarHeatmap };

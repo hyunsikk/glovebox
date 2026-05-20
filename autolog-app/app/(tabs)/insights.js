@@ -9,7 +9,7 @@ import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
-import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline } from '../../components/DataViz';
+import { DonutChart, HorizontalBarChart, StatTrendCard, CalendarHeatmap, Sparkline, LineChart } from '../../components/DataViz';
 import BenchmarkComparison from '../../components/BenchmarkComparison';
 
 
@@ -461,87 +461,38 @@ const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, tren
   </View>
 );
 
-const ChartCard = ({ title, data, type = 'bar' }) => {
-  const maxValue = Math.max(...data.map(d => d.value || d.cost || d.predictedCost || 0));
-  
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const ChartCard = ({ title, data, type = 'line', color = Colors.primary }) => {
+  // Normalize varied shapes ({value|cost|predictedCost}, {label|month}) to {label, value}.
+  const normalized = (data || []).slice(-6).map((item, index) => {
+    const value = item.value ?? item.cost ?? item.predictedCost ?? 0;
+    let label = item.label;
+    if (!label && item.month) {
+      const [, m] = String(item.month).split('-');
+      label = MONTH_NAMES[parseInt(m, 10) - 1] || `M${index + 1}`;
+    }
+    return { label: label || `M${index + 1}`, value };
+  });
+
   return (
     <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg }}>
         <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
           {title}
         </Text>
-        
-        <View style={{ width: 20 }} />
       </View>
 
-      {/* Premium Bar Chart with gradients */}
-      <View style={{ 
-        height: 140,
-        backgroundColor: Colors.surface1 + '40', 
-        borderRadius: 12, 
-        padding: Spacing.sm,
-        position: 'relative',
-      }}>
-        {/* Subtle grid lines */}
-        {[0.25, 0.5, 0.75, 1].map((fraction, i) => (
-          <View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: Spacing.sm,
-              right: Spacing.sm,
-              top: Spacing.sm + (120 * (1 - fraction)),
-              height: 1,
-              backgroundColor: Colors.glassBorder,
-              opacity: 0.3,
-            }}
-          />
-        ))}
-        
-        {data.length > 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, paddingTop: 10 }}>
-            {data.slice(-6).map((item, index) => {
-              const value = item.value || item.cost || item.predictedCost || 0;
-              const height = maxValue > 0 ? (value / maxValue) * 100 + 5 : 5;
-              
-              return (
-                <View key={index} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
-                  <View style={{
-                    width: '70%',
-                    height,
-                    background: value > 0 ? `linear-gradient(to bottom, ${Colors.primary}, transparent)` : Colors.surface1,
-                    backgroundColor: value > 0 ? Colors.primary : Colors.surface1,
-                    borderTopLeftRadius: 8,
-                    borderTopRightRadius: 8,
-                    marginBottom: Spacing.xs,
-                    opacity: value > 0 ? 0.8 : 0.3,
-                  }} />
-                  
-                  <Text style={[Typography.small, { 
-                    color: Colors.textSecondary, 
-                    fontSize: 9,
-                    textAlign: 'center',
-                  }]}>
-                    {item.label || (() => {
-                      if (!item.month) return `M${index + 1}`;
-                      const [y, m] = item.month.split('-');
-                      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                      return `${monthNames[parseInt(m) - 1]}\n${y}`;
-                    })()}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="chart-bar" size={32} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
-            <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-              no data yet
-            </Text>
-          </View>
-        )}
-      </View>
+      {normalized.length >= 2 ? (
+        <LineChart data={normalized} color={color} />
+      ) : (
+        <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
+          <MaterialCommunityIcons name="chart-line" size={32} color={Colors.textTertiary} style={{ marginBottom: 8 }} />
+          <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+            not enough data yet
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -1857,7 +1808,7 @@ export default function InsightsScreen() {
         <ChartCard
           title="monthly spending"
           data={monthlyTrends}
-          type="bar"
+          color={Colors.primary}
         />
 
         {/* Fuel Efficiency Over Time — only show with 3+ data points for reliability */}
@@ -1866,7 +1817,7 @@ export default function InsightsScreen() {
             <ChartCard
               title={`fuel efficiency (${mpgTrends[0]?.unit || 'MPG'})`}
               data={mpgTrends.map(item => ({ month: item.date, value: item.value }))}
-              type="line"
+              color={Colors.success}
             />
             <Text style={[Typography.small, { 
               color: Colors.textTertiary, 
@@ -1884,7 +1835,7 @@ export default function InsightsScreen() {
           <ChartCard
             title="fuel cost per month"
             data={fuelCostMonthly}
-            type="bar"
+            color={Colors.warning}
           />
         )}
 
@@ -1893,7 +1844,7 @@ export default function InsightsScreen() {
           <ChartCard
             title={`${formatDistanceUnit()} driven per month`}
             data={milesDrivenMonthly}
-            type="bar"
+            color="#8B5CF6"
           />
         )}
 
