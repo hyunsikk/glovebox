@@ -17,8 +17,15 @@ const PRO_FLAG_KEY = '@autolog_pro_entitled';
 
 const cacheKey = (vehicleId) => `recalls_${vehicleId}`;
 const notifiedKey = (vehicleId) => `recalls_notified_${vehicleId}`;
+const FETCH_TIMEOUT_MS = 10000;
 
-const recallId = (recall, index) => recall?.NHTSACampaignNumber || `recall_${index}`;
+// Stable, content-based id. Must NOT depend on array position: NHTSA can return
+// recalls in a different order between fetches, and a positional id would cause
+// re-notification (or skipped detection) of already-seen recalls.
+export const recallId = (recall) =>
+  recall?.NHTSACampaignNumber ||
+  [recall?.Component, recall?.Summary, recall?.Remedy].filter(Boolean).join('|').slice(0, 160) ||
+  null;
 
 // Persisted by PurchaseContext so non-React code (notification scheduler) can
 // gate Pro-only behavior without a React context.
@@ -46,9 +53,12 @@ export async function fetchRecalls(vehicle, { force = false } = {}) {
     }
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(
-      `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
+      `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`,
+      { signal: controller.signal }
     );
     if (!res.ok) throw new Error(`NHTSA ${res.status}`);
     const data = await res.json();
@@ -60,6 +70,8 @@ export async function fetchRecalls(vehicle, { force = false } = {}) {
     const cached = await getCachedRecalls(id);
     if (cached) return { ...cached, fromCache: true };
     throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -86,7 +98,9 @@ export async function syncRecallNotifications(vehicles, scheduleNotification) {
 
   let scheduled = 0;
   for (const vehicle of vehicles) {
-    if (!vehicle?.make || !vehicle?.model || !vehicle?.year) continue;
+    // Require an id too — without it, notifiedKey(undefined) would merge the
+    // "seen" sets of every id-less vehicle and cross-suppress notifications.
+    if (!vehicle?.id || !vehicle?.make || !vehicle?.model || !vehicle?.year) continue;
     try {
       const { recalls } = await fetchRecalls(vehicle);
       if (!recalls.length) continue;
@@ -95,20 +109,33 @@ export async function syncRecallNotifications(vehicles, scheduleNotification) {
       const notified = new Set(rawNotified ? JSON.parse(rawNotified) : []);
       const vehicleName = vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
 
-      const fresh = recalls.filter((r, i) => !notified.has(recallId(r, i)));
-      for (const recall of fresh) {
-        await scheduleNotification({
-          title: `Safety recall: ${vehicleName}`,
-          body: recall.Component
-            ? `${recall.Component} — tap for details and remedy.`
-            : 'A new NHTSA recall affects this vehicle. Tap for details.',
-          data: { vehicleId: vehicle.id, type: 'recall', campaign: recall.NHTSACampaignNumber },
-        });
-        scheduled += 1;
-      }
+      // Only recalls with a stable id and not yet notified.
+      const fresh = recalls.filter((r) => {
+        const id = recallId(r);
+        return id && !notified.has(id);
+      });
+      if (fresh.length === 0) continue;
 
-      recalls.forEach((r, i) => notified.add(recallId(r, i)));
+      // One summary notification per vehicle per sync — never a burst of N.
+      // (A car with several open recalls on first run would otherwise fire
+      // several notifications at once.)
+      await scheduleNotification({
+        title: `Safety recall: ${vehicleName}`,
+        body: fresh.length === 1
+          ? (fresh[0].Component
+              ? `${fresh[0].Component} — tap for details and remedy.`
+              : 'A new NHTSA recall affects this vehicle. Tap for details.')
+          : `${fresh.length} new safety recalls — tap to review.`,
+        data: { vehicleId: vehicle.id, type: 'recall' },
+      });
+      // Mark every fresh recall seen only after the notification is scheduled,
+      // so a failure above leaves them to retry on the next run.
+      for (const r of fresh) {
+        const id = recallId(r);
+        if (id) notified.add(id);
+      }
       await AsyncStorage.setItem(notifiedKey(vehicle.id), JSON.stringify([...notified]));
+      scheduled += 1;
     } catch {
       // Network/transient failure for one vehicle should not abort the rest.
     }

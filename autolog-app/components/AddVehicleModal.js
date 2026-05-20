@@ -135,7 +135,11 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
       // Extract relevant information
       const getField = (variableName) => {
         const field = results.find(r => r.Variable === variableName);
-        return field ? field.Value : null;
+        const v = field ? field.Value : null;
+        // NHTSA returns "0"/"Not Applicable"/"" for fields it couldn't decode —
+        // treat those as missing so we don't pre-fill garbage.
+        if (!v || v === '0' || v === 'Not Applicable') return null;
+        return v;
       };
 
       const year = getField('Model Year');
@@ -178,11 +182,15 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
   const requiredInputStyle = (field) => isFieldError(field) ? { borderColor: Colors.deepRed || '#EF4444', borderWidth: 1.5 } : {};
 
   const getYearRange = () => {
+    const currentMax = new Date().getFullYear() + 1;
     if (selectedVehicle && selectedVehicle.years) {
       const [startStr, endStr] = selectedVehicle.years.split('-');
-      return { min: parseInt(startStr), max: parseInt(endStr) };
+      const min = parseInt(startStr) || 1976;
+      // A single-year string ("2023") has no endStr → parseInt(undefined) = NaN.
+      const max = parseInt(endStr) || min;
+      return { min, max: max || currentMax };
     }
-    return { min: 1976, max: new Date().getFullYear() + 1 };
+    return { min: 1976, max: currentMax };
   };
 
   const validateForm = () => {
@@ -896,7 +904,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
               onPress={handleClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>

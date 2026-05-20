@@ -4,12 +4,16 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Text, Animated, Platform } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '../theme';
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// On web, react-native-web's animated wrapper leaks `collapsable` onto the SVG
+// DOM node (a noisy dev warning). Use the static primitive there (rendered at
+// its resting value, no entrance animation); native keeps the animated version.
+const isWeb = Platform.OS === 'web';
+const AnimatedPath = isWeb ? Path : Animated.createAnimatedComponent(Path);
+const AnimatedCircle = isWeb ? Circle : Animated.createAnimatedComponent(Circle);
 
 const getScoreColor = (score) => {
   if (score >= 90) return Colors.success;
@@ -73,7 +77,7 @@ const Gauge = ({ score, size, strokeWidth, gid }) => {
         strokeLinecap="round"
         fill="none"
         strokeDasharray={arcLen}
-        strokeDashoffset={dashOffset}
+        strokeDashoffset={isWeb ? arcLen * (1 - frac) : dashOffset}
       />
     </Svg>
   );
@@ -82,10 +86,12 @@ const Gauge = ({ score, size, strokeWidth, gid }) => {
 export default function HealthScoreDial({ score = 0, size = 120 }) {
   const color = getScoreColor(score);
   const strokeWidth = Math.max(Math.round(size * 0.07), 6);
+  // Per-instance gradient id — size-based ids collide when two dials share a size.
+  const gid = useRef('hsd_' + Math.random().toString(36).slice(2, 8)).current;
 
   return (
     <View style={{ width: size, alignItems: 'center' }}>
-      <Gauge score={score} size={size} strokeWidth={strokeWidth} gid={`hsd${size}`} />
+      <Gauge score={score} size={size} strokeWidth={strokeWidth} gid={gid} />
       <View style={{ position: 'absolute', top: size * 0.18, left: 0, right: 0, alignItems: 'center' }}>
         <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: Math.round(size * 0.3), color, lineHeight: Math.round(size * 0.34) }}>
           {Math.round(score)}
@@ -112,6 +118,9 @@ export function HealthScoreDialSmall({ score = 0 }) {
   const circ = 2 * Math.PI * r;
 
   const reveal = useRef(new Animated.Value(0)).current;
+  // Per-instance gradient id — garage shows several small dials at once, so a
+  // shared id would make them all use the last-rendered gradient color.
+  const gid = useRef('hsdSmall' + Math.random().toString(36).slice(2, 8)).current;
   useEffect(() => {
     reveal.setValue(0);
     Animated.timing(reveal, { toValue: 1, duration: 700, useNativeDriver: false }).start();
@@ -122,7 +131,7 @@ export function HealthScoreDialSmall({ score = 0 }) {
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
         <Defs>
-          <LinearGradient id="hsdSmall" x1="0" y1="0" x2="1" y2="1">
+          <LinearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={color} stopOpacity={0.65} />
             <Stop offset="1" stopColor={color} stopOpacity={1} />
           </LinearGradient>
@@ -132,12 +141,12 @@ export function HealthScoreDialSmall({ score = 0 }) {
           cx={cx}
           cy={cy}
           r={r}
-          stroke="url(#hsdSmall)"
+          stroke={`url(#${gid})`}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circ}
-          strokeDashoffset={dashOffset}
+          strokeDashoffset={isWeb ? circ * (1 - frac) : dashOffset}
           transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>

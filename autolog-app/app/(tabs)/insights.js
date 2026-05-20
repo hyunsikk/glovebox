@@ -204,19 +204,22 @@ const MonthOverMonthCard = ({ vehicles, selectedVehicleId }) => {
         const services = await ServiceStorage.getByVehicleId(vehicle.id);
         const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
 
-        [...services, ...fuelLogs].forEach(item => {
-          const d = item.date;
-          if (!d) return;
+        // Iterate each collection separately so a record is never classified by
+        // sniffing fields (which double-counted records having both, and
+        // mis-bucketed fuel logs missing a `type`).
+        const bucket = (d) => {
+          if (!d) return null;
           const key = d.slice(0, 7); // YYYY-MM
           if (!monthMap[key]) monthMap[key] = { services: 0, fuel: 0, serviceCount: 0, fuelCount: 0 };
-          if (item.serviceType || item.type === undefined) {
-            monthMap[key].services += item.cost || 0;
-            monthMap[key].serviceCount += 1;
-          }
-          if (item.totalCost !== undefined) {
-            monthMap[key].fuel += item.totalCost || 0;
-            monthMap[key].fuelCount += 1;
-          }
+          return monthMap[key];
+        };
+        services.forEach(s => {
+          const m = bucket(s.date);
+          if (m) { m.services += s.cost || 0; m.serviceCount += 1; }
+        });
+        fuelLogs.forEach(f => {
+          const m = bucket(f.date);
+          if (m) { m.fuel += f.totalCost || 0; m.fuelCount += 1; }
         });
       }
 
@@ -1103,7 +1106,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
               onPress={() => setShowImportModal(false)}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
@@ -1185,8 +1188,8 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
 };
 
 export default function InsightsScreen() {
-  const { formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
-  const { isPro } = usePurchases();
+  const { formatCost, formatCostShort, formatDistance, formatDistanceUnit, formatVolume, formatEfficiency, currencySymbol, formatVolumeUnit } = useSettings();
+  const { isPro, loading: purchasesLoading } = usePurchases();
   const [showPaywall, setShowPaywall] = useState(false);
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
@@ -1726,7 +1729,7 @@ export default function InsightsScreen() {
             {costPerMile !== null && (
               <StatTrendCard
                 title={`cost per ${formatDistanceUnit()}`}
-                value={formatCostShort(costPerMile)}
+                value={formatCost(costPerMile)}
                 trend={avgCostTrend}
                 trendLabel="vs prior 3mo"
                 sparkData={monthlySparkline}
@@ -1798,8 +1801,10 @@ export default function InsightsScreen() {
           </View>
         )}
 
-        {/* Cost Forecast + Benchmarks — forward-looking intelligence, Pro-gated */}
-        {isPro ? (
+        {/* Cost Forecast + Benchmarks — forward-looking intelligence, Pro-gated.
+            Wait out the entitlement load so we don't flash the locked card at a
+            Pro user (or leak content to a free user) on cold start. */}
+        {purchasesLoading ? null : isPro ? (
           <>
             <CostForecast vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
             <BenchmarkComparison vehicles={vehicles} selectedVehicleId={selectedVehicleId} />
@@ -1879,7 +1884,7 @@ export default function InsightsScreen() {
             }}>
               <View style={{ flexDirection: 'row', height: '100%', alignItems: 'flex-end', justifyContent: 'space-around' }}>
                 {maintenanceVsFuel.map((item, i) => {
-                  const maxValue = Math.max(...maintenanceVsFuel.flatMap(d => [d.maintenance, d.fuel]));
+                  const maxValue = Math.max(...maintenanceVsFuel.flatMap(d => [d.maintenance, d.fuel])) || 1;
                   const maintenanceHeight = (item.maintenance / maxValue) * 100;
                   const fuelHeight = (item.fuel / maxValue) * 100;
                   

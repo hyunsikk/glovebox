@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
+import { View, Text, ScrollView, SectionList, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -483,7 +483,9 @@ const EmptyState = ({ onLogService }) => (
   </View>
 );
 
-const MonthSection = ({ month, services, vehicles, onEditService }) => {
+// NOTE: currently unused (the SectionList renders entries directly). Kept
+// defensive — servicePhotosMap defaulted so it can't crash if wired in later.
+const MonthSection = ({ month, services, vehicles, onEditService, servicePhotosMap = {} }) => {
   const { formatCostShort } = useSettings();
   const totalCost = services.reduce((sum, s) => sum + (s.cost || 0), 0);
   
@@ -559,6 +561,158 @@ const SORT_OPTIONS = [
   { key: 'expensive', label: 'Cost ↓', icon: 'cash' },
 ];
 
+// Stable, module-scope header for the timeline SectionList. Passed as an element
+// (ListHeaderComponent={<TimelineHeader .../>}) so it reconciles by type and the
+// search TextInput keeps focus across re-renders — an inline arrow header would
+// remount on every keystroke and drop focus.
+const TimelineHeader = ({
+  vehicles, selectedVehicleId, setSelectedVehicleId,
+  searchQuery, setSearchQuery,
+  services, fuelLogs, issues, snapshots,
+  activeTypeFilters, toggleTypeFilter,
+  hasActiveFilters, allTimelineEntries,
+  currentSortLabel, cycleSortMode,
+  activeFilters, toggleFilter, clearFilters,
+}) => (
+  <View>
+    {/* Vehicle Filter */}
+    {vehicles.length > 1 && (
+      <View style={{ marginTop: Spacing.md }}>
+        <VehicleFilterChips
+          vehicles={vehicles}
+          selectedVehicleId={selectedVehicleId}
+          onVehicleSelect={setSelectedVehicleId}
+        />
+      </View>
+    )}
+
+    {/* Search Bar */}
+    <View style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
+      <View style={[Shared.input, {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.md,
+      }]}>
+        <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+        <TextInput
+          style={{
+            flex: 1,
+            color: Colors.textPrimary,
+            fontSize: 15,
+            fontFamily: 'Nunito_400Regular',
+            height: '100%',
+          }}
+          placeholder="Search all records..."
+          placeholderTextColor={Colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel="Clear search">
+            <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+
+    {/* Type Filter Chips */}
+    <View style={{ flexDirection: 'row', marginBottom: Spacing.sm }}>
+      {[
+        { key: 'service', label: '🔧 Services', count: services.length },
+        { key: 'fuel', label: '⛽ Fuel', count: fuelLogs.length },
+        { key: 'issue', label: '🚨 Issues', count: issues.length },
+        { key: 'snapshot', label: '📸 Snapshots', count: snapshots.length },
+      ].map(({ key, label, count }) => {
+        const isActive = activeTypeFilters.has(key);
+        return (
+          <TouchableOpacity
+            key={key}
+            onPress={() => toggleTypeFilter(key)}
+            activeOpacity={0.8}
+            style={{
+              paddingHorizontal: Spacing.md,
+              paddingVertical: Spacing.sm,
+              borderRadius: 20,
+              marginRight: Spacing.xs,
+              backgroundColor: isActive ? Colors.primary : Colors.glassBackground,
+              borderWidth: 1,
+              borderColor: isActive ? Colors.primary : Colors.glassBorder,
+            }}
+          >
+            <Text style={[Typography.caption, {
+              color: isActive ? Colors.textPrimary : Colors.textSecondary,
+              fontFamily: isActive ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
+              fontSize: 11,
+            }]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+
+    {/* Results count */}
+    {hasActiveFilters && (
+      <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
+        {allTimelineEntries.length} of {services.length + fuelLogs.length + issues.length + snapshots.length} entries
+      </Text>
+    )}
+
+    {/* Filter Chips + Sort */}
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: Spacing.md }}>
+      {/* Sort toggle */}
+      <TouchableOpacity
+        onPress={cycleSortMode}
+        activeOpacity={0.8}
+        style={{
+          paddingHorizontal: Spacing.md,
+          paddingVertical: Spacing.sm,
+          borderRadius: 20,
+          marginRight: Spacing.sm,
+          marginBottom: Spacing.sm,
+          backgroundColor: Colors.surface2,
+          borderWidth: 1,
+          borderColor: Colors.glassBorder,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+      >
+        <Ionicons name="swap-vertical" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+        <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
+          {currentSortLabel}
+        </Text>
+      </TouchableOpacity>
+
+      <FilterChip label="This Year" active={activeFilters.has('thisYear')} onPress={() => toggleFilter('thisYear')} />
+      <FilterChip label="Last Year" active={activeFilters.has('lastYear')} onPress={() => toggleFilter('lastYear')} />
+      <FilterChip label="Oil Changes" active={activeFilters.has('oil')} onPress={() => toggleFilter('oil')} />
+      <FilterChip label="Brakes" active={activeFilters.has('brakes')} onPress={() => toggleFilter('brakes')} />
+      <FilterChip label=">$200" active={activeFilters.has('expensive')} onPress={() => toggleFilter('expensive')} />
+
+      {hasActiveFilters && (
+        <TouchableOpacity
+          onPress={clearFilters}
+          activeOpacity={0.8}
+          style={{
+            paddingHorizontal: Spacing.md,
+            paddingVertical: Spacing.sm,
+            borderRadius: 20,
+            marginBottom: Spacing.sm,
+            backgroundColor: Colors.danger + '20',
+            borderWidth: 1,
+            borderColor: Colors.danger + '40',
+          }}
+        >
+          <Text style={[Typography.caption, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
+            Clear All
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+);
+
 export default function TimelineScreen() {
   const { formatCost, formatCostShort, formatDistance, formatVolume } = useSettings();
   const [services, setServices] = useState([]);
@@ -602,11 +756,13 @@ export default function TimelineScreen() {
       setIssues(allIssues);
       setSnapshots(allSnapshots);
 
-      // Load photos for all services
+      // Load photos once and group by serviceId (avoids re-reading the whole
+      // image blob once per service on every tab focus).
       const photosMap = {};
-      for (const service of allServices) {
-        const photos = await ImageStorage.getByServiceId(service.id);
-        if (photos.length > 0) photosMap[service.id] = photos;
+      const allImages = await ImageStorage.getAll();
+      for (const img of allImages) {
+        if (!img.serviceId) continue;
+        (photosMap[img.serviceId] = photosMap[img.serviceId] || []).push(img);
       }
       setServicePhotosMap(photosMap);
     } catch (error) {
@@ -751,6 +907,32 @@ export default function TimelineScreen() {
     }, {});
   }, [allTimelineEntries]);
 
+  // SectionList shape: month → entries, with each month's total cost. Object key
+  // order preserves the already-sorted order of allTimelineEntries.
+  const sections = useMemo(
+    () => Object.entries(groupedEntries).map(([month, entries]) => ({
+      title: month,
+      cost: entries.reduce((sum, e) => sum + (e.cost || 0), 0),
+      data: entries,
+    })),
+    [groupedEntries]
+  );
+
+  const renderEntry = (entry) => {
+    const vehicle = vehicles.find(v => v.id === entry.vehicleId);
+    if (entry._type === 'fuel') return <FuelCard fuelLog={entry} vehicle={vehicle} />;
+    if (entry._type === 'issue') return <IssueCard issue={entry} vehicle={vehicle} />;
+    if (entry._type === 'snapshot') return <SnapshotCard snapshot={entry} vehicle={vehicle} />;
+    return (
+      <ServiceCard
+        service={entry}
+        vehicle={vehicle}
+        onEdit={handleEditService}
+        servicePhotos={servicePhotosMap[entry.id] || []}
+      />
+    );
+  };
+
   // No longer showing cost summary here — that's Insights' job
 
   const handleLogService = () => {
@@ -795,206 +977,67 @@ export default function TimelineScreen() {
   return (
     <View style={Shared.container}>
       {/* All content in ScrollView to prevent chips from being hidden */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Vehicle Filter */}
-        {vehicles.length > 1 && (
-          <View style={{ marginTop: Spacing.md }}>
-            <VehicleFilterChips
-              vehicles={vehicles}
-              selectedVehicleId={selectedVehicleId}
-              onVehicleSelect={setSelectedVehicleId}
-            />
-          </View>
-        )}
-
-        {/* Search Bar */}
-        <View style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
-          <View style={[Shared.input, {
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => `${item._type || 'service'}_${item.id}`}
+        renderItem={({ item }) => renderEntry(item)}
+        renderSectionHeader={({ section }) => (
+          <View style={{
             flexDirection: 'row',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            paddingHorizontal: Spacing.md,
-          }]}>
-            <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
-            <TextInput
-              style={{
-                flex: 1,
-                color: Colors.textPrimary,
-                fontSize: 15,
-                fontFamily: 'Nunito_400Regular',
-                height: '100%',
-              }}
-              placeholder="Search all records..."
-              placeholderTextColor={Colors.textTertiary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-                <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
+            marginBottom: Spacing.md,
+            backgroundColor: Colors.background + 'E6',
+            paddingVertical: Spacing.sm,
+            paddingHorizontal: Spacing.horizontal,
+            marginHorizontal: -Spacing.horizontal,
+          }}>
+            <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
+              {section.title}
+            </Text>
+            {section.cost > 0 && (
+              <Text style={[Typography.h2, { color: Colors.success }]}>
+                {formatCostShort(section.cost)}
+              </Text>
             )}
           </View>
-        </View>
-
-        {/* Type Filter Chips */}
-        <View style={{ flexDirection: 'row', marginBottom: Spacing.sm }}>
-          {[
-            { key: 'service', label: '🔧 Services', count: services.length },
-            { key: 'fuel', label: '⛽ Fuel', count: fuelLogs.length },
-            { key: 'issue', label: '🚨 Issues', count: issues.length },
-            { key: 'snapshot', label: '📸 Snapshots', count: snapshots.length },
-          ].map(({ key, label, count }) => {
-            const isActive = activeTypeFilters.has(key);
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => toggleTypeFilter(key)}
-                activeOpacity={0.8}
-                style={{
-                  paddingHorizontal: Spacing.md,
-                  paddingVertical: Spacing.sm,
-                  borderRadius: 20,
-                  marginRight: Spacing.xs,
-                  backgroundColor: isActive ? Colors.primary : Colors.glassBackground,
-                  borderWidth: 1,
-                  borderColor: isActive ? Colors.primary : Colors.glassBorder,
-                }}
-              >
-                <Text style={[Typography.caption, { 
-                  color: isActive ? Colors.textPrimary : Colors.textSecondary,
-                  fontFamily: isActive ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
-                  fontSize: 11,
-                }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Results count */}
-        {hasActiveFilters && (
-          <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
-            {allTimelineEntries.length} of {services.length + fuelLogs.length + issues.length + snapshots.length} entries
-          </Text>
         )}
-
-        {/* Filter Chips + Sort */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: Spacing.md }}>
-          {/* Sort toggle */}
-          <TouchableOpacity
-            onPress={cycleSortMode}
-            activeOpacity={0.8}
-            style={{
-              paddingHorizontal: Spacing.md,
-              paddingVertical: Spacing.sm,
-              borderRadius: 20,
-              marginRight: Spacing.sm,
-              marginBottom: Spacing.sm,
-              backgroundColor: Colors.surface2,
-              borderWidth: 1,
-              borderColor: Colors.glassBorder,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}
-          >
-            <Ionicons name="swap-vertical" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
-            <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
-              {currentSortLabel}
-            </Text>
-          </TouchableOpacity>
-
-          <FilterChip label="This Year" active={activeFilters.has('thisYear')} onPress={() => toggleFilter('thisYear')} />
-          <FilterChip label="Last Year" active={activeFilters.has('lastYear')} onPress={() => toggleFilter('lastYear')} />
-          <FilterChip label="Oil Changes" active={activeFilters.has('oil')} onPress={() => toggleFilter('oil')} />
-          <FilterChip label="Brakes" active={activeFilters.has('brakes')} onPress={() => toggleFilter('brakes')} />
-          <FilterChip label=">$200" active={activeFilters.has('expensive')} onPress={() => toggleFilter('expensive')} />
-          
-          {hasActiveFilters && (
-            <TouchableOpacity
-              onPress={clearFilters}
-              activeOpacity={0.8}
-              style={{
-                paddingHorizontal: Spacing.md,
-                paddingVertical: Spacing.sm,
-                borderRadius: 20,
-                marginBottom: Spacing.sm,
-                backgroundColor: Colors.danger + '20',
-                borderWidth: 1,
-                borderColor: Colors.danger + '40',
-              }}
-            >
-              <Text style={[Typography.caption, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
-                Clear All
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Results */}
-        {allTimelineEntries.length === 0 ? (
+        renderSectionFooter={() => <View style={{ height: Spacing.section }} />}
+        ListHeaderComponent={
+          <TimelineHeader
+            vehicles={vehicles}
+            selectedVehicleId={selectedVehicleId}
+            setSelectedVehicleId={setSelectedVehicleId}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            services={services}
+            fuelLogs={fuelLogs}
+            issues={issues}
+            snapshots={snapshots}
+            activeTypeFilters={activeTypeFilters}
+            toggleTypeFilter={toggleTypeFilter}
+            hasActiveFilters={hasActiveFilters}
+            allTimelineEntries={allTimelineEntries}
+            currentSortLabel={currentSortLabel}
+            cycleSortMode={cycleSortMode}
+            activeFilters={activeFilters}
+            toggleFilter={toggleFilter}
+            clearFilters={clearFilters}
+          />
+        }
+        ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingTop: Spacing.section }}>
             <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
             <Text style={[Typography.body, { color: Colors.textSecondary, marginTop: Spacing.md, textAlign: 'center' }]}>
               No entries match your filters
             </Text>
           </View>
-        ) : (
-          <View>
-          {Object.entries(groupedEntries).map(([month, entries]) => {
-            const monthCost = entries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0);
-            return (
-              <View key={month} style={{ marginBottom: Spacing.section }}>
-                <View style={{
-                  flexDirection: 'row', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: Spacing.md,
-                  backgroundColor: Colors.background + 'E6',
-                  paddingVertical: Spacing.sm,
-                  paddingHorizontal: Spacing.horizontal,
-                  marginHorizontal: -Spacing.horizontal,
-                }}>
-                  <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
-                    {month}
-                  </Text>
-                  {monthCost > 0 && (
-                    <Text style={[Typography.h2, { color: Colors.success }]}>
-                      {formatCostShort(monthCost)}
-                    </Text>
-                  )}
-                </View>
-                
-                {entries.map((entry) => {
-                  const vehicle = vehicles.find(v => v.id === entry.vehicleId);
-                  if (entry._type === 'fuel') {
-                    return <FuelCard key={entry.id} fuelLog={entry} vehicle={vehicle} />;
-                  } else if (entry._type === 'issue') {
-                    return <IssueCard key={entry.id} issue={entry} vehicle={vehicle} />;
-                  } else if (entry._type === 'snapshot') {
-                    return <SnapshotCard key={entry.id} snapshot={entry} vehicle={vehicle} />;
-                  }
-                  return (
-                    <ServiceCard
-                      key={entry.id}
-                      service={entry}
-                      vehicle={vehicle}
-                      onEdit={handleEditService}
-                      servicePhotos={servicePhotosMap[entry.id] || []}
-                    />
-                  );
-                })}
-              </View>
-            );
-          })}
-        </View>
-      )}
-      </ScrollView>
+        }
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+      />
 
       {/* Floating Add Button */}
       <TouchableOpacity

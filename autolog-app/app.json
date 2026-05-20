@@ -2,7 +2,7 @@
   "expo": {
     "name": "Car Story \u2014 Maintenance Log",
     "slug": "glovebox-app",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,14 +14,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.teamam.glovebox",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Car Story needs access to your photos to attach images to vehicle profiles and service records.",
         "NSCameraUsageDescription": "Car Story needs camera access to take photos of your vehicle and service receipts.",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDisplayName": "Car Story"
       },
-      "newArchEnabled": false,
       "entitlements": {
         "aps-environment": "production"
       }
@@ -56,7 +55,6 @@
         "projectId": "fcec4e74-061f-4696-8b5d-5a0921fdf7bb"
       }
     },
-    "owner": "hsikk",
-    "newArchEnabled": false
+    "owner": "hsikk"
   }
 }

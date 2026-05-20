@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 
 // Premium Automotive-Tech Color System
 export const Colors = {
@@ -41,7 +40,6 @@ export const Colors = {
   accent: '#3B82F6',
   interactive: '#3B82F6',
   text: '#F1F5F9',
-  textSecondary: '#94A3B8',
   textDisabled: '#64748B',
 };
 
@@ -86,7 +84,6 @@ export const LightColors = {
   accent: '#2563EB',
   interactive: '#2563EB',
   text: '#1A1A1A',
-  textSecondary: '#4A4A4A',
   textDisabled: '#6B7280',
 };
 

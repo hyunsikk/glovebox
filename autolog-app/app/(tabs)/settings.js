@@ -11,6 +11,8 @@ import { usePurchases } from '../../lib/PurchaseContext';
 import PaywallModal from '../../components/PaywallModal';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
 import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
+import { escapeHtml } from '../../lib/htmlUtils';
+import { backupNow, restoreFromBackup, getBackupMeta, setAutoBackup } from '../../lib/backup';
 
 const UNITS_KEY = '@autolog_units';
 const CURRENCY_KEY = '@autolog_currency';
@@ -91,6 +93,39 @@ export default function SettingsScreen() {
   useEffect(() => {
     const t = setTimeout(() => setDbMeta(getDataMeta()), 2000);
     return () => clearTimeout(t);
+  }, []);
+
+  const [backup, setBackup] = useState({ lastBackupAt: null, iCloud: false, autoEnabled: true });
+  const [backingUp, setBackingUp] = useState(false);
+  useEffect(() => { getBackupMeta().then(setBackup); }, []);
+
+  const handleBackupNow = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBackingUp(true);
+    const r = await backupNow();
+    setBackingUp(false);
+    setBackup(await getBackupMeta());
+    if (r.success) Alert.alert('Backed up', `Saved ${r.vehicleCount} vehicle(s)${r.location === 'icloud' ? ' to iCloud' : ' on this device'}.`);
+    else if (r.reason === 'empty') Alert.alert('Nothing to back up', 'Add a vehicle first.');
+    else Alert.alert('Backup failed', 'Could not save a backup. Try again.');
+  }, []);
+
+  const handleRestore = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Restore from backup?', 'This replaces the data currently on this device with your latest backup.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Restore', style: 'destructive', onPress: async () => {
+        const r = await restoreFromBackup();
+        if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s).`); loadStats(); }
+        else if (r.reason === 'none') Alert.alert('No backup found', 'There is no backup to restore from yet.');
+        else Alert.alert('Restore failed', 'Could not restore. Your current data is unchanged.');
+      } },
+    ]);
+  }, []);
+
+  const handleToggleAutoBackup = useCallback(async (val) => {
+    await setAutoBackup(val);
+    setBackup((b) => ({ ...b, autoEnabled: val }));
   }, []);
 
   const handleUpdateDB = useCallback(async () => {
@@ -189,9 +224,10 @@ export default function SettingsScreen() {
 
   const generateReport = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!isPro && !purchasesLoading) {
-      setPaywallContext('export');
-      setShowPaywall(true);
+    if (!isPro) {
+      // Block export for non-Pro. While entitlement is still loading, just
+      // wait (don't generate) so a free user can't slip through the window.
+      if (!purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); }
       return;
     }
     setGeneratingReport(true);
@@ -254,7 +290,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
 
         const vName = vehicle.nickname || `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
         
-        html += `<h2>${vName}</h2>`;
+        html += `<h2>${escapeHtml(vName)}</h2>`;
         html += `<div class="card"><div class="grid">`;
         html += `<div class="stat"><div class="value">${vehicle.currentMileage?.toLocaleString() || '—'}</div><div class="label">Current Mileage</div></div>`;
         html += `<div class="stat"><div class="value">$${totalCost.toFixed(0)}</div><div class="label">Total Spent</div></div>`;
@@ -272,7 +308,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           const sorted = [...services].sort((a, b) => new Date(b.date) - new Date(a.date));
           for (const s of sorted) {
             const date = s.date ? new Date(s.date).toLocaleDateString() : '—';
-            html += `<tr><td>${date}</td><td>${s.serviceType || s.type || '—'}</td><td>$${(s.cost || 0).toFixed(2)}</td><td>${s.mileage?.toLocaleString() || '—'}</td><td>${s.notes || ''}</td></tr>`;
+            html += `<tr><td>${date}</td><td>${escapeHtml(s.serviceType || s.type || '—')}</td><td>$${(s.cost || 0).toFixed(2)}</td><td>${s.mileage?.toLocaleString() || '—'}</td><td>${escapeHtml(s.notes || '')}</td></tr>`;
           }
           html += `</table></div>`;
         }
@@ -586,6 +622,35 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         </View>
       </View>
 
+      {/* Backup */}
+      <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
+        backup
+      </Text>
+      <View style={[Shared.card]}>
+        <SettingRow
+          icon={backup.iCloud ? 'cloud-done-outline' : 'save-outline'}
+          label="auto-backup"
+          value={backup.lastBackupAt ? `last: ${new Date(backup.lastBackupAt).toLocaleString()}` : 'not backed up yet'}
+          rightElement={<Switch value={backup.autoEnabled} onValueChange={handleToggleAutoBackup} trackColor={{ true: colors.primary }} />}
+          colors={colors}
+        />
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, paddingTop: Spacing.md }}>
+          <TouchableOpacity style={[Shared.buttonSecondary, { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }]} onPress={handleBackupNow} disabled={backingUp} activeOpacity={0.8}>
+            {backingUp ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />}
+            <Text style={[Typography.caption, { color: colors.primary, fontFamily: 'Nunito_700Bold' }]}>back up now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[Shared.buttonSecondary, { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }]} onPress={handleRestore} activeOpacity={0.8}>
+            <Ionicons name="cloud-download-outline" size={18} color={colors.textSecondary} />
+            <Text style={[Typography.caption, { color: colors.textSecondary, fontFamily: 'Nunito_600SemiBold' }]}>restore</Text>
+          </TouchableOpacity>
+        </View>
+        {!backup.iCloud && (
+          <Text style={[Typography.small, { color: colors.textTertiary, marginTop: Spacing.sm }]}>
+            On-device backup. iCloud sync (survives reinstall) ships with the next update.
+          </Text>
+        )}
+      </View>
+
       {/* Pro */}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         car story pro
@@ -616,7 +681,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
             <TouchableOpacity style={[Shared.buttonPrimary, { marginBottom: 0 }]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setPaywallContext('default'); setShowPaywall(true); }} activeOpacity={0.85}>
               <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 15, color: '#FFFFFF' }}>Unlock Pro — {priceString}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={async () => { const r = await restore(); Alert.alert(r.success ? 'Restored' : 'Nothing to restore', r.success ? 'Pro is now unlocked.' : 'No previous purchase found.'); }} style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
+            <TouchableOpacity disabled={purchasesLoading} onPress={async () => { if (purchasesLoading) return; const r = await restore(); Alert.alert(r.success ? 'Restored' : 'Nothing to restore', r.success ? 'Pro is now unlocked.' : (r.error ? 'Could not reach the store. Try again.' : 'No previous purchase found.')); }} style={{ paddingVertical: Spacing.md, alignItems: 'center', opacity: purchasesLoading ? 0.5 : 1 }}>
               <Text style={[Typography.caption, { color: colors.textSecondary }]}>Restore purchase</Text>
             </TouchableOpacity>
           </View>
@@ -637,7 +702,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       </View>
 
       <Text style={[Typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xl }]}>
-        your data stays on your device. always.
+        your records stay on your device. we don't run servers or collect your data.
       </Text>
 
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context={paywallContext} />

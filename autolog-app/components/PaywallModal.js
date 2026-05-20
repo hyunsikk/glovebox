@@ -58,8 +58,10 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
     }
   };
 
+  // fullScreen (not pageSheet) so it presents correctly even when opened from
+  // inside another modal — iOS forbids a sheet over a sheet.
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: Colors.background }}>
         <View style={Shared.modalHeader}>
           <View style={{ width: 32 }} />
@@ -67,7 +69,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
             car story pro
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={26} color={Colors.textSecondary} />
+            <Ionicons name="close" size={26} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
           </TouchableOpacity>
         </View>
 

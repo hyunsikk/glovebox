@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 
 const MANIFEST_URL = 'https://hyunsikk.github.io/carstory-data/data/manifest.json';
-const SUPPORTED_SCHEMA = 1;                  // ignore remote data with a newer schema
+const SUPPORTED_SCHEMA = 2;                  // ignore remote data with a newer schema; v2 adds per-vehicle scheduleSource
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const DATA_FILE = (FileSystem.documentDirectory || '') + 'vehicles_remote.json';
 const K_VERSION = '@autolog_vehicledb_version';
@@ -146,7 +146,10 @@ export function getVehicleSchedule(make, model, years) {
   );
 
   if (vehicleInfo) {
-    return { schedule: vehicleInfo.schedule, isGeneric: false };
+    // Entries generated from generic interval rules (not OEM data) are flagged
+    // so the UI labels them "standard schedule" rather than "manufacturer
+    // schedule". Curated/OEM entries have no scheduleSource and stay isGeneric:false.
+    return { schedule: vehicleInfo.schedule, isGeneric: vehicleInfo.scheduleSource === 'generic' };
   }
   return { schedule: GENERIC_SCHEDULE, isGeneric: true };
 }

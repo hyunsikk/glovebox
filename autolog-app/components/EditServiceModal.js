@@ -52,10 +52,11 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
 
   const loadVehicle = async () => {
     if (!service?.vehicleId) return;
-    
+    const reqId = service.vehicleId;
     try {
-      const vehicleData = await VehicleStorage.getById(service.vehicleId);
-      setVehicle(vehicleData);
+      const vehicleData = await VehicleStorage.getById(reqId);
+      // Ignore a stale load if the modal switched to another service meanwhile.
+      if (service?.vehicleId === reqId) setVehicle(vehicleData);
     } catch (error) {
       console.error('Error loading vehicle:', error);
     }

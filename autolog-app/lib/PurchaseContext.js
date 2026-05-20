@@ -21,7 +21,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- configuration -----------------------------------------------------------
-export const RC_API_KEY_IOS = '';      // e.g. 'appl_xxxxxxxx' — empty = dev-stub mode
+export const RC_API_KEY_IOS = 'appl_OIyNCXXdwgontzBWsnzGilUMskm';  // RevenueCat public Apple SDK key (safe to ship in client)
 export const RC_API_KEY_ANDROID = '';   // e.g. 'goog_xxxxxxxx'
 export const ENTITLEMENT_ID = 'pro';
 export const PRODUCT_ID = 'dev.teamam.glovebox.pro';
@@ -36,6 +36,13 @@ const PRO_FLAG_KEY = '@autolog_pro_entitled';
 // Use the real SDK only on a native platform with a configured key.
 const apiKey = Platform.select({ ios: RC_API_KEY_IOS, android: RC_API_KEY_ANDROID, default: '' });
 const useRealSDK = Platform.OS !== 'web' && !!apiKey;
+
+// Warn if running native without a key — purchases would silently use the local
+// dev-stub (appear to "succeed" with no real charge). Catches the Android case
+// where RC_API_KEY_ANDROID isn't set yet.
+if (Platform.OS !== 'web' && !apiKey) {
+  console.warn(`[PurchaseContext] No RevenueCat key for ${Platform.OS} — running dev-stub (no real purchases).`);
+}
 
 // Lazy-load the native module only when it will actually be used. On web or in
 // dev-stub mode this require never executes, so bundling/runtime stay clean.
@@ -120,7 +127,7 @@ export function PurchaseProvider({ children }) {
         const pkg = offerings?.current?.availablePackages?.[0];
         if (!pkg) return { success: false, error: 'No product available' };
         const { customerInfo } = await Purchases.purchasePackage(pkg);
-        applyCustomerInfo(customerInfo);
+        await applyCustomerInfo(customerInfo);
         const active = !!customerInfo?.entitlements?.active?.[ENTITLEMENT_ID];
         return { success: active };
       }
@@ -138,7 +145,7 @@ export function PurchaseProvider({ children }) {
     try {
       if (Purchases) {
         const info = await Purchases.restorePurchases();
-        applyCustomerInfo(info);
+        await applyCustomerInfo(info);
         return { success: !!info?.entitlements?.active?.[ENTITLEMENT_ID] };
       }
       const unlocked = await AsyncStorage.getItem(DEV_UNLOCK_KEY);

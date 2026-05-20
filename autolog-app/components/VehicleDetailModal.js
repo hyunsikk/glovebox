@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -30,6 +30,7 @@ import DatePickerField from './DatePickerField';
 import PaywallModal from './PaywallModal';
 import ProLockedCard from './ProLockedCard';
 import { usePurchases } from '../lib/PurchaseContext';
+import { fetchRecalls } from '../lib/recalls';
 
 // CollapsibleSection component defined at top of file
 const CollapsibleSection = ({ title, children, defaultExpanded = false, hasContent = true }) => {
@@ -567,7 +568,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
   );
 };
 
-const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
+const RecallCheck = ({ vehicleId, make, model, year }) => {
   const [recalls, setRecalls] = useState([]);
   const [dismissedIds, setDismissedIds] = useState(new Set());
   const [sectionHidden, setSectionHidden] = useState(false);
@@ -618,53 +619,27 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
     await AsyncStorage.removeItem(`recalls_dismissed_${vehicleId}`);
   };
 
+  // Cache-first load on mount; the shared lib handles the 24h TTL and refresh.
   const loadCachedRecalls = async () => {
     try {
-      const cached = await AsyncStorage.getItem(`recalls_${vehicleId}`);
-      if (cached) {
-        const data = JSON.parse(cached);
-        const cacheAge = Date.now() - new Date(data.timestamp).getTime();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-
-        if (cacheAge < oneDayMs) {
-          setRecalls(data.recalls);
-          setLastChecked(new Date(data.timestamp));
-          return;
-        }
-      }
-      // If no cache or cache expired, check recalls
-      checkRecalls();
+      const { recalls: data, timestamp } = await fetchRecalls({ id: vehicleId, make, model, year });
+      setRecalls(data);
+      if (timestamp) setLastChecked(new Date(timestamp));
     } catch (error) {
-      console.error('Error loading cached recalls:', error);
+      console.error('Error loading recalls:', error);
+      setError('Failed to check recalls');
     }
   };
 
+  // Manual "Check Now" — force a fresh fetch past the cache.
   const checkRecalls = async () => {
     if (!make || !model || !year) return;
-
     setLoading(true);
     setError(null);
-
     try {
-      const response = await fetch(
-        `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch recalls');
-      }
-
-      const data = await response.json();
-      const recallData = data.results || [];
-
-      // Cache results
-      await AsyncStorage.setItem(`recalls_${vehicleId}`, JSON.stringify({
-        recalls: recallData,
-        timestamp: new Date().toISOString()
-      }));
-
-      setRecalls(recallData);
-      setLastChecked(new Date());
+      const { recalls: data, timestamp } = await fetchRecalls({ id: vehicleId, make, model, year }, { force: true });
+      setRecalls(data);
+      setLastChecked(timestamp ? new Date(timestamp) : new Date());
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
       console.error('Error checking recalls:', error);
@@ -732,6 +707,8 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
               paddingVertical: Spacing.xs,
             }}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Hide recall alerts"
           >
             <Ionicons name="eye-off-outline" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -796,7 +773,7 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
               {activeRecalls.slice(0, 3).map((recall, index) => {
                 const recallId = recall.NHTSACampaignNumber || `recall_${recalls.indexOf(recall)}`;
                 return (
-                  <View key={index} style={{
+                  <View key={recallId} style={{
                     backgroundColor: Colors.surface2,
                     borderRadius: 8,
                     padding: Spacing.md,
@@ -881,6 +858,7 @@ const RecallCheck = ({ vehicleId, vin, make, model, year }) => {
 };
 
 const MaintenanceReminders = ({ vehicleId }) => {
+  const { distanceLabel } = useSettings();
   const [reminders, setReminders] = useState([]);
   const [newReminderForm, setNewReminderForm] = useState({
     serviceType: '',
@@ -1147,10 +1125,19 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   // Gate the per-vehicle PDF report behind Pro (keeps it consistent with Settings).
   // Don't gate while entitlement is still loading (avoids paywalling a Pro user).
   const requestReport = (id) => {
-    if (!isPro && !purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); return; }
-    generateReport(id);
+    if (!isPro) {
+      // While entitlement is loading, wait — don't generate (closes the free leak).
+      if (!purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); }
+      return;
+    }
+    requestReportSafely(id);
+  };
+  const requestReportSafely = async (id) => {
+    try { await generateReport(id); }
+    catch (e) { Alert.alert('Report failed', e?.message || 'Could not generate the report.'); }
   };
   const requestRecalls = () => {
+    if (purchasesLoading || isPro) return; // never paywall a Pro user
     setPaywallContext('recalls');
     setShowPaywall(true);
   };
@@ -1203,8 +1190,12 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     notes: '',
   });
 
+  // Tracks the vehicle whose load is current, so an in-flight load for a
+  // previously-opened vehicle doesn't overwrite state after a quick switch.
+  const activeVehicleIdRef = useRef(null);
   useEffect(() => {
     if (visible && vehicle) {
+      activeVehicleIdRef.current = vehicle.id;
       loadVehicleData();
     }
   }, [visible, vehicle]);
@@ -1251,6 +1242,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       
       // Load fresh vehicle data
       const freshVehicle = await VehicleStorage.getById(vehicle.id);
+      // Bail if a different vehicle was opened while this load was in flight.
+      if (activeVehicleIdRef.current !== vehicle.id) return;
       setVehicleData(freshVehicle);
       
       // Load services
@@ -1352,7 +1345,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       // Set edit form data
       setEditForm({
         nickname: freshVehicle.nickname || '',
-        currentMileage: freshVehicle.currentMileage.toString(),
+        currentMileage: (freshVehicle.currentMileage ?? 0).toString(),
         vin: freshVehicle.vin || '',
         location: freshVehicle.location || '',
       });
@@ -1411,7 +1404,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     setEditMode(false);
     setEditForm({
       nickname: vehicleData?.nickname || '',
-      currentMileage: vehicleData?.currentMileage.toString() || '',
+      currentMileage: vehicleData?.currentMileage?.toString() ?? '',
     });
   };
 
@@ -1649,7 +1642,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
               onPress={onClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -1817,24 +1810,38 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                 </View>
 
                 {editMode && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginBottom: Spacing.lg }}>
+                  <>
+                    <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
+                      <TouchableOpacity
+                        style={[Shared.buttonSecondary, { flex: 1, marginBottom: 0 }]}
+                        onPress={handleCancelEdit}
+                      >
+                        <Text style={[Typography.body, { color: Colors.steelBlue }]}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[Shared.buttonPrimary, { flex: 1, marginBottom: 0 }]}
+                        onPress={handleSaveEdit}
+                      >
+                        <Text style={[Typography.body, { color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }]}>
+                          Save
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* Delete the whole vehicle — surfaced here in edit mode (the
+                        natural place) rather than buried under Reports & Export. */}
                     <TouchableOpacity
-                      style={[Shared.buttonSecondary, { flex: 0, paddingHorizontal: Spacing.lg }]}
-                      onPress={handleCancelEdit}
+                      style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: Spacing.md, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.danger + '50', borderRadius: 14 }}
+                      onPress={handleDeleteVehicle}
+                      activeOpacity={0.8}
                     >
-                      <Text style={[Typography.body, { color: Colors.steelBlue }]}>
-                        Cancel
+                      <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                      <Text style={[Typography.body, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
+                        Delete this vehicle
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[Shared.buttonPrimary, { flex: 0, paddingHorizontal: Spacing.xl }]}
-                      onPress={handleSaveEdit}
-                    >
-                      <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                        Save
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  </>
                 )}
 
                 {/* Vehicle Profile Fields (Merged into Vehicle Info) */}
@@ -2058,10 +2065,10 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                 {/* Recall Check — NHTSA keys on make/model/year (VIN not required).
                     Pro-gated; free users see a teaser that opens the paywall. */}
                 {vehicleData.make && vehicleData.model && vehicleData.year && (
-                  isPro ? (
+                  purchasesLoading ? null : isPro ? (
                     <RecallCheck
+                      key={vehicleData.id}
                       vehicleId={vehicleData.id}
-                      vin={vehicleData.vin}
                       make={vehicleData.make}
                       model={vehicleData.model}
                       year={vehicleData.year}
@@ -2557,23 +2564,6 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       Generate Report
                     </Text>
                   </TouchableOpacity>
-                  
-                  {/* Delete Vehicle */}
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingVertical: Spacing.lg,
-                    }}
-                    onPress={handleDeleteVehicle}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
-                    <Text style={[Typography.body, { color: Colors.deepRed }]}>
-                      Delete Vehicle
-                    </Text>
-                  </TouchableOpacity>
                 </CollapsibleSection>
 
                 {/* Bottom spacing */}
@@ -2612,7 +2602,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={() => setEditingService(null)}
                     style={{ padding: 4 }}
                   >
-                    <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                    <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
                   </TouchableOpacity>
 
                   <Text style={[Typography.h2, { color: Colors.text }]}>

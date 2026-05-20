@@ -82,12 +82,14 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   // Auto-calculate total cost from unit price × quantity
   useEffect(() => {
     if (costMode === 'per_unit') {
+      // Guard against NaN: bad input would otherwise store the string "NaN"
+      // as totalCost and silently corrupt cost analytics.
       if (type === 'fuel' && gallons && pricePerGallon) {
-        const calc = (parseFloat(gallons) * parseFloat(pricePerGallon)).toFixed(2);
-        setTotalCost(calc);
+        const g = parseFloat(gallons), p = parseFloat(pricePerGallon);
+        if (!isNaN(g) && !isNaN(p)) setTotalCost((g * p).toFixed(2));
       } else if (type === 'ev_charge' && kWh && costPerKWh) {
-        const calc = (parseFloat(kWh) * parseFloat(costPerKWh)).toFixed(2);
-        setTotalCost(calc);
+        const k = parseFloat(kWh), c = parseFloat(costPerKWh);
+        if (!isNaN(k) && !isNaN(c)) setTotalCost((k * c).toFixed(2));
       }
     }
   }, [gallons, pricePerGallon, kWh, costPerKWh, costMode, type]);
@@ -115,11 +117,28 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const validate = () => {
     const errors = [];
     if (!date) errors.push('Date is required');
-    
+
+    // Reject future dates. Parse at local noon and compare against end-of-today
+    // so "today" isn't rejected due to a UTC-vs-local offset.
+    if (date) {
+      const entryDate = new Date(date + 'T12:00:00');
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (entryDate > endOfToday) errors.push('Date cannot be in the future');
+    }
+
     // Odometer is optional
     if (odometer) {
       const odo = parseInt(odometer);
       if (isNaN(odo) || odo < 0) errors.push('Invalid odometer reading');
+    }
+
+    // Quantity must be a valid number if entered (prevents NaN reaching storage)
+    if (type === 'fuel' && gallons && (isNaN(parseFloat(gallons)) || parseFloat(gallons) < 0)) {
+      errors.push('Enter a valid amount of fuel');
+    }
+    if (type === 'ev_charge' && kWh && (isNaN(parseFloat(kWh)) || parseFloat(kWh) < 0)) {
+      errors.push('Enter a valid kWh amount');
     }
 
     // Cost is optional
@@ -159,13 +178,15 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
       fullTank,
     };
 
+    // Keep a literal 0 (e.g. free/employer-paid fuel); only null out blank/NaN.
+    const num = (v) => (v !== '' && v != null && !isNaN(parseFloat(v)) ? parseFloat(v) : null);
     if (type === 'fuel') {
-      logData.gallons = gallons ? parseFloat(gallons) : null;
-      logData.pricePerGallon = parseFloat(pricePerGallon) || null;
+      logData.gallons = num(gallons);
+      logData.pricePerGallon = num(pricePerGallon);
       logData.octane = octane;
     } else {
-      logData.kWh = kWh ? parseFloat(kWh) : null;
-      logData.costPerKWh = parseFloat(costPerKWh) || null;
+      logData.kWh = num(kWh);
+      logData.costPerKWh = num(costPerKWh);
       logData.chargerType = chargerType;
     }
 
@@ -233,7 +254,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             borderBottomColor: Colors.glassBorder,
           }}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
               {isEditing ? 'Edit Entry' : 'Log Fuel'}

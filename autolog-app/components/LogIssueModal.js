@@ -140,9 +140,9 @@ const StatusPicker = ({ value, onSelect, disabled = false }) => (
 
 export default function LogIssueModal({ 
   visible, 
-  onClose, 
-  onIssueLogged, 
-  vehicles, 
+  onClose,
+  onIssueLogged,
+  vehicles = [],
   selectedVehicle,
   editingIssue = null,
 }) {
@@ -235,6 +235,13 @@ export default function LogIssueModal({
     if (form.cost && (isNaN(parseFloat(form.cost)) || parseFloat(form.cost) < 0)) {
       newErrors.cost = 'Please enter a valid cost';
     }
+    // Reject future dates (local-noon parse vs end-of-today, timezone-safe).
+    if (form.date) {
+      const entryDate = new Date(form.date + 'T12:00:00');
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (entryDate > endOfToday) newErrors.date = 'Date cannot be in the future';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -253,7 +260,7 @@ export default function LogIssueModal({
         description: form.description.trim(),
         severity: form.severity,
         status: form.status,
-        date: form.date + 'T00:00:00.000Z',
+        date: form.date + 'T12:00:00', // local noon — avoids UTC off-by-one display
         odometer: form.odometer ? parseInt(form.odometer) : undefined,
         cost: form.cost ? parseFloat(form.cost) : undefined,
         resolvedServiceId: form.resolvedServiceId || undefined,
@@ -295,7 +302,7 @@ export default function LogIssueModal({
             paddingBottom: Spacing.lg,
           }]}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
             
             <Text style={[Typography.h1, { color: Colors.textPrimary }]}>

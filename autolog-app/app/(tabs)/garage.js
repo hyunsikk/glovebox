@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Animated, Alert, Image, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +13,8 @@ import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStor
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
 import { addSampleData, clearSampleData } from '../../lib/sampleData';
+import { scheduleServiceNotifications } from '../../lib/notifications';
+import { recordPositiveEvent } from '../../lib/reviewPrompt';
 import AddVehicleModal from '../../components/AddVehicleModal';
 import VehicleDetailModal from '../../components/VehicleDetailModal';
 import LogServiceModal from '../../components/LogServiceModal';
@@ -22,7 +25,7 @@ import { usePurchases } from '../../lib/PurchaseContext';
 import { useTheme } from '../../lib/ThemeContext';
 import { Modal, Switch } from 'react-native';
 
-const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
+const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
   const { formatDistance } = useSettings();
   const [overdueServices, setOverdueServices] = useState([]);
   const [dueSoonServices, setDueSoonServices] = useState([]);
@@ -136,7 +139,8 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
         onPress={handlePress}
         activeOpacity={0.9}
       >
-        {/* Favorite Star */}
+        {/* Favorite Star — only meaningful with 2+ vehicles (pins to top). */}
+        {showFavorite && (
         <TouchableOpacity
           onPress={(e) => {
             e.stopPropagation();
@@ -151,6 +155,9 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
           }}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={vehicle.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          accessibilityState={{ selected: !!vehicle.isFavorite }}
         >
           <Ionicons
             name={vehicle.isFavorite ? 'star' : 'star-outline'}
@@ -158,6 +165,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite }) => {
             color={vehicle.isFavorite ? Colors.warning : Colors.textTertiary}
           />
         </TouchableOpacity>
+        )}
 
         {/* Subtle gradient accent line at top */}
         <View style={{
@@ -605,330 +613,6 @@ const DashboardSummary = ({ vehicles }) => {
   );
 };
 
-const SettingsModal = ({ visible, onClose, themeContext }) => {
-  const { isDark, toggleTheme } = themeContext || { isDark: true, toggleTheme: () => {} };
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [notificationTiming, setNotificationTiming] = useState(7);
-
-  useEffect(() => {
-    loadNotificationSettings();
-  }, []);
-
-  const loadNotificationSettings = async () => {
-    try {
-      const settings = await SettingsStorage.get();
-      setNotificationsEnabled(settings.notifications !== false);
-      setNotificationTiming(settings.notificationTiming || 7);
-    } catch (error) {
-      console.error('Error loading notification settings:', error);
-    }
-  };
-
-  const handleThemeToggle = () => {
-    toggleTheme();
-    Haptics.selectionAsync();
-  };
-
-  const handleNotificationToggle = async (value) => {
-    try {
-      setNotificationsEnabled(value);
-      await SettingsStorage.update({ notifications: value });
-      Haptics.selectionAsync();
-      if (value) {
-        const { scheduleServiceNotifications } = require('../../lib/notifications');
-        await scheduleServiceNotifications();
-      } else {
-        const { cancelAllNotifications } = require('../../lib/notifications');
-        await cancelAllNotifications();
-      }
-    } catch (error) {
-      console.error('Error saving notification setting:', error);
-    }
-  };
-
-  const handleTimingChange = async (days) => {
-    try {
-      setNotificationTiming(days);
-      await SettingsStorage.update({ notificationTiming: days });
-      Haptics.selectionAsync();
-      if (notificationsEnabled) {
-        const { scheduleServiceNotifications } = require('../../lib/notifications');
-        await scheduleServiceNotifications();
-      }
-    } catch (error) {
-      console.error('Error saving notification timing:', error);
-    }
-  };
-
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-
-  const handleExportData = async () => {
-    try {
-      setExporting(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const data = await DataUtils.exportData();
-      const jsonString = JSON.stringify(data, null, 2);
-
-      if (Platform.OS === 'web') {
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `car-story-backup-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        Alert.alert('Export Complete', 'Backup file downloaded.');
-      } else {
-        const fileName = `car-story-backup-${new Date().toISOString().split('T')[0]}.json`;
-        const filePath = `${FileSystem.cacheDirectory}${fileName}`;
-        await FileSystem.writeAsStringAsync(filePath, jsonString, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        await Sharing.shareAsync(filePath, {
-          mimeType: 'application/json',
-          dialogTitle: 'Save Car Story Backup',
-          UTI: 'public.json',
-        });
-      }
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      Alert.alert('Export Failed', 'Could not export your data. Please try again.');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleImportData = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled) return;
-
-      const file = result.assets?.[0];
-      if (!file) return;
-
-      setImporting(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      const content = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-
-      const data = JSON.parse(content);
-
-      if (!DataUtils.validateImportData(data)) {
-        Alert.alert('Invalid File', 'This file does not contain valid Car Story backup data.');
-        setImporting(false);
-        return;
-      }
-
-      Alert.alert(
-        'Restore Backup',
-        `This will replace your current data with the backup from ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'unknown date'}.\n\n${data.vehicles?.length || 0} vehicles, ${data.services?.length || 0} services, ${data.fuelLogs?.length || 0} fuel logs.\n\nThis cannot be undone.`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setImporting(false) },
-          {
-            text: 'Restore',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await DataUtils.importData(data);
-                Alert.alert('Import Complete', 'Your data has been restored successfully.');
-                onClose();
-              } catch (err) {
-                Alert.alert('Import Failed', 'Could not restore the backup.');
-              } finally {
-                setImporting(false);
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error importing data:', error);
-      Alert.alert('Import Failed', 'Could not read the backup file.');
-      setImporting(false);
-    }
-  };
-
-  const TIMING_OPTIONS = [3, 7, 14, 30];
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      <View style={{
-        flex: 1,
-        backgroundColor: Colors.background,
-        paddingHorizontal: Spacing.horizontalLarge,
-      }}>
-        {/* Header */}
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingVertical: Spacing.xl,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.surface1,
-          marginBottom: Spacing.xl,
-        }}>
-          <TouchableOpacity
-            onPress={onClose}
-            style={{ padding: 4 }}
-          >
-            <Ionicons name="close" size={24} color={Colors.textSecondary} />
-          </TouchableOpacity>
-
-          <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-            settings
-          </Text>
-
-          <View style={{ width: 32 }} />
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Appearance */}
-          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
-            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
-              appearance
-            </Text>
-
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: Spacing.md,
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                  dark mode
-                </Text>
-                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
-                  {isDark ? 'dark theme active' : 'light theme active'}
-                </Text>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={handleThemeToggle}
-                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
-                thumbColor={isDark ? Colors.primary : Colors.textSecondary}
-                ios_backgroundColor={Colors.surface3}
-              />
-            </View>
-          </View>
-
-          {/* Notifications */}
-          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
-            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
-              notifications
-            </Text>
-
-            <View style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: Spacing.md,
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                  maintenance reminders
-                </Text>
-                <Text style={[Typography.caption, { color: Colors.textSecondary, marginTop: 2 }]}>
-                  get notified when services are due
-                </Text>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={handleNotificationToggle}
-                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
-                thumbColor={notificationsEnabled ? Colors.primary : Colors.textSecondary}
-                ios_backgroundColor={Colors.surface3}
-              />
-            </View>
-
-            {notificationsEnabled && (
-              <View style={{ marginTop: Spacing.md }}>
-                <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.sm }]}>
-                  remind me before service is due
-                </Text>
-                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                  {TIMING_OPTIONS.map((days) => (
-                    <TouchableOpacity
-                      key={days}
-                      onPress={() => handleTimingChange(days)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: Spacing.sm,
-                        borderRadius: 12,
-                        backgroundColor: notificationTiming === days ? Colors.primary + '20' : Colors.surface1,
-                        borderWidth: 1,
-                        borderColor: notificationTiming === days ? Colors.primary : Colors.glassBorder,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text style={[Typography.caption, {
-                        color: notificationTiming === days ? Colors.primary : Colors.textSecondary,
-                        fontFamily: notificationTiming === days ? 'Nunito_600SemiBold' : 'Nunito_400Regular',
-                      }]}>
-                        {days}d
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Data Backup */}
-          <View style={[Shared.cardPrimary, { marginBottom: Spacing.lg }]}>
-            <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.lg }]}>
-              data backup
-            </Text>
-
-            <TouchableOpacity
-              style={[Shared.buttonPrimary, { marginBottom: Spacing.md }]}
-              onPress={handleExportData}
-              disabled={exporting}
-              activeOpacity={0.8}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="cloud-upload-outline" size={20} color={Colors.textPrimary} style={{ marginRight: Spacing.sm }} />
-                <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
-                  {exporting ? 'exporting...' : 'export backup'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[Shared.buttonSecondary]}
-              onPress={handleImportData}
-              disabled={importing}
-              activeOpacity={0.8}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="cloud-download-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
-                <Text style={[Typography.body, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
-                  {importing ? 'importing...' : 'import backup'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <Text style={[Typography.caption, { color: Colors.textTertiary, marginTop: Spacing.md, textAlign: 'center' }]}>
-              export saves all vehicles, services, fuel logs, issues, and settings as a JSON file
-            </Text>
-          </View>
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-};
-
 const DEMO_LOADED_KEY = '@autolog_demo_loaded';
 
 const DemoBanner = ({ onClear }) => (
@@ -964,11 +648,24 @@ export default function GarageScreen() {
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const { isPro, loading: purchasesLoading } = usePurchases();
   // Removed FAB multi-action state - now simple Add Vehicle button
+
+  // Open a specific vehicle when arriving from a notification tap.
+  const { openVehicleId } = useLocalSearchParams();
+  const router = useRouter();
+  useEffect(() => {
+    if (!openVehicleId || vehicles.length === 0) return;
+    const target = vehicles.find((v) => String(v.id) === String(openVehicleId));
+    if (target) {
+      setSelectedVehicle(target);
+      setShowVehicleDetailModal(true);
+    }
+    // Clear the param so re-focusing the tab doesn't reopen the modal.
+    router.setParams({ openVehicleId: undefined });
+  }, [openVehicleId, vehicles]);
 
   // Auto-load demo data on first launch
   useEffect(() => {
@@ -1079,8 +776,11 @@ export default function GarageScreen() {
     // limit. Don't gate while entitlement is still loading (avoids flashing the
     // paywall at a Pro user on cold start).
     const realCount = vehicles.filter(v => !v.isSample).length;
-    if (!isPro && !purchasesLoading && realCount >= 1) {
-      setShowPaywall(true);
+    if (!isPro && realCount >= 1) {
+      // Not Pro and at the limit: show the paywall — but if entitlement is still
+      // loading, just wait (don't open the add modal). This both avoids flashing
+      // the paywall at a Pro user AND closes the free-add leak during loading.
+      if (!purchasesLoading) setShowPaywall(true);
       return;
     }
     setShowAddVehicleModal(true);
@@ -1098,9 +798,13 @@ export default function GarageScreen() {
       setLoading(true);
       const success = await addSampleData();
       if (success) {
+        // Mark as demo so the DemoBanner shows and the one-tap clear works,
+        // matching the first-launch auto-load path.
+        await AsyncStorage.setItem(DEMO_LOADED_KEY, 'true');
+        setIsDemoMode(true);
         Alert.alert(
           'Sample Data Loaded',
-          'Added 2 vehicles with service history to demonstrate the app',
+          'Added a demo vehicle with full service history to show how the app works',
           [{ text: 'OK', style: 'default' }]
         );
         loadVehicles(); // Reload vehicles to show the new data
@@ -1146,9 +850,14 @@ export default function GarageScreen() {
   const handleServiceLogged = () => {
     // Refresh vehicles list to update any mileage changes
     loadVehicles();
-    // Re-schedule notifications since service dates changed
-    const { scheduleServiceNotifications } = require('../../lib/notifications');
-    scheduleServiceNotifications();
+    // Re-schedule notifications since service dates changed (don't let a
+    // scheduling hiccup bubble up and break the log-saved flow).
+    Promise.resolve(scheduleServiceNotifications()).catch(e =>
+      console.error('Failed to reschedule notifications:', e?.message)
+    );
+    // Logging a service is a core "win" — a good moment to ask for a rating
+    // (self-gated: only after a few events, at most once per version).
+    recordPositiveEvent();
   };
 
   const handleOnboardingAddVehicle = () => {
@@ -1204,16 +913,6 @@ export default function GarageScreen() {
           garage
         </Text>
         
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.selectionAsync();
-            setShowSettingsModal(true);
-          }}
-          style={{ padding: 8 }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -1227,6 +926,7 @@ export default function GarageScreen() {
             vehicle={vehicle}
             onPress={handleVehiclePress}
             onToggleFavorite={handleToggleFavorite}
+            showFavorite={vehicles.filter(v => !v.isSample).length > 1}
           />
         ))}
       </ScrollView>
@@ -1255,6 +955,8 @@ export default function GarageScreen() {
         }}
         onPress={handleAddVehicle}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel="Add vehicle"
       >
         <Ionicons name="add" size={28} color={Colors.textPrimary} />
       </TouchableOpacity>
@@ -1285,12 +987,6 @@ export default function GarageScreen() {
         visible={showOnboardingModal}
         onClose={handleOnboardingClose}
         onAddVehicle={handleOnboardingAddVehicle}
-      />
-
-      <SettingsModal
-        visible={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        themeContext={themeContext}
       />
 
       <PaywallModal
