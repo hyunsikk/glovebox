@@ -34,8 +34,8 @@ export const generateReport = async (vehicleId) => {
   const healthScore = await HealthScore.calculate(vehicleId);
   const upcomingServices = await ServiceDue.getUpcomingServices(vehicleId, 365);
 
-  // Get manufacturer schedule
-    const { schedule } = getVehicleSchedule(vehicle.make, vehicle.model);
+  // Get manufacturer schedule (default to [] so .map can't throw on a miss)
+  const { schedule = [] } = getVehicleSchedule(vehicle.make, vehicle.model) || {};
 
   // Build schedule status
   const scheduleStatus = schedule.map((item) => {

@@ -54,10 +54,12 @@ export default function BenchmarkComparison({ vehicles, selectedVehicleId }) {
   const [comparisons, setComparisons] = useState([]);
 
   useEffect(() => {
-    computeBenchmarks();
+    let mounted = true;
+    computeBenchmarks(() => mounted);
+    return () => { mounted = false; };
   }, [vehicles, selectedVehicleId]);
 
-  const computeBenchmarks = async () => {
+  const computeBenchmarks = async (isMounted = () => true) => {
     try {
       const filterVehicles = selectedVehicleId === 'all'
         ? vehicles
@@ -109,7 +111,7 @@ export default function BenchmarkComparison({ vehicles, selectedVehicleId }) {
         });
       }
 
-      setComparisons(results);
+      if (isMounted()) setComparisons(results);
     } catch (error) {
       console.error('Error computing benchmarks:', error);
     }

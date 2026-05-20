@@ -169,7 +169,7 @@ export default function TakeSnapshotModal({
       
       setAutoData({
         openIssuesCount: openIssues.length,
-        totalSpent: totalSpent,
+        totalSpent: totalSpent ?? 0,
         fuelEfficiency: null,
       });
     } catch (error) {
@@ -294,7 +294,7 @@ export default function TakeSnapshotModal({
                     Total Spent
                   </Text>
                   <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                    ${autoData.totalSpent.toFixed(2)}
+                    ${(autoData.totalSpent ?? 0).toFixed(2)}
                   </Text>
                 </View>
                 

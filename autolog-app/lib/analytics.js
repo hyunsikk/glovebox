@@ -47,7 +47,7 @@ export const HealthScore = {
   calculate: async (vehicleId) => {
     try {
       const vehicle = await VehicleStorage.getById(vehicleId);
-      if (!vehicle) return 0;
+      if (!vehicle) return null; // unknown, not "0% healthy"
 
       const services = await ServiceStorage.getByVehicleId(vehicleId);
       const schedule = getMaintenanceSchedule(vehicle.make, vehicle.model);
@@ -94,7 +94,7 @@ export const HealthScore = {
       return totalServices > 0 ? Math.round((onTimeServices / totalServices) * 100) : null;
     } catch (error) {
       console.error('Error calculating health score:', error);
-      return 0;
+      return null; // error = unknown, don't corrupt the fleet average with a 0
     }
   },
 
@@ -244,50 +244,48 @@ export const CostAnalytics = {
       // Fall back to ~30 mi/day (~900 mi/month) if no mileage data
       const avgMilesPerMonth = totalMilesDriven > 0 ? totalMilesDriven / monthsOwned : 900;
 
+      const windowEnd = new Date(currentDate);
+      windowEnd.setMonth(windowEnd.getMonth() + 12);
+
+      // 12 month buckets keyed by YYYY-MM.
+      const bucketIndex = {};
       for (let month = 1; month <= 12; month++) {
-        const futureDate = new Date(currentDate);
-        futureDate.setMonth(futureDate.getMonth() + month);
-        
-        let monthlyPredictedCost = 0;
-        
-        // Check each service type for upcoming due dates
-        for (const scheduledService of schedule) {
-          const lastService = services
-            .filter(s => s.serviceType === scheduledService.service)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-
-          let nextDueDate;
-          if (lastService) {
-            const lastServiceDate = new Date(lastService.date);
-            const mileageDueDate = new Date(lastServiceDate);
-            mileageDueDate.setDate(mileageDueDate.getDate() + 
-              (scheduledService.mileInterval / (avgMilesPerMonth / 30)));
-            
-            const timeDueDate = new Date(lastServiceDate);
-            timeDueDate.setMonth(timeDueDate.getMonth() + scheduledService.monthInterval);
-            
-            nextDueDate = mileageDueDate < timeDueDate ? mileageDueDate : timeDueDate;
-          } else {
-            // No previous service, assume due soon
-            nextDueDate = new Date();
-            nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-          }
-
-          // Check if service is due this month
-          if (nextDueDate.getFullYear() === futureDate.getFullYear() &&
-              nextDueDate.getMonth() === futureDate.getMonth()) {
-            const avgCost = (scheduledService.estimatedCost[0] + scheduledService.estimatedCost[1]) / 2;
-            monthlyPredictedCost += avgCost;
-          }
-        }
-
-        predictions.push({
-          month: `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}`,
-          predictedCost: Math.round(monthlyPredictedCost * 100) / 100,
-        });
+        const d = new Date(currentDate);
+        d.setMonth(d.getMonth() + month);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        bucketIndex[key] = predictions.length;
+        predictions.push({ month: key, predictedCost: 0 });
       }
 
-      return predictions;
+      // Walk every due date for each service across the window — so recurring
+      // services (and services with no history) are counted each time they fall
+      // due, not just once.
+      for (const scheduledService of schedule) {
+        const avgCost = (scheduledService.estimatedCost[0] + scheduledService.estimatedCost[1]) / 2;
+        const mileDays = avgMilesPerMonth > 0
+          ? scheduledService.mileInterval / (avgMilesPerMonth / 30)
+          : Infinity;
+        const intervalDays = Math.max(15, Math.min((scheduledService.monthInterval || 12) * 30, mileDays));
+
+        const lastService = services
+          .filter(s => s.serviceType === scheduledService.service)
+          .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+        let due = lastService ? new Date(lastService.date) : new Date(currentDate);
+        due.setDate(due.getDate() + intervalDays);
+        if (due < currentDate) due = new Date(currentDate); // overdue → due now
+
+        let guard = 0;
+        while (due <= windowEnd && guard < 60) {
+          const key = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}`;
+          if (key in bucketIndex) predictions[bucketIndex[key]].predictedCost += avgCost;
+          due = new Date(due);
+          due.setDate(due.getDate() + intervalDays);
+          guard++;
+        }
+      }
+
+      return predictions.map(p => ({ month: p.month, predictedCost: Math.round(p.predictedCost * 100) / 100 }));
     } catch (error) {
       console.error('Error getting cost prediction:', error);
       return [];
@@ -401,7 +399,9 @@ export const ServiceDue = {
   // Check if any services are overdue
   hasOverdueServices: async (vehicleId) => {
     try {
-      const upcoming = await ServiceDue.getUpcomingServices(vehicleId, 0);
+      // Wide window so overdue items are always in the set regardless of date
+      // rounding/timezone; then filter on isOverdue directly.
+      const upcoming = await ServiceDue.getUpcomingServices(vehicleId, 3650);
       return upcoming.some(service => service.isOverdue);
     } catch (error) {
       console.error('Error checking overdue services:', error);

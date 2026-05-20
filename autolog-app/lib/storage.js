@@ -12,10 +12,11 @@ const STORAGE_KEYS = {
   REMINDERS: '@autolog_reminders',
 };
 
-// On-device data schema version. Bump this and add a matching entry in
-// DataUtils.runMigrations when a stored shape changes, so existing installs
-// migrate forward instead of silently breaking.
-export const SCHEMA_VERSION = 1;
+// On-device data schema version. Stays 0 until the first real migration exists.
+// When a stored shape changes: bump this to N AND add migrations[N] in
+// DataUtils.runMigrations. (Keeping it >0 with no matching migration would stamp
+// a version on fresh installs without running anything — a silent trap.)
+export const SCHEMA_VERSION = 0;
 const SCHEMA_VERSION_KEY = '@autolog_schema_version';
 
 // Utility functions
@@ -1037,7 +1038,7 @@ export const DataUtils = {
   // Export all data (vehicles, services, fuel, issues, snapshots, reminders, settings, images)
   exportData: async () => {
     try {
-      const [vehicles, services, settings, images, fuelLogs, issues, snapshots, reminders] = await Promise.all([
+      const [vehicles, services, settings, images, fuelLogs, issues, snapshots, reminders, documents] = await Promise.all([
         VehicleStorage.getAll(),
         ServiceStorage.getAll(),
         SettingsStorage.get(),
@@ -1046,6 +1047,7 @@ export const DataUtils = {
         IssueStorage.getAll(),
         SnapshotStorage.getAll(),
         ReminderStorage.getAll(),
+        DocumentStorage.getAll(),
       ]);
 
       return {
@@ -1057,6 +1059,7 @@ export const DataUtils = {
         issues,
         snapshots,
         reminders,
+        documents,
         exportedAt: getCurrentDate(),
         version: '1.1.0',
       };
@@ -1089,6 +1092,7 @@ export const DataUtils = {
         setIfPresent(STORAGE_KEYS.ISSUES, data.issues),
         setIfPresent(STORAGE_KEYS.SNAPSHOTS, data.snapshots),
         setIfPresent(STORAGE_KEYS.REMINDERS, data.reminders),
+        setIfPresent(STORAGE_KEYS.DOCUMENTS, data.documents),
       ]);
       if (data.settings) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(data.settings));

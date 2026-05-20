@@ -1,6 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import { escapeHtml } from './htmlUtils';
 
 export const shareSnapshot = async (snapshot, vehicle) => {
   if (!snapshot || !vehicle) return;
@@ -81,9 +82,9 @@ export const shareSnapshot = async (snapshot, vehicle) => {
   <div class="card">
     <div class="header">
       <div class="emoji">📸</div>
-      <div class="title">${snapshot.title}</div>
-      <div class="vehicle">${vehicleName}</div>
-      <div class="condition">${snapshot.condition}</div>
+      <div class="title">${escapeHtml(snapshot.title)}</div>
+      <div class="vehicle">${escapeHtml(vehicleName)}</div>
+      <div class="condition">${escapeHtml(snapshot.condition)}</div>
     </div>
     
     <div class="details">
@@ -114,7 +115,7 @@ export const shareSnapshot = async (snapshot, vehicle) => {
     
     ${snapshot.notes ? `
     <div class="notes">
-      ${snapshot.notes}
+      ${escapeHtml(snapshot.notes)}
     </div>` : ''}
     
     <div class="footer">
@@ -153,7 +154,8 @@ export const shareSnapshot = async (snapshot, vehicle) => {
       }
     } else {
       // Native: save HTML file and share
-      const fileName = `CarStory_Snapshot_${vehicleName.replace(/\s+/g, '_')}_${date.replace(/\s+/g, '_')}.html`;
+      const safe = (s) => String(s).replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+      const fileName = `CarStory_Snapshot_${safe(vehicleName)}_${safe(date)}.html`;
       const filePath = `${FileSystem.cacheDirectory}${fileName}`;
       
       await FileSystem.writeAsStringAsync(filePath, html, {

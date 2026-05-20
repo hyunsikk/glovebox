@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { View, Text, TouchableOpacity, AppState } from 'react-native';
@@ -70,7 +70,11 @@ function RootLayoutInner() {
   }, []);
 
   // Route notification taps (recall + service) to the affected vehicle.
+  // Gate on the navigator being mounted — calling router.navigate on cold start
+  // before the root navigation state is ready throws / silently drops.
+  const navState = useRootNavigationState();
   useEffect(() => {
+    if (!navState?.key) return;
     const openVehicle = (vehicleId) =>
       router.navigate({ pathname: '/(tabs)/garage', params: { openVehicleId: vehicleId } });
 
@@ -78,7 +82,7 @@ function RootLayoutInner() {
     getInitialNotificationVehicleId().then((id) => { if (id) openVehicle(id); });
 
     return () => sub.remove();
-  }, [router]);
+  }, [router, navState?.key]);
 
   // Auto-backup when the app goes to the background (debounced; respects the
   // user's toggle). Cheap insurance against data loss between manual backups.

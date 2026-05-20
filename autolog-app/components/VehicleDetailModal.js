@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -858,6 +858,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
 };
 
 const MaintenanceReminders = ({ vehicleId }) => {
+  const { distanceLabel } = useSettings();
   const [reminders, setReminders] = useState([]);
   const [newReminderForm, setNewReminderForm] = useState({
     serviceType: '',
@@ -1124,11 +1125,19 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
   // Gate the per-vehicle PDF report behind Pro (keeps it consistent with Settings).
   // Don't gate while entitlement is still loading (avoids paywalling a Pro user).
   const requestReport = (id) => {
-    if (!isPro && !purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); return; }
-    generateReport(id);
+    if (!isPro) {
+      // While entitlement is loading, wait — don't generate (closes the free leak).
+      if (!purchasesLoading) { setPaywallContext('export'); setShowPaywall(true); }
+      return;
+    }
+    requestReportSafely(id);
+  };
+  const requestReportSafely = async (id) => {
+    try { await generateReport(id); }
+    catch (e) { Alert.alert('Report failed', e?.message || 'Could not generate the report.'); }
   };
   const requestRecalls = () => {
-    if (purchasesLoading) return; // don't paywall a Pro user mid entitlement-load
+    if (purchasesLoading || isPro) return; // never paywall a Pro user
     setPaywallContext('recalls');
     setShowPaywall(true);
   };
@@ -1181,8 +1190,12 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     notes: '',
   });
 
+  // Tracks the vehicle whose load is current, so an in-flight load for a
+  // previously-opened vehicle doesn't overwrite state after a quick switch.
+  const activeVehicleIdRef = useRef(null);
   useEffect(() => {
     if (visible && vehicle) {
+      activeVehicleIdRef.current = vehicle.id;
       loadVehicleData();
     }
   }, [visible, vehicle]);
@@ -1229,6 +1242,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       
       // Load fresh vehicle data
       const freshVehicle = await VehicleStorage.getById(vehicle.id);
+      // Bail if a different vehicle was opened while this load was in flight.
+      if (activeVehicleIdRef.current !== vehicle.id) return;
       setVehicleData(freshVehicle);
       
       // Load services
@@ -1330,7 +1345,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       // Set edit form data
       setEditForm({
         nickname: freshVehicle.nickname || '',
-        currentMileage: freshVehicle.currentMileage.toString(),
+        currentMileage: (freshVehicle.currentMileage ?? 0).toString(),
         vin: freshVehicle.vin || '',
         location: freshVehicle.location || '',
       });
@@ -1389,7 +1404,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     setEditMode(false);
     setEditForm({
       nickname: vehicleData?.nickname || '',
-      currentMileage: vehicleData?.currentMileage.toString() || '',
+      currentMileage: vehicleData?.currentMileage?.toString() ?? '',
     });
   };
 
@@ -1795,24 +1810,38 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                 </View>
 
                 {editMode && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginBottom: Spacing.lg }}>
+                  <>
+                    <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
+                      <TouchableOpacity
+                        style={[Shared.buttonSecondary, { flex: 1, marginBottom: 0 }]}
+                        onPress={handleCancelEdit}
+                      >
+                        <Text style={[Typography.body, { color: Colors.steelBlue }]}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[Shared.buttonPrimary, { flex: 1, marginBottom: 0 }]}
+                        onPress={handleSaveEdit}
+                      >
+                        <Text style={[Typography.body, { color: '#FFFFFF', fontFamily: 'Nunito_700Bold' }]}>
+                          Save
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* Delete the whole vehicle — surfaced here in edit mode (the
+                        natural place) rather than buried under Reports & Export. */}
                     <TouchableOpacity
-                      style={[Shared.buttonSecondary, { flex: 0, paddingHorizontal: Spacing.lg }]}
-                      onPress={handleCancelEdit}
+                      style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: Spacing.md, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.danger + '50', borderRadius: 14 }}
+                      onPress={handleDeleteVehicle}
+                      activeOpacity={0.8}
                     >
-                      <Text style={[Typography.body, { color: Colors.steelBlue }]}>
-                        Cancel
+                      <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                      <Text style={[Typography.body, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
+                        Delete this vehicle
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[Shared.buttonPrimary, { flex: 0, paddingHorizontal: Spacing.xl }]}
-                      onPress={handleSaveEdit}
-                    >
-                      <Text style={[Typography.body, { color: Colors.textPrimary }]}>
-                        Save
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  </>
                 )}
 
                 {/* Vehicle Profile Fields (Merged into Vehicle Info) */}
@@ -2533,23 +2562,6 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     <Ionicons name="document-text-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
                     <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
                       Generate Report
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  {/* Delete Vehicle */}
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingVertical: Spacing.lg,
-                    }}
-                    onPress={handleDeleteVehicle}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
-                    <Text style={[Typography.body, { color: Colors.deepRed }]}>
-                      Delete Vehicle
                     </Text>
                   </TouchableOpacity>
                 </CollapsibleSection>

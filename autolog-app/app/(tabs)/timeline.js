@@ -483,7 +483,9 @@ const EmptyState = ({ onLogService }) => (
   </View>
 );
 
-const MonthSection = ({ month, services, vehicles, onEditService }) => {
+// NOTE: currently unused (the SectionList renders entries directly). Kept
+// defensive — servicePhotosMap defaulted so it can't crash if wired in later.
+const MonthSection = ({ month, services, vehicles, onEditService, servicePhotosMap = {} }) => {
   const { formatCostShort } = useSettings();
   const totalCost = services.reduce((sum, s) => sum + (s.cost || 0), 0);
   
@@ -754,11 +756,13 @@ export default function TimelineScreen() {
       setIssues(allIssues);
       setSnapshots(allSnapshots);
 
-      // Load photos for all services
+      // Load photos once and group by serviceId (avoids re-reading the whole
+      // image blob once per service on every tab focus).
       const photosMap = {};
-      for (const service of allServices) {
-        const photos = await ImageStorage.getByServiceId(service.id);
-        if (photos.length > 0) photosMap[service.id] = photos;
+      const allImages = await ImageStorage.getAll();
+      for (const img of allImages) {
+        if (!img.serviceId) continue;
+        (photosMap[img.serviceId] = photosMap[img.serviceId] || []).push(img);
       }
       setServicePhotosMap(photosMap);
     } catch (error) {
@@ -908,7 +912,7 @@ export default function TimelineScreen() {
   const sections = useMemo(
     () => Object.entries(groupedEntries).map(([month, entries]) => ({
       title: month,
-      cost: entries.reduce((sum, e) => sum + (e.cost || e.totalCost || 0), 0),
+      cost: entries.reduce((sum, e) => sum + (e.cost || 0), 0),
       data: entries,
     })),
     [groupedEntries]

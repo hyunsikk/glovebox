@@ -157,6 +157,7 @@ export const DonutChart = ({ segments, size = 180, strokeWidth = 22, centerLabel
  */
 export const HorizontalBarChart = ({ data, formatValue, maxBarWidth }) => {
   const reveal = useReveal([JSON.stringify(data?.map(d => d.value))]);
+  const uid = useRef('bar' + Math.random().toString(36).slice(2, 8)).current;
   const maxVal = Math.max(...data.map(d => d.value), 1);
   const barTrack = maxBarWidth || Dimensions.get('window').width - 140;
 
@@ -178,12 +179,12 @@ export const HorizontalBarChart = ({ data, formatValue, maxBarWidth }) => {
               <Animated.View style={{ width: w, height: 18 }}>
                 <Svg width="100%" height={18}>
                   <Defs>
-                    <LinearGradient id={`bar${i}`} x1="0" y1="0" x2="1" y2="0">
+                    <LinearGradient id={`${uid}_${i}`} x1="0" y1="0" x2="1" y2="0">
                       <Stop offset="0" stopColor={color} stopOpacity={0.7} />
                       <Stop offset="1" stopColor={color} stopOpacity={1} />
                     </LinearGradient>
                   </Defs>
-                  <Rect x="0" y="0" width="100%" height="18" rx="9" fill={`url(#bar${i})`} />
+                  <Rect x="0" y="0" width="100%" height="18" rx="9" fill={`url(#${uid}_${i})`} />
                 </Svg>
               </Animated.View>
             </View>
@@ -200,6 +201,7 @@ export const HorizontalBarChart = ({ data, formatValue, maxBarWidth }) => {
  * Smooth sparkline with optional gradient area fill.
  */
 export const Sparkline = ({ data, width = 120, height = 40, color = Colors.primary, showDots = false, fill = true }) => {
+  const gid = useRef('spark' + Math.random().toString(36).slice(2, 8)).current;
   if (!data || data.length < 2) return null;
   const pad = 4;
   const min = Math.min(...data);
@@ -212,7 +214,6 @@ export const Sparkline = ({ data, width = 120, height = 40, color = Colors.prima
   }));
   const line = smoothPath(pts);
   const area = `${line} L ${pts[pts.length - 1].x} ${height} L ${pts[0].x} ${height} Z`;
-  const gid = `spark${Math.round(color.charCodeAt?.(1) || 0)}_${data.length}`;
 
   return (
     <Svg width={width} height={height}>
@@ -242,6 +243,9 @@ export const Sparkline = ({ data, width = 120, height = 40, color = Colors.prima
 export const LineChart = ({ data, height = 170, color = Colors.primary, formatValue, showArea = true }) => {
   const [width, setWidth] = useState(Dimensions.get('window').width - 80);
   const reveal = useReveal([JSON.stringify(data?.map(d => d.value)), width]);
+  // Per-instance gradient id — multiple LineCharts share an SVG surface, so a
+  // hardcoded id makes them all pick up the last-rendered gradient.
+  const gradId = useRef('lineArea_' + Math.random().toString(36).slice(2, 8)).current;
 
   if (!data || data.length < 2) {
     return (
@@ -278,7 +282,7 @@ export const LineChart = ({ data, height = 170, color = Colors.primary, formatVa
     >
       <Svg width={width} height={height}>
         <Defs>
-          <LinearGradient id="lineArea" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={color} stopOpacity={0.25} />
             <Stop offset="1" stopColor={color} stopOpacity={0} />
           </LinearGradient>
@@ -286,7 +290,7 @@ export const LineChart = ({ data, height = 170, color = Colors.primary, formatVa
         {gridYs.map((gy, i) => (
           <Line key={i} x1={padX} y1={gy} x2={width - padX} y2={gy} stroke={Colors.glassBorder} strokeWidth={1} />
         ))}
-        {showArea && <AnimatedPath d={area} fill="url(#lineArea)" opacity={isWeb ? 1 : reveal} />}
+        {showArea && <AnimatedPath d={area} fill={`url(#${gradId})`} opacity={isWeb ? 1 : reveal} />}
         <AnimatedPath
           d={line}
           stroke={color}

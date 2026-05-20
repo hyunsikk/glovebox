@@ -17,8 +17,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../theme';
-import { VehicleStorage, ServiceStorage, ImageStorage } from '../lib/storage';
-import { pickImageAsync, saveServiceImage, getThumbnailUri } from '../lib/imageUtils';
+import { VehicleStorage, ServiceStorage, ImageStorage, ReminderStorage } from '../lib/storage';
+import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import DatePickerField from './DatePickerField';
 
 import { getVehicleSchedule } from '../lib/vehicleDB';
@@ -420,9 +420,16 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       // Save photos if any were selected
       for (const photo of selectedPhotos) {
         try {
-          const imageData = await saveServiceImage(photo, savedService.id);
+          // persistImage copies to documentDirectory on native (durable, no
+          // base64 blob in AsyncStorage); on web it falls back to a data URL.
+          const storedUri = await persistImage(photo.uri);
           await ImageStorage.add({
-            ...imageData,
+            id: `service_${savedService.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            uri: storedUri,
+            width: photo.width,
+            height: photo.height,
+            type: photo.type,
+            createdAt: new Date().toISOString(),
             serviceId: savedService.id,
             vehicleId: selectedVehicle.id,
           });
@@ -999,23 +1006,18 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                       if (!rec.service.trim()) return;
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       try {
-                        const key = `reminders_${selectedVehicle.id}`;
-                        const raw = await AsyncStorage.getItem(key);
-                        const existing = raw ? JSON.parse(raw) : [];
                         const days = URGENCY_DATES[rec.urgency] || 90;
-                        const reminderDate = new Date();
-                        reminderDate.setDate(reminderDate.getDate() + days);
-                        const reminder = {
-                          id: generateId(),
-                          service: rec.service.trim(),
+                        const months = Math.max(1, Math.round(days / 30));
+                        // Use the canonical ReminderStorage with the fields it
+                        // queries on (serviceType + intervalMonths) so the reminder
+                        // both displays correctly and actually becomes due.
+                        await ReminderStorage.add({
+                          vehicleId: selectedVehicle.id,
+                          serviceType: rec.service.trim(),
+                          intervalMonths: months,
                           urgency: rec.urgency || 'Next Visit',
-                          reminderDate: reminderDate.toISOString(),
-                          serviceLogId: null, // will be set after save
-                          createdAt: new Date().toISOString(),
-                        };
-                        existing.push(reminder);
-                        await AsyncStorage.setItem(key, JSON.stringify(existing));
-                        Alert.alert('Reminder Set', `Reminder for "${rec.service}" in ${days} days.`);
+                        });
+                        Alert.alert('Reminder Set', `Reminder for "${rec.service}" in ~${months} month${months !== 1 ? 's' : ''}.`);
                       } catch (e) {
                         console.error('Error saving reminder:', e);
                       }

@@ -82,12 +82,14 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   // Auto-calculate total cost from unit price × quantity
   useEffect(() => {
     if (costMode === 'per_unit') {
+      // Guard against NaN: bad input would otherwise store the string "NaN"
+      // as totalCost and silently corrupt cost analytics.
       if (type === 'fuel' && gallons && pricePerGallon) {
-        const calc = (parseFloat(gallons) * parseFloat(pricePerGallon)).toFixed(2);
-        setTotalCost(calc);
+        const g = parseFloat(gallons), p = parseFloat(pricePerGallon);
+        if (!isNaN(g) && !isNaN(p)) setTotalCost((g * p).toFixed(2));
       } else if (type === 'ev_charge' && kWh && costPerKWh) {
-        const calc = (parseFloat(kWh) * parseFloat(costPerKWh)).toFixed(2);
-        setTotalCost(calc);
+        const k = parseFloat(kWh), c = parseFloat(costPerKWh);
+        if (!isNaN(k) && !isNaN(c)) setTotalCost((k * c).toFixed(2));
       }
     }
   }, [gallons, pricePerGallon, kWh, costPerKWh, costMode, type]);
@@ -129,6 +131,14 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     if (odometer) {
       const odo = parseInt(odometer);
       if (isNaN(odo) || odo < 0) errors.push('Invalid odometer reading');
+    }
+
+    // Quantity must be a valid number if entered (prevents NaN reaching storage)
+    if (type === 'fuel' && gallons && (isNaN(parseFloat(gallons)) || parseFloat(gallons) < 0)) {
+      errors.push('Enter a valid amount of fuel');
+    }
+    if (type === 'ev_charge' && kWh && (isNaN(parseFloat(kWh)) || parseFloat(kWh) < 0)) {
+      errors.push('Enter a valid kWh amount');
     }
 
     // Cost is optional
