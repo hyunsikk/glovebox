@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, Dimensions } from 'react-native';
+import { View, Text, Animated, Dimensions, Platform } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Rect, G } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '../theme';
 
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+// On web, react-native-web's animated wrapper leaks `collapsable` onto the SVG
+// DOM node (a noisy dev warning). Use static primitives there (rendered at the
+// resting value, no entrance animation); native keeps the animated version.
+const isWeb = Platform.OS === 'web';
+const AnimatedCircle = isWeb ? Circle : Animated.createAnimatedComponent(Circle);
+const AnimatedPath = isWeb ? Path : Animated.createAnimatedComponent(Path);
 
 // ---- geometry helpers -------------------------------------------------------
 
@@ -282,7 +286,7 @@ export const LineChart = ({ data, height = 170, color = Colors.primary, formatVa
         {gridYs.map((gy, i) => (
           <Line key={i} x1={padX} y1={gy} x2={width - padX} y2={gy} stroke={Colors.glassBorder} strokeWidth={1} />
         ))}
-        {showArea && <AnimatedPath d={area} fill="url(#lineArea)" opacity={reveal} />}
+        {showArea && <AnimatedPath d={area} fill="url(#lineArea)" opacity={isWeb ? 1 : reveal} />}
         <AnimatedPath
           d={line}
           stroke={color}
@@ -291,10 +295,10 @@ export const LineChart = ({ data, height = 170, color = Colors.primary, formatVa
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={len}
-          strokeDashoffset={dashOffset}
+          strokeDashoffset={isWeb ? 0 : dashOffset}
         />
         {pts.map((p, i) => (
-          <AnimatedCircle key={i} cx={p.x} cy={p.y} r={3} fill={Colors.background} stroke={color} strokeWidth={2} opacity={reveal} />
+          <AnimatedCircle key={i} cx={p.x} cy={p.y} r={3} fill={Colors.background} stroke={color} strokeWidth={2} opacity={isWeb ? 1 : reveal} />
         ))}
       </Svg>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: -padBottom + 4, paddingHorizontal: padX }}>
@@ -367,7 +371,7 @@ export const ProgressRing = ({ progress, size = 80, strokeWidth = 8, color = Col
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circ}
-          strokeDashoffset={offset}
+          strokeDashoffset={isWeb ? circ * (1 - pct) : offset}
           transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>

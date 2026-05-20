@@ -4,12 +4,16 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Text, Animated, Platform } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Colors } from '../theme';
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// On web, react-native-web's animated wrapper leaks `collapsable` onto the SVG
+// DOM node (a noisy dev warning). Use the static primitive there (rendered at
+// its resting value, no entrance animation); native keeps the animated version.
+const isWeb = Platform.OS === 'web';
+const AnimatedPath = isWeb ? Path : Animated.createAnimatedComponent(Path);
+const AnimatedCircle = isWeb ? Circle : Animated.createAnimatedComponent(Circle);
 
 const getScoreColor = (score) => {
   if (score >= 90) return Colors.success;
@@ -73,7 +77,7 @@ const Gauge = ({ score, size, strokeWidth, gid }) => {
         strokeLinecap="round"
         fill="none"
         strokeDasharray={arcLen}
-        strokeDashoffset={dashOffset}
+        strokeDashoffset={isWeb ? arcLen * (1 - frac) : dashOffset}
       />
     </Svg>
   );
@@ -137,7 +141,7 @@ export function HealthScoreDialSmall({ score = 0 }) {
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circ}
-          strokeDashoffset={dashOffset}
+          strokeDashoffset={isWeb ? circ * (1 - frac) : dashOffset}
           transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>
