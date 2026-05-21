@@ -12,7 +12,7 @@
       "backgroundColor": "#0D1B2A"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "dev.teamam.glovebox",
       "buildNumber": "5",
       "infoPlist": {
