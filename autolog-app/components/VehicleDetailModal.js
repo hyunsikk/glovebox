@@ -167,7 +167,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
         </View>
 
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[Typography.body, { color: Colors.forestGreen }]}>
+          <Text style={[Typography.h2, { color: Colors.primary }]}>
             {service.cost != null ? formatCost(service.cost) : '---'}
           </Text>
           {service.vendor && (
