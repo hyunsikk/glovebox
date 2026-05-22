@@ -202,7 +202,7 @@ export async function restoreFromBackup() {
       if (rollback) { try { await DataUtils.importData(rollback); } catch {} }
       throw e;
     }
-    return { success: true, vehicleCount: (data.vehicles || []).length };
+    return { success: true, vehicleCount: (data.vehicles || []).length, savedAt: data.exportedAt || null };
   } catch (e) {
     console.error('Restore failed:', e?.message);
     return { success: false, error: e?.message || 'Restore failed' };

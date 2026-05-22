@@ -14,6 +14,7 @@ import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
 import { useDataVersion } from '../../lib/DataVersion';
 import { addSampleData, clearSampleData } from '../../lib/sampleData';
+import { hasBackup } from '../../lib/backup';
 import { scheduleServiceNotifications } from '../../lib/notifications';
 import { recordPositiveEvent } from '../../lib/reviewPrompt';
 import AddVehicleModal from '../../components/AddVehicleModal';
@@ -668,7 +669,10 @@ export default function GarageScreen() {
         const demoLoaded = await AsyncStorage.getItem(DEMO_LOADED_KEY);
         if (!demoLoaded) {
           const existingVehicles = await VehicleStorage.getAll();
-          if (existingVehicles.length === 0) {
+          // Don't seed demo data when a restorable backup exists — on a fresh
+          // reinstall the user is about to restore real data, and seeding "Daily
+          // Driver" here would race with / clobber the restored vehicles.
+          if (existingVehicles.length === 0 && !(await hasBackup())) {
             await addSampleData();
             await AsyncStorage.setItem(DEMO_LOADED_KEY, 'true');
             setIsDemoMode(true);

@@ -117,7 +117,7 @@ export default function SettingsScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Restore', style: 'destructive', onPress: async () => {
         const r = await restoreFromBackup();
-        if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s).`); loadStats(); }
+        if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s)${r.savedAt ? `\nfrom your backup saved ${new Date(r.savedAt).toLocaleString()}` : ''}.`); loadStats(); }
         else if (r.reason === 'none') Alert.alert('No backup found', 'There is no backup to restore from yet.');
         else Alert.alert('Restore failed', 'Could not restore. Your current data is unchanged.');
       } },
