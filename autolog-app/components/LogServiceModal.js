@@ -164,10 +164,13 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     serviceType: '',
     date: todayLocal(),
     mileage: '',
-    cost: '',
+    cost: '0.00',
     vendor: '',
     notes: '',
   });
+
+  // Field-level validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // DIY / Shop Review state
   const [isDIY, setIsDIY] = useState(false);
@@ -276,10 +279,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       serviceType: '',
       date: todayLocal(),
       mileage: '',
-      cost: '',
+      cost: '0.00',
       vendor: '',
       notes: '',
     });
+    setFieldErrors({});
     setIsDIY(false);
     setShopReview({ rating: 0, review: '', wouldReturn: null });
     setDiyLog({ difficulty: '', timeSpent: '', notes: '' });
@@ -378,10 +382,30 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
   const handleSaveService = async () => {
     const errors = validateForm();
+
+    // Build field-level errors for inline highlighting
+    const newFieldErrors = {};
+    if (!formData.date) newFieldErrors.date = 'Date is required';
+    const serviceDate = new Date(formData.date + 'T12:00:00');
+    const todayCheck = new Date();
+    todayCheck.setHours(23, 59, 59, 999);
+    if (formData.date && serviceDate > todayCheck) newFieldErrors.date = 'Date cannot be in the future';
+    if (formData.mileage) {
+      const m = parseInt(formData.mileage);
+      if (isNaN(m) || m < 0) newFieldErrors.mileage = 'Invalid mileage';
+    }
+    if (formData.cost) {
+      const c = parseFloat(formData.cost);
+      if (isNaN(c) || c < 0) newFieldErrors.cost = 'Invalid cost';
+    }
+    setFieldErrors(newFieldErrors);
+
     if (errors.length > 0) {
       Alert.alert('Please fix the following:', errors.join('\n'));
       return;
     }
+
+    setFieldErrors({});
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -615,11 +639,13 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           color: Colors.textSecondary,
           marginBottom: Spacing.sm
         }]}>
-          Service Date *
+          {'Service Date '}
+          <Text style={{ color: Colors.danger }}>*</Text>
         </Text>
         <DatePickerField
           value={formData.date}
           onChange={(date) => updateFormData('date', date)}
+          error={fieldErrors.date}
         />
       </View>
 
@@ -669,11 +695,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       {/* Mileage Input */}
       <View style={{ marginBottom: Spacing.lg }}>
-        <Text style={[Typography.caption, { 
-          color: Colors.textSecondary, 
-          marginBottom: Spacing.sm 
+        <Text style={[Typography.caption, {
+          color: Colors.textSecondary,
+          marginBottom: Spacing.sm
         }]}>
-          Mileage
+          Mileage (optional)
         </Text>
         <TextInput
           style={Shared.input}
@@ -721,11 +747,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       {/* Cost Input */}
       <View style={{ marginBottom: Spacing.lg }}>
-        <Text style={[Typography.caption, { 
-          color: Colors.textSecondary, 
-          marginBottom: Spacing.sm 
+        <Text style={[Typography.caption, {
+          color: Colors.textSecondary,
+          marginBottom: Spacing.sm
         }]}>
-          Cost (Optional)
+          Cost (optional)
         </Text>
         <View style={{ position: 'relative' }}>
           <TextInput
@@ -839,11 +865,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         ) : (
           <>
             {/* Vendor Input */}
-            <Text style={[Typography.caption, { 
-              color: Colors.textSecondary, 
-              marginBottom: Spacing.sm 
+            <Text style={[Typography.caption, {
+              color: Colors.textSecondary,
+              marginBottom: Spacing.sm
             }]}>
-              Shop/Vendor (Optional)
+              Shop/Vendor (optional)
             </Text>
             <TextInput
               style={Shared.input}
@@ -921,11 +947,11 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       {/* Notes Input */}
       <View style={{ marginBottom: Spacing.lg }}>
-        <Text style={[Typography.caption, { 
-          color: Colors.textSecondary, 
-          marginBottom: Spacing.sm 
+        <Text style={[Typography.caption, {
+          color: Colors.textSecondary,
+          marginBottom: Spacing.sm
         }]}>
-          Notes (Optional)
+          Notes (optional)
         </Text>
         <TextInput
           style={[Shared.input, { 
@@ -1105,7 +1131,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       <View style={{ marginBottom: Spacing.section }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-            Photos (Optional)
+            Photos (optional)
           </Text>
           <Text style={[Typography.caption, { color: Colors.arcticSilver }]}>
             {selectedPhotos.length}/5 photos

@@ -42,6 +42,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
   const [notes, setNotes] = useState('');
   const [costMode, setCostMode] = useState('total');
   const [updateOdometer, setUpdateOdometer] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [octane, setOctane] = useState(null);
   const [chargerType, setChargerType] = useState(null);
 
@@ -86,6 +87,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
         setChargerType(null);
         setSelectedPhotos([]);
       }
+      setFieldErrors({});
     }
   }, [visible, editLog, vehicle]);
 
@@ -188,11 +190,26 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
       Alert.alert('Error', 'No vehicle selected.');
       return;
     }
+
+    // Build field-level errors for inline highlighting
+    const newFieldErrors = {};
+    if (!date) {
+      newFieldErrors.date = 'Date is required';
+    } else {
+      const entryDate = new Date(date + 'T12:00:00');
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (entryDate > endOfToday) newFieldErrors.date = 'Date cannot be in the future';
+    }
+    setFieldErrors(newFieldErrors);
+
     const errors = validate();
     if (errors.length > 0) {
       Alert.alert('Missing Info', errors.join('\n'));
       return;
     }
+
+    setFieldErrors({});
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -267,7 +284,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     ]);
   };
 
-  const SectionLabel = ({ children }) => (
+  const SectionLabel = ({ children, required }) => (
     <Text style={[Typography.caption, {
       color: Colors.textSecondary,
       marginBottom: Spacing.sm,
@@ -275,6 +292,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
       letterSpacing: 1,
     }]}>
       {children}
+      {required && <Text style={{ color: Colors.danger }}> *</Text>}
     </Text>
   );
 
@@ -355,14 +373,15 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             {/* Date & Odometer Row */}
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
               <View style={{ flex: 1 }}>
-                <SectionLabel>Date</SectionLabel>
+                <SectionLabel required>Date</SectionLabel>
                 <DatePickerField
                   value={date}
                   onChange={setDate}
+                  error={fieldErrors.date}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <SectionLabel>Odometer</SectionLabel>
+                <SectionLabel>Odometer (optional)</SectionLabel>
                 <TextInput
                   style={Shared.input}
                   placeholder={vehicle?.currentMileage?.toString() || '25000'}
@@ -381,7 +400,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
 
             {/* Total Cost (always shown — the simple path) */}
             <View style={{ marginBottom: Spacing.lg }}>
-              <SectionLabel>Total Cost</SectionLabel>
+              <SectionLabel>Total Cost (optional)</SectionLabel>
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[Shared.input, { paddingLeft: 32 }]}
@@ -433,7 +452,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                 {type === 'fuel' ? (
                   <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
                     <View style={{ flex: 1 }}>
-                      <SectionLabel>Gallons</SectionLabel>
+                      <SectionLabel>Gallons (optional)</SectionLabel>
                       <TextInput
                         style={Shared.input}
                         placeholder="0.0"
@@ -444,7 +463,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <SectionLabel>Price/Gal</SectionLabel>
+                      <SectionLabel>Price/Gal (optional)</SectionLabel>
                       <TextInput
                         style={Shared.input}
                         placeholder="0.00"
@@ -458,7 +477,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                 ) : (
                   <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
                     <View style={{ flex: 1 }}>
-                      <SectionLabel>kWh</SectionLabel>
+                      <SectionLabel>kWh (optional)</SectionLabel>
                       <TextInput
                         style={Shared.input}
                         placeholder="0.0"
@@ -469,7 +488,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <SectionLabel>Cost/kWh</SectionLabel>
+                      <SectionLabel>Cost/kWh (optional)</SectionLabel>
                       <TextInput
                         style={Shared.input}
                         placeholder="0.00"
@@ -674,7 +693,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   textTransform: 'uppercase',
                   letterSpacing: 1,
                 }]}>
-                  Photos (Optional)
+                  Photos (optional)
                 </Text>
                 <Text style={[Typography.caption, { color: Colors.arcticSilver }]}>
                   {selectedPhotos.length}/5 photos

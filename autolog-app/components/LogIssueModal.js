@@ -35,7 +35,7 @@ const STATUS_OPTIONS = [
 const SeverityPicker = ({ value, onSelect }) => (
   <View>
     <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-      Severity
+      Severity (optional)
     </Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
       {SEVERITY_OPTIONS.map((option) => {
@@ -84,7 +84,7 @@ const SeverityPicker = ({ value, onSelect }) => (
 const StatusPicker = ({ value, onSelect, disabled = false }) => (
   <View style={{ opacity: disabled ? 0.6 : 1 }}>
     <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-      Status
+      Status (optional)
     </Text>
     <View style={{ gap: Spacing.sm }}>
       {STATUS_OPTIONS.map((option) => {
@@ -426,7 +426,8 @@ export default function LogIssueModal({
             {/* Title */}
             <View style={{ marginBottom: Spacing.lg }}>
               <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                Issue Title *
+                {'Issue Title '}
+                <Text style={{ color: Colors.danger }}>*</Text>
               </Text>
               <TextInput
                 style={[Shared.input, errors.title && { borderColor: Colors.danger }]}
@@ -446,7 +447,8 @@ export default function LogIssueModal({
             {/* Description */}
             <View style={{ marginBottom: Spacing.lg }}>
               <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                Description *
+                {'Description '}
+                <Text style={{ color: Colors.danger }}>*</Text>
               </Text>
               <TextInput
                 style={[Shared.input, { 
@@ -472,7 +474,7 @@ export default function LogIssueModal({
             <View style={{ marginBottom: Spacing.lg }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
                 <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
-                  Photos (Optional)
+                  Photos (optional)
                 </Text>
                 <Text style={[Typography.caption, { color: Colors.arcticSilver }]}>
                   {selectedPhotos.length}/5 photos
@@ -569,16 +571,17 @@ export default function LogIssueModal({
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg }}>
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                  Date
+                  Date (optional)
                 </Text>
                 <DatePickerField
                   value={form.date}
                   onChange={(date) => setForm(prev => ({ ...prev, date }))}
+                  error={errors.date}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                  Odometer
+                  Odometer (optional)
                 </Text>
                 <TextInput
                   style={[Shared.input, errors.odometer && { borderColor: Colors.danger }]}
@@ -599,7 +602,7 @@ export default function LogIssueModal({
             {/* Estimated/Actual Cost */}
             <View style={{ marginBottom: Spacing.lg }}>
               <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                {form.status === 'resolved' ? 'Actual Cost' : 'Estimated Cost'}
+                {form.status === 'resolved' ? 'Actual Cost (optional)' : 'Estimated Cost (optional)'}
               </Text>
               <View style={{ position: 'relative' }}>
                 <TextInput
@@ -686,7 +689,7 @@ export default function LogIssueModal({
             {isEditing && (
               <View style={{ marginBottom: Spacing.lg }}>
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
-                  Add Update Note
+                  Add Update Note (optional)
                 </Text>
                 <TextInput
                   style={[Shared.input, { 
