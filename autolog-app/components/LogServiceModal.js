@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared } from '../theme';
+import { useSettings } from '../lib/SettingsContext';
 import { VehicleStorage, ServiceStorage, ImageStorage, ReminderStorage } from '../lib/storage';
 import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import DatePickerField from './DatePickerField';
@@ -145,6 +146,7 @@ const ServiceTypeItem = ({ serviceType, estimatedCost, onSelect, isSelected }) =
 };
 
 export default function LogServiceModal({ visible, onClose, onServiceLogged, preselectedVehicle = null, preselectedServiceType = null }) {
+  const { formatCost } = useSettings();
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(preselectedVehicle);
   const [serviceTypes, setServiceTypes] = useState([]);
@@ -646,7 +648,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           </View>
           
           <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.md }]}>
-            Last {formData.serviceType}: ${previousService.cost?.toFixed(2) || '---'} at {previousService.vendor || 'Unknown vendor'}
+            Last {formData.serviceType}: {previousService.cost != null ? formatCost(previousService.cost) : '---'} at {previousService.vendor || 'Unknown vendor'}
           </Text>
           
           <TouchableOpacity

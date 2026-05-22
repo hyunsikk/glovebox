@@ -279,27 +279,42 @@ ${issues.length > 0 ? `
       }, 500);
     }
   } else {
-    // iOS/Android: render the HTML to a real PDF, then share it.
+    // iOS/Android: render the HTML to a real PDF, then let the user review it and
+    // share only if they want — rather than jumping straight to the share sheet.
     try {
       const { uri } = await Print.printToFileAsync({ html, base64: false });
 
-      // Give the shared file a meaningful name (printToFileAsync emits a random one).
+      // Give the file a meaningful name (printToFileAsync emits a random one).
       const named = `${FileSystem.cacheDirectory}CarStory_Report_${vehicle.make}_${vehicle.model}_${vehicle.year}.pdf`;
       await FileSystem.moveAsync({ from: uri, to: named }).catch(() => {});
       const filePath = (await FileSystem.getInfoAsync(named).catch(() => ({ exists: false }))).exists ? named : uri;
 
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: 'application/pdf',
-          dialogTitle: `${vehicleName} — Vehicle Report`,
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('Sharing Unavailable', 'Unable to share on this device.');
-      }
+      const previewReport = async () => {
+        try { await Print.printAsync({ uri: filePath }); } catch (e) { /* dismissed */ }
+      };
+      const shareReport = async () => {
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(filePath, {
+            mimeType: 'application/pdf',
+            dialogTitle: `${vehicleName} — Vehicle Report`,
+            UTI: 'com.adobe.pdf',
+          });
+        } else {
+          Alert.alert('Sharing Unavailable', 'Unable to share on this device.');
+        }
+      };
+
+      Alert.alert(
+        'Report ready',
+        'Your PDF report is ready. Preview it, or share it now.',
+        [
+          { text: 'Preview', onPress: previewReport },
+          { text: 'Share', onPress: shareReport },
+          { text: 'Done', style: 'cancel' },
+        ],
+      );
     } catch (error) {
-      console.error('Error sharing report:', error);
+      console.error('Error generating report:', error);
       Alert.alert('Error', 'Failed to generate report. Please try again.');
     }
   }

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
@@ -55,6 +55,9 @@ class ErrorBoundary extends React.Component {
 function RootLayoutInner() {
   const { isDark, colors } = useTheme();
   const router = useRouter();
+  // Bumped after a successful restore to remount the tab tree so every screen
+  // re-reads the freshly imported data instead of its initial (empty) load.
+  const [dataEpoch, setDataEpoch] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -68,7 +71,20 @@ function RootLayoutInner() {
           'We found a Car Story backup for this device. Restore your vehicles and records now?',
           [
             { text: 'Not now', style: 'cancel' },
-            { text: 'Restore', onPress: () => { restoreFromBackup(); } },
+            { text: 'Restore', onPress: async () => {
+              const r = await restoreFromBackup();
+              if (r.success) {
+                setDataEpoch((e) => e + 1); // remount so screens show restored data
+                Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s) from your backup.`);
+              } else {
+                Alert.alert(
+                  'Restore failed',
+                  r.reason === 'none'
+                    ? 'No backup could be read. Make sure you are signed into the same iCloud account.'
+                    : (r.error || 'Could not restore your backup. Please try again.'),
+                );
+              }
+            } },
           ],
         );
       }
@@ -108,7 +124,7 @@ function RootLayoutInner() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.background} />
-      <Stack>
+      <Stack key={dataEpoch}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </>

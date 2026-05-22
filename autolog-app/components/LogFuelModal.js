@@ -15,6 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, Shared } from '../theme';
 import DatePickerField from './DatePickerField';
+import { useSettings } from '../lib/SettingsContext';
 
 const FUEL_TYPES = [
   { key: 'fuel', label: 'Gas / Diesel', icon: 'gas-station' },
@@ -22,6 +23,7 @@ const FUEL_TYPES = [
 ];
 
 export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLog }) {
+  const { currencySymbol } = useSettings();
   const isEditing = !!editLog;
   const [type, setType] = useState('fuel');
   const [date, setDate] = useState('');
@@ -333,7 +335,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               <View style={{ position: 'relative' }}>
                 <TextInput
                   style={[Shared.input, { paddingLeft: 32 }]}
-                  placeholder={type === 'fuel' ? '48.63' : '14.01'}
+                  placeholder="0.00"
                   placeholderTextColor={Colors.arcticSilver}
                   value={totalCost}
                   onChangeText={setTotalCost}
@@ -346,7 +348,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   transform: [{ translateY: -10 }],
                   color: Colors.textSecondary,
                 }]}>
-                  $
+                  {currencySymbol}
                 </Text>
               </View>
             </View>
@@ -444,7 +446,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     alignItems: 'center',
                   }}>
                     <Text style={[Typography.body, { color: Colors.textSecondary }]}>total cost</Text>
-                    <Text style={[Typography.h2, { color: Colors.primary }]}>${parseFloat(totalCost).toFixed(2)}</Text>
+                    <Text style={[Typography.h2, { color: Colors.primary }]}>{currencySymbol}{parseFloat(totalCost).toFixed(2)}</Text>
                   </View>
                 )}
               </>

@@ -84,7 +84,6 @@ export default function SettingsScreen() {
   const { isDark, colors, toggleTheme } = useTheme();
   const { isPro, isStub, priceString, restore, loading: purchasesLoading } = usePurchases();
   const [units, setUnits] = useState('imperial'); // imperial | metric
-  const [currency, setCurrency] = useState('USD');
   const [stats, setStats] = useState({ vehicles: 0, services: 0, fuelLogs: 0 });
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallContext, setPaywallContext] = useState('default');
@@ -159,12 +158,8 @@ export default function SettingsScreen() {
 
   const loadPreferences = async () => {
     try {
-      const [savedUnits, savedCurrency] = await Promise.all([
-        AsyncStorage.getItem(UNITS_KEY),
-        AsyncStorage.getItem(CURRENCY_KEY),
-      ]);
+      const savedUnits = await AsyncStorage.getItem(UNITS_KEY);
       if (savedUnits) setUnits(savedUnits);
-      if (savedCurrency) setCurrency(savedCurrency);
     } catch (e) {}
   };
 
@@ -188,10 +183,6 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem(UNITS_KEY, value);
   };
 
-  const handleSetCurrency = async (value) => {
-    setCurrency(value);
-    await AsyncStorage.setItem(CURRENCY_KEY, value);
-  };
 
   const handleExportData = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -455,10 +446,10 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
 
       {/* Units & Currency */}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
-        units & currency
+        units
       </Text>
       <View style={[Shared.card]}>
-        <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
+        <View style={{ paddingVertical: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
             <View style={{
               width: 36, height: 36, borderRadius: 10,
@@ -482,36 +473,6 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           </View>
         </View>
 
-        <View style={{ paddingVertical: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
-            <View style={{
-              width: 36, height: 36, borderRadius: 10,
-              backgroundColor: colors.primary + '15',
-              alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
-            }}>
-              <Ionicons name="cash-outline" size={18} color={colors.primary} />
-            </View>
-            <Text style={[Typography.body, { color: colors.textPrimary }]}>currency</Text>
-          </View>
-          <View style={{ paddingLeft: 48 }}>
-            <OptionPicker
-              options={[
-                { value: 'USD', label: '$ USD' },
-                { value: 'EUR', label: '€ EUR' },
-                { value: 'GBP', label: '£ GBP' },
-                { value: 'JPY', label: '¥ JPY' },
-                { value: 'CNY', label: '¥ CNY' },
-                { value: 'INR', label: '₹ INR' },
-                { value: 'CAD', label: 'CA$ CAD' },
-                { value: 'AUD', label: 'A$ AUD' },
-                { value: 'KRW', label: '₩ KRW' },
-              ]}
-              selected={currency}
-              onSelect={handleSetCurrency}
-              colors={colors}
-            />
-          </View>
-        </View>
       </View>
 
       {/* Data */}

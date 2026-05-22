@@ -35,16 +35,12 @@ const SettingsContext = createContext({
 
 export function SettingsProvider({ children }) {
   const [units, setUnits] = useState('imperial');
-  const [currency, setCurrency] = useState('USD');
+  const currency = 'USD'; // Car Story is USD-only (no currency conversion).
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem(UNITS_KEY),
-      AsyncStorage.getItem(CURRENCY_KEY),
-    ]).then(([u, c]) => {
+    AsyncStorage.getItem(UNITS_KEY).then((u) => {
       if (u) setUnits(u);
-      if (c) setCurrency(c);
       setReady(true);
     });
   }, []);
@@ -54,12 +50,8 @@ export function SettingsProvider({ children }) {
   // latest value without needing units/currency in the dependency array.
   useEffect(() => {
     const interval = setInterval(async () => {
-      const [u, c] = await Promise.all([
-        AsyncStorage.getItem(UNITS_KEY),
-        AsyncStorage.getItem(CURRENCY_KEY),
-      ]);
+      const u = await AsyncStorage.getItem(UNITS_KEY);
       if (u) setUnits(prev => (u !== prev ? u : prev));
-      if (c) setCurrency(prev => (c !== prev ? c : prev));
     }, 2000); // poll every 2s — lightweight
     return () => clearInterval(interval);
   }, []);
