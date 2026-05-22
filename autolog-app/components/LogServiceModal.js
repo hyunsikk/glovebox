@@ -1294,12 +1294,12 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
               <View />
             )}
 
-            {step !== 'vehicle' && (
+            {((step === 'service' && !preselectedVehicle) || step === 'custom' || step === 'details') && (
               <TouchableOpacity
                 style={Shared.buttonSecondary}
                 onPress={() => {
                   if (step === 'service') {
-                    setStep(preselectedVehicle ? 'service' : 'vehicle');
+                    setStep('vehicle');
                   } else if (step === 'custom') {
                     setStep('service');
                   } else if (step === 'details') {
