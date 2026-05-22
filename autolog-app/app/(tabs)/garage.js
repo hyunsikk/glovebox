@@ -719,7 +719,7 @@ export default function GarageScreen() {
   // since the screen may already be focused and won't otherwise re-read.
   const { version: dataVersion } = useDataVersion();
   useEffect(() => {
-    loadVehicles();
+    loadVehicles({ silent: true });
   }, [dataVersion]);
 
   const checkOnboarding = async () => {
@@ -733,9 +733,13 @@ export default function GarageScreen() {
     }
   };
 
-  const loadVehicles = async () => {
+  // silent=true skips the full-screen loading state. Refreshes triggered while a
+  // modal is open (e.g. after setting a vehicle photo) must be silent — toggling
+  // `loading` unmounts the whole tab (and the open modal) mid-transition, which
+  // corrupts iOS's modal stack ("can't reopen a vehicle until I switch tabs").
+  const loadVehicles = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const vehicleList = await VehicleStorage.getAll();
       
       // Get most recent service date for each vehicle
@@ -760,7 +764,7 @@ export default function GarageScreen() {
     } catch (error) {
       console.error('Error loading vehicles:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -838,8 +842,9 @@ export default function GarageScreen() {
   };
 
   const handleVehicleUpdated = () => {
-    // Refresh vehicles list
-    loadVehicles();
+    // Silent: this fires while the vehicle detail modal is open (e.g. after
+    // setting a photo); a full-screen reload would unmount the modal.
+    loadVehicles({ silent: true });
   };
 
   // Removed handleLogServiceFromFAB - no longer needed
@@ -858,8 +863,8 @@ export default function GarageScreen() {
   };
 
   const handleServiceLogged = () => {
-    // Refresh vehicles list to update any mileage changes
-    loadVehicles();
+    // Silent: fires while a modal is open; avoid the full-screen reload.
+    loadVehicles({ silent: true });
     // Re-schedule notifications since service dates changed (don't let a
     // scheduling hiccup bubble up and break the log-saved flow).
     Promise.resolve(scheduleServiceNotifications()).catch(e =>
