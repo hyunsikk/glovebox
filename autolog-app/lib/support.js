@@ -10,7 +10,7 @@ import * as Application from 'expo-application';
 import { buildMailtoUrl, feedbackSubject, feedbackBody } from './supportFormat';
 
 export const SUPPORT_EMAIL = 'owal@teamam.org';
-export const SUPPORT_URL = 'https://hyunsikk.github.io/carstory-data/support.html';
+export const SUPPORT_URL = 'https://support-teamam.github.io/carstory-data/support.html';
 
 function diagnostics() {
   return {
