@@ -386,7 +386,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       <SectionLabel>Gallons</SectionLabel>
                       <TextInput
                         style={Shared.input}
-                        placeholder="12.5"
+                        placeholder="0.0"
                         placeholderTextColor={Colors.arcticSilver}
                         value={gallons}
                         onChangeText={setGallons}
@@ -397,7 +397,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       <SectionLabel>Price/Gal</SectionLabel>
                       <TextInput
                         style={Shared.input}
-                        placeholder="3.89"
+                        placeholder="0.00"
                         placeholderTextColor={Colors.arcticSilver}
                         value={pricePerGallon}
                         onChangeText={setPricePerGallon}
@@ -411,7 +411,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       <SectionLabel>kWh</SectionLabel>
                       <TextInput
                         style={Shared.input}
-                        placeholder="45.2"
+                        placeholder="0.0"
                         placeholderTextColor={Colors.arcticSilver}
                         value={kWh}
                         onChangeText={setKWh}
@@ -422,7 +422,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       <SectionLabel>Cost/kWh</SectionLabel>
                       <TextInput
                         style={Shared.input}
-                        placeholder="0.31"
+                        placeholder="0.00"
                         placeholderTextColor={Colors.arcticSilver}
                         value={costPerKWh}
                         onChangeText={setCostPerKWh}
