@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
-import { View, Text, TouchableOpacity, AppState } from 'react-native';
+import { View, Text, TouchableOpacity, AppState, Alert } from 'react-native';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { ThemeProvider, useTheme } from '../lib/ThemeContext';
 import { SettingsProvider } from '../lib/SettingsContext';
@@ -15,7 +15,7 @@ import {
 } from '../lib/notifications';
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
 import { DataUtils } from '../lib/storage';
-import { scheduleAutoBackup } from '../lib/backup';
+import { scheduleAutoBackup, shouldOfferRestore, restoreFromBackup } from '../lib/backup';
 
 /**
  * Catches render-time errors anywhere in the tree so a single bad component
@@ -60,6 +60,18 @@ function RootLayoutInner() {
     (async () => {
       // Migrate stored data before anything reads it.
       await DataUtils.runMigrations();
+      // Fresh install / no local data but a backup exists (e.g. after reinstall
+      // or on a new device via iCloud) — offer to restore it.
+      if (await shouldOfferRestore()) {
+        Alert.alert(
+          'Restore your data?',
+          'We found a Car Story backup for this device. Restore your vehicles and records now?',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Restore', onPress: () => { restoreFromBackup(); } },
+          ],
+        );
+      }
       await requestNotificationPermissions();
       await scheduleServiceNotifications();
       // Load any cached remote vehicle data, then check for updates in the

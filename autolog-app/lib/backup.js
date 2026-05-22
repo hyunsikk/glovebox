@@ -22,6 +22,7 @@ import { DataUtils } from './storage';
 
 const BACKUP_FILENAME = 'carstory-backup.json';
 const LAST_BACKUP_KEY = '@autolog_last_backup_at';
+const LAST_LOCATION_KEY = '@autolog_last_backup_location'; // 'icloud' | 'local'
 const AUTO_BACKUP_KEY = '@autolog_auto_backup'; // '0' to disable; default on
 
 /*
@@ -36,16 +37,10 @@ const AUTO_BACKUP_KEY = '@autolog_auto_backup'; // '0' to disable; default on
 
 // --- adapters ----------------------------------------------------------------
 
-// iCloud adapter — not present until the native module is wired (see above).
-// Resolves to null today, so getAdapter() falls back to local storage.
-function loadICloudAdapter() {
-  // try { return require('../native/icloudBackup').default; } catch { return null; }
-  return null;
-}
-
 // Local fallback: a real file on native (documentDirectory), AsyncStorage on
-// web. NOT reinstall-safe on its own — it exists so the flow is testable and so
-// there is always *some* on-device backup before iCloud is wired.
+// web. NOT reinstall-safe on its own — it always runs as a mirror so there is
+// some on-device copy even when iCloud is the primary target. write() returns
+// the location it wrote to.
 const localAdapter = {
   kind: 'local',
   async write(contents) {
@@ -54,6 +49,7 @@ const localAdapter = {
     } else {
       await AsyncStorage.setItem('@autolog_backup_blob', contents);
     }
+    return 'local';
   },
   async read() {
     if (FileSystem.documentDirectory) {
@@ -64,18 +60,68 @@ const localAdapter = {
     }
     return AsyncStorage.getItem('@autolog_backup_blob');
   },
+  async available() {
+    return false;
+  },
 };
+
+// iCloud adapter — present once the native module (modules/icloud-backup) is in
+// the build. Required lazily inside try/catch so web, Expo Go, and the
+// pre-iCloud production build fall straight through to the local adapter.
+// write() always mirrors to local too, so a backup is never lost if iCloud is
+// momentarily unavailable. write/read fall back to local on any iCloud error.
+function loadICloudAdapter() {
+  try {
+    if (Platform.OS !== 'ios') return null;
+    const native = require('../modules/icloud-backup').default;
+    if (!native || typeof native.write !== 'function') return null;
+    return {
+      kind: 'icloud',
+      async write(contents) {
+        try {
+          if (await native.isAvailable()) {
+            await native.write(contents);
+            await localAdapter.write(contents); // keep an on-device mirror
+            return 'icloud';
+          }
+        } catch (e) {
+          console.warn('iCloud backup failed, using local:', e?.message);
+        }
+        return localAdapter.write(contents);
+      },
+      async read() {
+        try {
+          const remote = await native.read();
+          if (remote) return remote;
+        } catch (e) {
+          console.warn('iCloud read failed, using local:', e?.message);
+        }
+        return localAdapter.read();
+      },
+      async available() {
+        try {
+          return await native.isAvailable();
+        } catch {
+          return false;
+        }
+      },
+    };
+  } catch {
+    return null;
+  }
+}
 
 const iCloudAdapter = loadICloudAdapter();
 const adapter = iCloudAdapter || localAdapter;
 
-/** Where backups are going right now: 'icloud' once wired, else 'local'. */
-export function backupLocation() {
-  return adapter.kind === 'icloud' ? 'icloud' : 'local';
+/** Whether the build can use iCloud at all (module present), regardless of sign-in. */
+export function isICloudCapable() {
+  return adapter.kind === 'icloud';
 }
 
-export function isICloudActive() {
-  return adapter.kind === 'icloud';
+/** Whether iCloud is usable right now (module present AND signed into iCloud). */
+export async function isICloudActive() {
+  return adapter.available();
 }
 
 // --- public API --------------------------------------------------------------
@@ -87,10 +133,10 @@ export async function backupNow() {
     if (!data || (data.vehicles || []).length === 0) {
       return { success: false, reason: 'empty' }; // nothing worth backing up
     }
-    await adapter.write(JSON.stringify(data));
+    const location = (await adapter.write(JSON.stringify(data))) || 'local';
     const at = new Date().toISOString();
-    await AsyncStorage.setItem(LAST_BACKUP_KEY, at);
-    return { success: true, at, location: backupLocation(), vehicleCount: data.vehicles.length };
+    await AsyncStorage.multiSet([[LAST_BACKUP_KEY, at], [LAST_LOCATION_KEY, location]]);
+    return { success: true, at, location, vehicleCount: data.vehicles.length };
   } catch (e) {
     console.error('Backup failed:', e?.message);
     return { success: false, error: e?.message || 'Backup failed' };
@@ -113,12 +159,25 @@ export async function hasBackup() {
   return (await readBackup()) !== null;
 }
 
-/** Restore the dataset from the backup blob. Overwrites local data. */
+/**
+ * Restore the dataset from the backup blob. Non-destructive: snapshots current
+ * data first and rolls back if the import throws, so a mis-tapped or corrupt
+ * restore can't leave the user with no data.
+ */
 export async function restoreFromBackup() {
   try {
     const data = await readBackup();
     if (!data) return { success: false, reason: 'none' };
-    await DataUtils.importData(data);
+
+    let rollback = null;
+    try { rollback = await DataUtils.exportData(); } catch {}
+
+    try {
+      await DataUtils.importData(data);
+    } catch (e) {
+      if (rollback) { try { await DataUtils.importData(rollback); } catch {} }
+      throw e;
+    }
     return { success: true, vehicleCount: (data.vehicles || []).length };
   } catch (e) {
     console.error('Restore failed:', e?.message);
@@ -127,12 +186,16 @@ export async function restoreFromBackup() {
 }
 
 export async function getBackupMeta() {
-  const lastBackupAt = await AsyncStorage.getItem(LAST_BACKUP_KEY).catch(() => null);
-  const autoRaw = await AsyncStorage.getItem(AUTO_BACKUP_KEY).catch(() => null);
+  const [lastBackupAt, lastLocation, autoRaw] = await Promise.all([
+    AsyncStorage.getItem(LAST_BACKUP_KEY).catch(() => null),
+    AsyncStorage.getItem(LAST_LOCATION_KEY).catch(() => null),
+    AsyncStorage.getItem(AUTO_BACKUP_KEY).catch(() => null),
+  ]);
+  const iCloud = await isICloudActive();
   return {
     lastBackupAt,
-    location: backupLocation(),
-    iCloud: isICloudActive(),
+    location: lastLocation || (iCloud ? 'icloud' : 'local'),
+    iCloud,
     autoEnabled: autoRaw !== '0',
   };
 }

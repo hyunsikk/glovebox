@@ -13,6 +13,8 @@ import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
 import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
 import { escapeHtml } from '../../lib/htmlUtils';
 import { backupNow, restoreFromBackup, getBackupMeta, setAutoBackup } from '../../lib/backup';
+import { contactSupport, openHelp, SUPPORT_EMAIL } from '../../lib/support';
+import * as Application from 'expo-application';
 
 const UNITS_KEY = '@autolog_units';
 const CURRENCY_KEY = '@autolog_currency';
@@ -126,6 +128,17 @@ export default function SettingsScreen() {
   const handleToggleAutoBackup = useCallback(async (val) => {
     await setAutoBackup(val);
     setBackup((b) => ({ ...b, autoEnabled: val }));
+  }, []);
+
+  const handleContact = useCallback(async (kind) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const r = await contactSupport(kind);
+    if (!r.success) Alert.alert('No mail app set up', `Reach us anytime at ${SUPPORT_EMAIL}`);
+  }, []);
+
+  const handleHelp = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    openHelp();
   }, []);
 
   const handleUpdateDB = useCallback(async () => {
@@ -644,11 +657,11 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
             <Text style={[Typography.caption, { color: colors.textSecondary, fontFamily: 'Nunito_600SemiBold' }]}>restore</Text>
           </TouchableOpacity>
         </View>
-        {!backup.iCloud && (
-          <Text style={[Typography.small, { color: colors.textTertiary, marginTop: Spacing.sm }]}>
-            On-device backup. iCloud sync (survives reinstall) ships with the next update.
-          </Text>
-        )}
+        <Text style={[Typography.small, { color: colors.textTertiary, marginTop: Spacing.sm }]}>
+          {backup.iCloud
+            ? 'Backed up to iCloud — your records sync across your devices and survive reinstalling the app.'
+            : 'On-device backup. Sign in to iCloud (Settings → your name) to sync across devices and survive reinstalls.'}
+        </Text>
       </View>
 
       {/* Pro */}
@@ -688,6 +701,31 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         )}
       </View>
 
+      {/* Support */}
+      <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
+        support
+      </Text>
+      <View style={[Shared.card]}>
+        <SettingRow
+          icon="bug-outline"
+          label="Report a bug"
+          onPress={() => handleContact('bug')}
+          colors={colors}
+        />
+        <SettingRow
+          icon="chatbubble-ellipses-outline"
+          label="Send feedback"
+          onPress={() => handleContact('feedback')}
+          colors={colors}
+        />
+        <SettingRow
+          icon="help-circle-outline"
+          label="Help & FAQ"
+          onPress={handleHelp}
+          colors={colors}
+        />
+      </View>
+
       {/* About */}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         about
@@ -696,7 +734,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         <SettingRow
           icon="car-sport-outline"
           label="Car Story"
-          value="v2.0.0 · built by TeamAM"
+          value={`v${Application.nativeApplicationVersion || '2.1.0'}${Application.nativeBuildVersion ? ` (${Application.nativeBuildVersion})` : ''} · built by TeamAM`}
           colors={colors}
         />
       </View>

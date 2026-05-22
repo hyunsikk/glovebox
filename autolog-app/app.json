@@ -46,7 +46,8 @@
         {
           "mode": "production"
         }
-      ]
+      ],
+      "./plugins/withICloudBackup"
     ],
     "scheme": "carstory",
     "extra": {
