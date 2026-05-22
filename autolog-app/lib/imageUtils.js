@@ -1,6 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Alert, Platform } from 'react-native';
+
+/** Directory where persisted images live, under the current app container. */
+export const imagesDir = () => `${FileSystem.documentDirectory}images/`;
 
 /**
  * Persist a picked image durably and cheaply:
@@ -15,7 +19,7 @@ export const persistImage = async (uri) => {
     if (Platform.OS === 'web' || !FileSystem.documentDirectory) {
       return await convertToBase64(uri);
     }
-    const dir = `${FileSystem.documentDirectory}images/`;
+    const dir = imagesDir();
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
     const ext = (uri.split('.').pop() || 'jpg').split('?')[0].slice(0, 5);
     const dest = `${dir}img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -27,19 +31,24 @@ export const persistImage = async (uri) => {
   }
 };
 
-// Resize image to max width while maintaining aspect ratio
-export const resizeImageUri = async (uri, maxWidth = 800) => {
+/**
+ * Downscale + recompress a picked image so attachments don't bloat storage and
+ * (now that images travel inside the backup blob) keep that blob a sane size.
+ * Caps the long edge at maxWidth and recompresses to JPEG. Skips the resize for
+ * images already within bounds, but still recompresses. Web is left untouched
+ * (browsers size on display). On failure returns the original uri.
+ */
+export const resizeImageUri = async (uri, maxWidth = 1600, sourceWidth = null) => {
   try {
-    // For web compatibility, we'll use a simple approach
-    if (Platform.OS === 'web') {
-      return uri; // Return as-is for web, browsers handle resizing well
-    }
-
-    // For native platforms, we'd implement proper resizing
-    // For now, returning as-is since expo-image-picker already provides reasonable sizes
-    return uri;
+    if (Platform.OS === 'web') return uri;
+    const actions = sourceWidth && sourceWidth <= maxWidth ? [] : [{ resize: { width: maxWidth } }];
+    const result = await ImageManipulator.manipulateAsync(uri, actions, {
+      compress: 0.7,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+    return result.uri;
   } catch (error) {
-    console.error('Error resizing image:', error);
+    console.error('Error resizing image, using original:', error);
     return uri;
   }
 };
@@ -96,9 +105,9 @@ export const pickImageAsync = async () => {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       
-      // Resize image if needed
-      const resizedUri = await resizeImageUri(asset.uri);
-      
+      // Downscale/recompress before it gets persisted and backed up.
+      const resizedUri = await resizeImageUri(asset.uri, 1600, asset.width);
+
       return {
         uri: resizedUri,
         width: asset.width,
@@ -115,50 +124,6 @@ export const pickImageAsync = async () => {
   }
 };
 
-// Save image for a service record
-export const saveServiceImage = async (imageData, serviceId) => {
-  try {
-    // Convert to base64 for storage in AsyncStorage
-    const base64Data = await convertToBase64(imageData.uri);
-    
-    return {
-      id: `service_${serviceId}_${Date.now()}`,
-      serviceId,
-      uri: imageData.uri,
-      base64: base64Data,
-      width: imageData.width,
-      height: imageData.height,
-      type: imageData.type,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('Error saving service image:', error);
-    throw error;
-  }
-};
-
-// Save image for a vehicle
-export const saveVehicleImage = async (imageData, vehicleId) => {
-  try {
-    // Convert to base64 for storage in AsyncStorage
-    const base64Data = await convertToBase64(imageData.uri);
-    
-    return {
-      id: `vehicle_${vehicleId}_${Date.now()}`,
-      vehicleId,
-      uri: imageData.uri,
-      base64: base64Data,
-      width: imageData.width,
-      height: imageData.height,
-      type: imageData.type,
-      createdAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('Error saving vehicle image:', error);
-    throw error;
-  }
-};
-
 // Generate thumbnail URI from base64 data
 export const getThumbnailUri = (imageData) => {
   if (!imageData) return null;
@@ -172,20 +137,11 @@ export const getThumbnailUri = (imageData) => {
   return imageData.uri;
 };
 
-// Validate image file size (in MB)
-export const validateImageSize = (imageData, maxSizeMB = 5) => {
-  // For now, we'll assume images picked from the library are reasonable size
-  // In a production app, you'd check the actual file size
-  return true;
-};
-
 export default {
   pickImageAsync,
-  saveServiceImage,
-  saveVehicleImage,
   getThumbnailUri,
-  validateImageSize,
   resizeImageUri,
   convertToBase64,
   persistImage,
+  imagesDir,
 };

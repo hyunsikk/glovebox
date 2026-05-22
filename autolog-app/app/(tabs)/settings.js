@@ -12,7 +12,7 @@ import PaywallModal from '../../components/PaywallModal';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
 import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
 import { escapeHtml } from '../../lib/htmlUtils';
-import { backupNow, restoreFromBackup, getBackupMeta, setAutoBackup } from '../../lib/backup';
+import { backupNow, restoreFromBackup, getBackupMeta, setAutoBackup, buildBackupPayload } from '../../lib/backup';
 import { contactSupport, openHelp, SUPPORT_EMAIL } from '../../lib/support';
 import * as Application from 'expo-application';
 
@@ -196,17 +196,16 @@ export default function SettingsScreen() {
   const handleExportData = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const vehicles = await VehicleStorage.getAll();
-      const exportData = { exportedAt: new Date().toISOString(), vehicles: [] };
-
-      for (const vehicle of vehicles) {
-        const services = await ServiceStorage.getByVehicleId(vehicle.id);
-        const fuelLogs = await FuelStorage.getByVehicleId(vehicle.id);
-        exportData.vehicles.push({ ...vehicle, services, fuelLogs });
+      // Complete, re-importable snapshot (all record types + photo bytes) — the
+      // same payload the backup uses, so an export is never a partial copy.
+      const exportData = await buildBackupPayload();
+      if (!exportData || (exportData.vehicles || []).length === 0) {
+        Alert.alert('Nothing to export', 'Add a vehicle first.');
+        return;
       }
 
       const json = JSON.stringify(exportData, null, 2);
-      
+
       if (Platform.OS === 'web') {
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);

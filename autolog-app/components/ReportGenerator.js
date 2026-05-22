@@ -1,6 +1,7 @@
 import { Platform, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import { VehicleStorage, ServiceStorage, ImageStorage, IssueStorage } from '../lib/storage';
 import { HealthScore, ServiceDue, CostAnalytics } from '../lib/analytics';
 import { getVehicleSchedule } from '../lib/vehicleDB';
@@ -278,20 +279,21 @@ ${issues.length > 0 ? `
       }, 500);
     }
   } else {
-    // iOS/Android: write HTML to temp file and share
+    // iOS/Android: render the HTML to a real PDF, then share it.
     try {
-      const fileName = `CarStory_Report_${vehicle.make}_${vehicle.model}_${vehicle.year}.html`;
-      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(filePath, html, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+
+      // Give the shared file a meaningful name (printToFileAsync emits a random one).
+      const named = `${FileSystem.cacheDirectory}CarStory_Report_${vehicle.make}_${vehicle.model}_${vehicle.year}.pdf`;
+      await FileSystem.moveAsync({ from: uri, to: named }).catch(() => {});
+      const filePath = (await FileSystem.getInfoAsync(named).catch(() => ({ exists: false }))).exists ? named : uri;
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(filePath, {
-          mimeType: 'text/html',
+          mimeType: 'application/pdf',
           dialogTitle: `${vehicleName} — Vehicle Report`,
-          UTI: 'public.html',
+          UTI: 'com.adobe.pdf',
         });
       } else {
         Alert.alert('Sharing Unavailable', 'Unable to share on this device.');

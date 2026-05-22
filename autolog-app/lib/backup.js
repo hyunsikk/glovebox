@@ -19,6 +19,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import { DataUtils } from './storage';
+import { collectImageFiles, restoreImageFiles, rewriteImageUris } from './imageBackup';
 
 const BACKUP_FILENAME = 'carstory-backup.json';
 const LAST_BACKUP_KEY = '@autolog_last_backup_at';
@@ -126,10 +127,21 @@ export async function isICloudActive() {
 
 // --- public API --------------------------------------------------------------
 
+/**
+ * The complete, portable snapshot: all data plus the actual photo bytes inlined
+ * (base64, keyed by filename) so a restore on another device/install has the
+ * images, not dead paths. Shared by backupNow and the Settings "Export data".
+ */
+export async function buildBackupPayload() {
+  const data = await DataUtils.exportData();
+  if (data) data.imageFiles = await collectImageFiles(data.images);
+  return data;
+}
+
 /** Serialize all data and write it through the active adapter. */
 export async function backupNow() {
   try {
-    const data = await DataUtils.exportData();
+    const data = await buildBackupPayload();
     if (!data || (data.vehicles || []).length === 0) {
       return { success: false, reason: 'empty' }; // nothing worth backing up
     }
@@ -171,6 +183,18 @@ export async function restoreFromBackup() {
 
     let rollback = null;
     try { rollback = await DataUtils.exportData(); } catch {}
+
+    // Write the photo bytes back into the current container and repoint each
+    // image record at its restored file before importing.
+    if (data.imageFiles) {
+      try {
+        const nameToUri = await restoreImageFiles(data.imageFiles);
+        data.images = rewriteImageUris(data.images, nameToUri);
+      } catch (e) {
+        console.warn('Image restore partial/failed:', e?.message);
+      }
+      delete data.imageFiles; // don't persist the blob map into storage
+    }
 
     try {
       await DataUtils.importData(data);
