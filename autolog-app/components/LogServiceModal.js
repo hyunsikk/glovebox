@@ -729,14 +729,20 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         }]}>
           Cost (Optional)
         </Text>
-        <TextInput
-          style={Shared.input}
-          placeholder="0.00"
-          placeholderTextColor={Colors.arcticSilver}
-          value={formData.cost}
-          onChangeText={(value) => updateFormData('cost', value)}
-          keyboardType="decimal-pad"
-        />
+        <View style={{ position: 'relative' }}>
+          <TextInput
+            style={[Shared.input, { paddingLeft: 32 }]}
+            placeholder="0.00"
+            placeholderTextColor={Colors.arcticSilver}
+            value={formData.cost}
+            onChangeText={(value) => updateFormData('cost', value)}
+            keyboardType="decimal-pad"
+          />
+          <Text style={[Typography.body, {
+            position: 'absolute', left: 12, top: '50%',
+            transform: [{ translateY: -10 }], color: Colors.textSecondary,
+          }]}>$</Text>
+        </View>
       </View>
 
       {/* DIY Toggle */}

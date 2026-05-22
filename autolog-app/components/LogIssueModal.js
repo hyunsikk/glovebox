@@ -472,14 +472,20 @@ export default function LogIssueModal({
               <Text style={[Typography.caption, { color: Colors.textSecondary, marginBottom: Spacing.xs }]}>
                 {form.status === 'resolved' ? 'Actual Cost' : 'Estimated Cost'}
               </Text>
-              <TextInput
-                style={[Shared.input, errors.cost && { borderColor: Colors.danger }]}
-                placeholder="0.00"
-                placeholderTextColor={Colors.textTertiary}
-                value={form.cost}
-                onChangeText={(value) => setForm(prev => ({ ...prev, cost: value }))}
-                keyboardType="numeric"
-              />
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  style={[Shared.input, { paddingLeft: 32 }, errors.cost && { borderColor: Colors.danger }]}
+                  placeholder="0.00"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={form.cost}
+                  onChangeText={(value) => setForm(prev => ({ ...prev, cost: value }))}
+                  keyboardType="numeric"
+                />
+                <Text style={[Typography.body, {
+                  position: 'absolute', left: 12, top: '50%',
+                  transform: [{ translateY: -10 }], color: Colors.textSecondary,
+                }]}>$</Text>
+              </View>
               {errors.cost && (
                 <Text style={[Typography.small, { color: Colors.danger, marginTop: Spacing.xs }]}>
                   {errors.cost}
