@@ -23,9 +23,9 @@
 
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { DataUtils } from './storage';
-import { collectImageFiles, restoreImageFiles, rewriteImageUris } from './imageBackup';
+import { collectImageFiles, restoreImageFiles, rewriteImageUris, basename } from './imageBackup';
 
 const LAST_BACKUP_KEY = '@autolog_last_backup_at';
 const AUTO_BACKUP_KEY = '@autolog_auto_backup'; // '0' to disable; default on
@@ -189,7 +189,16 @@ function parseSnapFile(name) {
  */
 export async function buildBackupPayload() {
   const data = await DataUtils.exportData();
-  if (data) data.imageFiles = await collectImageFiles(data.images);
+  if (data) {
+    // Inline bytes for service photos (data.images[].uri) AND vehicle profile
+    // pictures (data.vehicles[].photoUri), keyed by filename, so both survive a
+    // restore into a new container.
+    const photoRecords = [
+      ...(data.images || []),
+      ...(data.vehicles || []).filter((v) => v && v.photoUri).map((v) => ({ uri: v.photoUri })),
+    ];
+    data.imageFiles = await collectImageFiles(photoRecords);
+  }
   return data;
 }
 
@@ -272,14 +281,17 @@ export async function restoreSnapshot(file) {
     let rollback = null;
     try { rollback = await DataUtils.exportData(); } catch {}
 
-    // Diagnostics: how many photos the snapshot carried vs how many we wrote back.
-    const photoCountInBackup = Object.keys(data.imageFiles || {}).length;
     let photoCount = 0;
     if (data.imageFiles) {
       try {
         const nameToUri = await restoreImageFiles(data.imageFiles);
         photoCount = Object.keys(nameToUri).length;
+        // Repoint service photos AND vehicle profile pictures at the restored files.
         data.images = rewriteImageUris(data.images, nameToUri);
+        data.vehicles = (data.vehicles || []).map((v) => {
+          const name = basename(v && v.photoUri);
+          return name && nameToUri[name] ? { ...v, photoUri: nameToUri[name] } : v;
+        });
       } catch (e) {
         console.warn('Image restore partial/failed:', e?.message);
       }
@@ -292,7 +304,7 @@ export async function restoreSnapshot(file) {
       if (rollback) { try { await DataUtils.importData(rollback); } catch {} }
       throw e;
     }
-    return { success: true, vehicleCount: (data.vehicles || []).length, savedAt: data.exportedAt || null, photoCount, photoCountInBackup };
+    return { success: true, vehicleCount: (data.vehicles || []).length, savedAt: data.exportedAt || null, photoCount };
   } catch (e) {
     console.error('Restore failed:', e?.message);
     return { success: false, error: e?.message || 'Restore failed' };

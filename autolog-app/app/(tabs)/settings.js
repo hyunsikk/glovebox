@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { useTheme } from '../../lib/ThemeContext';
 import { usePurchases } from '../../lib/PurchaseContext';

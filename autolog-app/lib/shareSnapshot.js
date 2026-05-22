@@ -1,6 +1,6 @@
 import { Platform, Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { escapeHtml } from './htmlUtils';
 
 export const shareSnapshot = async (snapshot, vehicle) => {

@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';

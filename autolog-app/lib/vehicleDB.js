@@ -9,7 +9,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const MANIFEST_URL = 'https://support-teamam.github.io/carstory-data/data/manifest.json';
 const SUPPORTED_SCHEMA = 2;                  // ignore remote data with a newer schema; v2 adds per-vehicle scheduleSource

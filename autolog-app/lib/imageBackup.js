@@ -12,7 +12,7 @@
  * they're unit-tested; the I/O helpers wrap them.
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { imagesDir } from './imageUtils';
 
 /** Last path segment of a uri/path, ignoring query/fragment. null if none. */
