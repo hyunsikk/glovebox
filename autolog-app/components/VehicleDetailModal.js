@@ -75,6 +75,26 @@ const CollapsibleSection = ({ title, children, defaultExpanded = false, hasConte
 
 
 
+// Small photo strip for activity-log entries (fuel/issue), matching the service
+// item's thumbnail style.
+const EntryPhotoThumbs = ({ photos = [] }) => {
+  if (!photos.length) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm }}>
+      <Ionicons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+      <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 6 }]}>{photos.length}</Text>
+      {photos.slice(0, 3).map((photo, i) => (
+        <Image
+          key={photo.id || i}
+          source={{ uri: getThumbnailUri(photo) }}
+          style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: Colors.glassBorder, marginRight: 6 }}
+          resizeMode="cover"
+        />
+      ))}
+    </View>
+  );
+};
+
 const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
   const { formatCost, formatDistance } = useSettings();
   const [previewImage, setPreviewImage] = useState(null);
@@ -1167,6 +1187,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
     primaryUse: [],
   });
   const [servicePhotosMap, setServicePhotosMap] = useState({});
+  const [fuelPhotosMap, setFuelPhotosMap] = useState({});
+  const [issuePhotosMap, setIssuePhotosMap] = useState({});
   const [fuelLogs, setFuelLogs] = useState([]);
   const [issues, setIssues] = useState([]);
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
@@ -1260,13 +1282,27 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       const vehicleSnapshots = await SnapshotStorage.getByVehicleId(vehicle.id);
       setSnapshots(vehicleSnapshots);
 
-      // Load photos for all services
+      // Load photos for services, fuel logs, and issues (for activity-log thumbnails)
       const photosMap = {};
       for (const svc of vehicleServices) {
         const photos = await ImageStorage.getByServiceId(svc.id);
         if (photos.length > 0) photosMap[svc.id] = photos;
       }
       setServicePhotosMap(photosMap);
+
+      const fuelMap = {};
+      for (const log of vehicleFuelLogs) {
+        const photos = await ImageStorage.getByFuelLogId(log.id);
+        if (photos.length > 0) fuelMap[log.id] = photos;
+      }
+      setFuelPhotosMap(fuelMap);
+
+      const issueMap = {};
+      for (const iss of vehicleIssues) {
+        const photos = await ImageStorage.getByIssueId(iss.id);
+        if (photos.length > 0) issueMap[iss.id] = photos;
+      }
+      setIssuePhotosMap(issueMap);
 
       // Load reminders from the canonical store (the old per-vehicle key was
       // never written, so this state was always empty).
@@ -2366,6 +2402,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                 {formatCost(entry.totalCost)}
                               </Text>
                             </View>
+                            <EntryPhotoThumbs photos={fuelPhotosMap[entry.id] || []} />
                           </TouchableOpacity>
                         );
                       } else if (entry._type === 'issue') {
@@ -2466,6 +2503,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                 </Text>
                               )}
                             </View>
+                            <EntryPhotoThumbs photos={issuePhotosMap[entry.id] || []} />
                           </TouchableOpacity>
                         );
                       } else if (entry._type === 'snapshot') {
