@@ -73,7 +73,7 @@ function RootLayoutInner() {
           if (r.success) {
             bumpDataVersion(); // make mounted screens reload the restored data
             const when = r.savedAt ? new Date(r.savedAt).toLocaleString() : null;
-            Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s)${when ? `\nfrom your backup saved ${when}` : ' from your backup'}.`);
+            Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s) and ${r.photoCount ?? 0} photo(s)${when ? `\nfrom your backup saved ${when}` : ' from your backup'}.`);
           } else {
             Alert.alert(
               'Restore failed',

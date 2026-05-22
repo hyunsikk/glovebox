@@ -110,7 +110,7 @@ export default function SettingsScreen() {
     setBackingUp(false);
     setBackup(await getBackupMeta());
     loadSnapshots();
-    if (r.success) Alert.alert('Backed up', `Saved ${r.vehicleCount} vehicle(s)${r.location === 'icloud' ? ' to iCloud' : ' on this device'}.`);
+    if (r.success) Alert.alert('Backed up', `Saved ${r.vehicleCount} vehicle(s) and ${r.photoCount ?? 0} photo(s)${r.location === 'icloud' ? ' to iCloud' : ' on this device'}.`);
     else if (r.reason === 'empty') Alert.alert('Nothing to back up', 'Add a vehicle first.');
     else Alert.alert('Backup failed', 'Could not save a backup. Try again.');
   }, [loadSnapshots]);
@@ -144,7 +144,7 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Restore', style: 'destructive', onPress: async () => {
           const r = await restoreSnapshot(snap.file);
-          if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s).`); loadStats(); }
+          if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s) and ${r.photoCount ?? 0} photo(s).`); loadStats(); }
           else if (r.reason === 'none') Alert.alert('Couldn’t read backup', 'That snapshot couldn’t be read — make sure you’re signed into the same iCloud account.');
           else Alert.alert('Restore failed', 'Could not restore. Your current data is unchanged.');
         } },

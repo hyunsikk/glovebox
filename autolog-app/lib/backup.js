@@ -207,6 +207,7 @@ async function writeBackup({ kind, label }) {
   }
   const ts = Date.now();
   const count = (data.vehicles || []).length;
+  const photoCount = Object.keys(data.imageFiles || {}).length;
   data.label = kind === 'manual' ? (label || 'Latest') : 'Auto backup';
   data.exportedAt = data.exportedAt || new Date(ts).toISOString();
   const name = snapFileName({ kind, ts, count, label: data.label });
@@ -228,7 +229,7 @@ async function writeBackup({ kind, label }) {
   }
 
   await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date(ts).toISOString());
-  return { success: true, at: new Date(ts).toISOString(), location, vehicleCount: count };
+  return { success: true, at: new Date(ts).toISOString(), location, vehicleCount: count, photoCount };
 }
 
 /**
@@ -271,9 +272,13 @@ export async function restoreSnapshot(file) {
     let rollback = null;
     try { rollback = await DataUtils.exportData(); } catch {}
 
+    // Diagnostics: how many photos the snapshot carried vs how many we wrote back.
+    const photoCountInBackup = Object.keys(data.imageFiles || {}).length;
+    let photoCount = 0;
     if (data.imageFiles) {
       try {
         const nameToUri = await restoreImageFiles(data.imageFiles);
+        photoCount = Object.keys(nameToUri).length;
         data.images = rewriteImageUris(data.images, nameToUri);
       } catch (e) {
         console.warn('Image restore partial/failed:', e?.message);
@@ -287,7 +292,7 @@ export async function restoreSnapshot(file) {
       if (rollback) { try { await DataUtils.importData(rollback); } catch {} }
       throw e;
     }
-    return { success: true, vehicleCount: (data.vehicles || []).length, savedAt: data.exportedAt || null };
+    return { success: true, vehicleCount: (data.vehicles || []).length, savedAt: data.exportedAt || null, photoCount, photoCountInBackup };
   } catch (e) {
     console.error('Restore failed:', e?.message);
     return { success: false, error: e?.message || 'Restore failed' };
