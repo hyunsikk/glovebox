@@ -113,11 +113,11 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
       'CVT Fluid': 'car-shift-pattern',
       'Coolant Flush': 'coolant-temperature',
       'Coolant': 'coolant-temperature',
-      'Spark Plugs': 'spark-plug',
+      'Spark Plugs': 'flash',
       'Battery Check': 'car-battery',
-      'Brake Fluid': 'car-brake-fluid',
-      'AWD Service': 'car-4wd',
-      'Differential Service': 'car-4wd',
+      'Brake Fluid': 'car-brake-abs',
+      'AWD Service': 'car-traction-control',
+      'Differential Service': 'car-traction-control',
       'A/C Service': 'air-conditioner',
       'A/C Desiccant': 'air-conditioner',
       'Battery Coolant': 'battery-charging',
@@ -264,29 +264,6 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
         </View>
       )}
 
-      {servicePhotos.length > 0 && (
-        <View style={{ flexDirection: 'row', marginTop: Spacing.sm, gap: Spacing.xs }}>
-          {servicePhotos.map((photo) => (
-            <TouchableOpacity 
-              key={photo.id} 
-              onPress={() => setPreviewImage(photo.uri || photo.base64)}
-              activeOpacity={0.8}
-            >
-              <Image
-                source={{ uri: photo.uri || photo.base64 }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 6,
-                  borderWidth: 1,
-                  borderColor: Colors.glassBorder,
-                }}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
       {/* Image Preview Modal */}
       <Modal
@@ -343,11 +320,11 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
       'CVT Fluid': 'car-shift-pattern',
       'Coolant Flush': 'coolant-temperature',
       'Coolant': 'coolant-temperature',
-      'Spark Plugs': 'spark-plug',
+      'Spark Plugs': 'flash',
       'Battery Check': 'car-battery',
-      'Brake Fluid': 'car-brake-fluid',
-      'AWD Service': 'car-4wd',
-      'Differential Service': 'car-4wd',
+      'Brake Fluid': 'car-brake-abs',
+      'AWD Service': 'car-traction-control',
+      'Differential Service': 'car-traction-control',
       'A/C Service': 'air-conditioner',
       'A/C Desiccant': 'air-conditioner',
       'Battery Coolant': 'battery-charging',
