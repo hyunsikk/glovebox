@@ -11,14 +11,14 @@ import {
   Alert,
   Switch,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, Shared } from '../theme';
 import DatePickerField from './DatePickerField';
 
 const FUEL_TYPES = [
-  { key: 'fuel', label: 'Gas / Diesel', emoji: '⛽' },
-  { key: 'ev_charge', label: 'EV Charging', emoji: '⚡' },
+  { key: 'fuel', label: 'Gas / Diesel', icon: 'gas-station' },
+  { key: 'ev_charge', label: 'EV Charging', icon: 'ev-station' },
 ];
 
 export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLog }) {
@@ -289,7 +289,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     setType(ft.key);
                   }}
                 >
-                  <Text style={{ fontSize: 18, marginRight: Spacing.xs }}>{ft.emoji}</Text>
+                  <MaterialCommunityIcons name={ft.icon} size={18} color={type === ft.key ? Colors.primary : Colors.textSecondary} style={{ marginRight: Spacing.xs }} />
                   <Text style={[Typography.body, {
                     color: type === ft.key ? Colors.primary : Colors.textSecondary,
                     fontFamily: type === ft.key ? 'Nunito_600SemiBold' : 'Nunito_500Medium',

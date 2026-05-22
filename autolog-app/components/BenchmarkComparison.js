@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../lib/storage';
 import { getBenchmark, compareToBenchmark } from '../lib/costBenchmarks';
 import { useSettings } from '../lib/SettingsContext';
 
 const VERDICT_CONFIG = {
-  excellent: { color: Colors.success, emoji: '🏆', label: 'well below average' },
-  good: { color: Colors.success, emoji: '✅', label: 'below average' },
-  average: { color: Colors.warning, emoji: '📊', label: 'about average' },
-  high: { color: Colors.danger, emoji: '⚠️', label: 'above average' },
-  'very high': { color: Colors.danger, emoji: '🔴', label: 'well above average' },
+  excellent: { color: Colors.success, icon: 'trophy', label: 'well below average' },
+  good: { color: Colors.success, icon: 'checkmark-circle', label: 'below average' },
+  average: { color: Colors.warning, icon: 'stats-chart', label: 'about average' },
+  high: { color: Colors.danger, icon: 'warning', label: 'above average' },
+  'very high': { color: Colors.danger, icon: 'alert-circle', label: 'well above average' },
 };
 
 const ComparisonBar = ({ label, userValue, benchmarkValue, formatFn, color }) => {
@@ -151,7 +152,7 @@ export default function BenchmarkComparison({ vehicles, selectedVehicleId }) {
               borderRadius: 8, padding: Spacing.sm,
               marginBottom: Spacing.md,
             }}>
-              <Text style={{ fontSize: 18, marginRight: 8 }}>{verdictConfig.emoji}</Text>
+              <Ionicons name={verdictConfig.icon} size={18} color={verdictConfig.color} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.body, { color: Colors.textPrimary }]}>
                   {comparison.annualPct > 0 ? '+' : ''}{comparison.annualPct.toFixed(0)}% {verdictConfig.label}
@@ -184,9 +185,11 @@ export default function BenchmarkComparison({ vehicles, selectedVehicleId }) {
             {/* Reliability note */}
             {bench.reliability && (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm }}>
-                <Text style={[Typography.small, { color: Colors.textTertiary }]}>
-                  {vehicle.make} reliability: {'⭐'.repeat(Math.min(Math.round(bench.reliability / 2), 5))} ({bench.reliability}/10)
-                </Text>
+                <Text style={[Typography.small, { color: Colors.textTertiary }]}>{vehicle.make} reliability: </Text>
+                {Array.from({ length: Math.min(Math.round(bench.reliability / 2), 5) }).map((_, i) => (
+                  <Ionicons key={i} name="star" size={11} color={Colors.warning} />
+                ))}
+                <Text style={[Typography.small, { color: Colors.textTertiary }]}> ({bench.reliability}/10)</Text>
               </View>
             )}
           </View>

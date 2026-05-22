@@ -463,7 +463,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           ];
 
       Alert.alert(
-        'Service Logged! 🔧',
+        'Service Logged!',
         `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}`,
         alertButtons,
       );
@@ -498,7 +498,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             activeOpacity={0.9}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 32, marginRight: Spacing.md }}>🚗</Text>
+              <Ionicons name="car-sport" size={32} color={Colors.primary} style={{ marginRight: Spacing.md }} />
               
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -1190,7 +1190,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           justifyContent: 'center',
           alignItems: 'center',
         }}>
-          <Text style={{ fontSize: 60, marginBottom: Spacing.xl }}>🚗</Text>
+          <Ionicons name="car-sport" size={60} color={Colors.primary} style={{ marginBottom: Spacing.xl }} />
           
           <Text style={[Typography.h1, { textAlign: 'center', marginBottom: Spacing.md }]}>
             No Vehicles Yet
@@ -1279,7 +1279,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                 activeOpacity={0.9}
               >
                 <Text style={[Typography.h2, { color: Colors.pearlWhite }]}>
-                  {loading ? 'Logging Service...' : '📝 Log Service'}
+                  {loading ? 'Logging Service...' : 'Log Service'}
                 </Text>
               </TouchableOpacity>
             ) : (

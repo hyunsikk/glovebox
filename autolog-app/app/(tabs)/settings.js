@@ -52,7 +52,7 @@ const SettingRow = ({ icon, label, value, onPress, rightElement, colors }) => (
 );
 
 const OptionPicker = ({ options, selected, onSelect, colors }) => (
-  <View style={{ flexDirection: 'row', gap: 8 }}>
+  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
     {options.map(opt => (
       <TouchableOpacity
         key={opt.value}
@@ -499,6 +499,11 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
                 { value: 'USD', label: '$ USD' },
                 { value: 'EUR', label: '€ EUR' },
                 { value: 'GBP', label: '£ GBP' },
+                { value: 'JPY', label: '¥ JPY' },
+                { value: 'CNY', label: '¥ CNY' },
+                { value: 'INR', label: '₹ INR' },
+                { value: 'CAD', label: 'CA$ CAD' },
+                { value: 'AUD', label: 'A$ AUD' },
                 { value: 'KRW', label: '₩ KRW' },
               ]}
               selected={currency}

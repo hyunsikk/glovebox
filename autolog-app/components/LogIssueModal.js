@@ -590,28 +590,28 @@ export default function LogIssueModal({
 
                   const statusLabel = (s) => s === 'in_progress' ? 'In Progress' : s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
-                  let icon = '📝';
+                  let icon = 'create';
                   let text = '';
-                  
+
                   if (entry.type === 'created') {
-                    icon = '🆕';
+                    icon = 'add-circle';
                     text = `Issue created — ${statusLabel(entry.status)}, ${statusLabel(entry.severity)}`;
                   } else if (entry.type === 'status_change') {
-                    icon = entry.to === 'resolved' ? '✅' : entry.to === 'in_progress' ? '🔄' : '🔓';
+                    icon = entry.to === 'resolved' ? 'checkmark-circle' : entry.to === 'in_progress' ? 'sync' : 'lock-open';
                     text = `Status: ${statusLabel(entry.from)} → ${statusLabel(entry.to)}`;
                   } else if (entry.type === 'severity_change') {
-                    icon = '⚠️';
+                    icon = 'warning';
                     text = `Severity: ${statusLabel(entry.from)} → ${statusLabel(entry.to)}`;
                   } else if (entry.type === 'cost_update') {
-                    icon = '💰';
+                    icon = 'cash';
                     const fromCost = entry.from != null ? `$${Number(entry.from).toFixed(2)}` : 'none';
                     const toCost = entry.to != null ? `$${Number(entry.to).toFixed(2)}` : 'none';
                     text = `Cost: ${fromCost} → ${toCost}`;
                   } else if (entry.type === 'note') {
-                    icon = '💬';
+                    icon = 'chatbubble-ellipses';
                     text = entry.note;
                   } else if (entry.type === 'updated') {
-                    icon = '📝';
+                    icon = 'create';
                     text = `Updated: ${entry.fields?.join(', ') || 'details'}`;
                   }
 
@@ -621,7 +621,7 @@ export default function LogIssueModal({
                     <View key={entry.id || idx} style={{ flexDirection: 'row', marginBottom: isLast ? 0 : Spacing.md }}>
                       {/* Timeline line */}
                       <View style={{ alignItems: 'center', width: 32 }}>
-                        <Text style={{ fontSize: 14 }}>{icon}</Text>
+                        <Ionicons name={icon} size={14} color={Colors.textSecondary} />
                         {!isLast && (
                           <View style={{ 
                             width: 1, 

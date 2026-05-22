@@ -332,7 +332,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
           activeOpacity={0.9}
         >
           <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
-            ✏️ Enter Manually
+            Enter Manually
           </Text>
         </TouchableOpacity>
       </View>
@@ -511,9 +511,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[Typography.caption, { color: Colors.primary, marginRight: 4 }]}>
-                  🔍
-                </Text>
+                <Ionicons name="search" size={13} color={Colors.primary} style={{ marginRight: 4 }} />
                 <Text style={[Typography.caption, { color: Colors.primary }]}>
                   {decodingVIN ? 'Decoding...' : 'Decode'}
                 </Text>
@@ -952,7 +950,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                 activeOpacity={0.9}
               >
                 <Text style={[Typography.h2, { color: Colors.pearlWhite }]}>
-                  {loading ? 'Adding Vehicle...' : '🚗 Add to Garage'}
+                  {loading ? 'Adding Vehicle...' : 'Add to Garage'}
                 </Text>
               </TouchableOpacity>
 

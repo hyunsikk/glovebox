@@ -1279,7 +1279,7 @@ export default function LearnScreen() {
             padding: Spacing.xl,
             alignItems: 'center',
           }}>
-            <Text style={{ fontSize: 40, marginBottom: Spacing.md }}>🔍</Text>
+            <Ionicons name="search" size={40} color={Colors.textTertiary} style={{ marginBottom: Spacing.md }} />
             <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: Spacing.xs }]}>
               No articles found
             </Text>

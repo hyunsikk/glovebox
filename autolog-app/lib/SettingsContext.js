@@ -8,7 +8,12 @@ const CURRENCY_CONFIG = {
   USD: { symbol: '$', locale: 'en-US' },
   EUR: { symbol: '€', locale: 'de-DE' },
   GBP: { symbol: '£', locale: 'en-GB' },
-  KRW: { symbol: '₩', locale: 'ko-KR' },
+  JPY: { symbol: '¥', locale: 'ja-JP', zeroDecimal: true },
+  CNY: { symbol: '¥', locale: 'zh-CN' },
+  INR: { symbol: '₹', locale: 'en-IN' },
+  CAD: { symbol: 'CA$', locale: 'en-CA' },
+  AUD: { symbol: 'A$', locale: 'en-AU' },
+  KRW: { symbol: '₩', locale: 'ko-KR', zeroDecimal: true },
 };
 
 const SettingsContext = createContext({
@@ -63,8 +68,8 @@ export function SettingsProvider({ children }) {
   const cc = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.USD;
 
   const formatCost = (amount) => {
-    if (amount == null || isNaN(amount)) return `${cc.symbol}0.00`;
-    if (currency === 'KRW') return `${cc.symbol}${Math.round(amount).toLocaleString()}`;
+    if (amount == null || isNaN(amount)) return cc.zeroDecimal ? `${cc.symbol}0` : `${cc.symbol}0.00`;
+    if (cc.zeroDecimal) return `${cc.symbol}${Math.round(amount).toLocaleString()}`;
     return `${cc.symbol}${Number(amount).toFixed(2)}`;
   };
 

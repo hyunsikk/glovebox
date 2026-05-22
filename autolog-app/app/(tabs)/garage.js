@@ -89,7 +89,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
   };
 
   const getServiceStatusText = () => {
-    if (!nextService) return 'all caught up! 🎉';
+    if (!nextService) return 'all caught up!';
     if (nextService.isOverdue) return `${nextService.service} overdue`;
     if (nextService.daysUntilDue === 0) return `${nextService.service} due today`;
     if (nextService.daysUntilDue <= 7) return `${nextService.service} due in ${nextService.daysUntilDue}d`;
@@ -233,14 +233,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
               borderColor: '#EF4444' + '30',
               minWidth: 32,
             }}>
-              <Text style={{
-                fontFamily: 'Nunito_700Bold',
-                fontSize: 12,
-                color: '#EF4444',
-                lineHeight: 14,
-              }}>
-                🚨
-              </Text>
+              <Ionicons name="alert-circle" size={13} color="#EF4444" />
               <Text style={{
                 fontFamily: 'Nunito_600SemiBold',
                 fontSize: 8,
@@ -413,7 +406,7 @@ const EmptyState = ({ onAddVehicle, onLoadSampleData }) => {
         transform: [{ scale: breathingValue }],
         marginBottom: Spacing.xl,
       }]}>
-        <Text style={{ fontSize: 60 }}>🚗</Text>
+        <Ionicons name="car-sport" size={60} color={Colors.primary} />
       </Animated.View>
       
       <Text style={[Typography.hero, { 

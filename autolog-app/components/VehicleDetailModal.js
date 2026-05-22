@@ -340,10 +340,10 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
 
   const getStatusIcon = () => {
     switch (status) {
-      case 'completed': return '✅';
-      case 'due_soon': return '⚠️';
-      case 'overdue': return '🔴';
-      default: return '⏳';
+      case 'completed': return { name: 'checkmark-circle', color: Colors.success };
+      case 'due_soon': return { name: 'warning', color: Colors.warning };
+      case 'overdue': return { name: 'alert-circle', color: Colors.danger };
+      default: return { name: 'time', color: Colors.textSecondary };
     }
   };
 
@@ -416,9 +416,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
             {isSnoozed ? (
               <Ionicons name="notifications-off-outline" size={16} color={Colors.arcticSilver} />
             ) : (
-              <Text style={{ fontSize: 16, marginLeft: Spacing.sm }}>
-                {getStatusIcon()}
-              </Text>
+              <Ionicons name={getStatusIcon().name} size={16} color={getStatusIcon().color} style={{ marginLeft: Spacing.sm }} />
             )}
           </View>
           
@@ -695,7 +693,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
-            recall alerts {recalls.length > 0 && '⚠️'}
+            recall alerts {recalls.length > 0 && <Ionicons name="warning" size={15} color={Colors.warning} />}
           </Text>
         </View>
         
@@ -2104,7 +2102,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={handleLogService}
                     activeOpacity={0.8}
                   >
-                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🔧</Text>
+                    <Ionicons name="construct" size={22} color={Colors.primary} style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
                       Service
                     </Text>
@@ -2126,7 +2124,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={{ fontSize: 22, marginBottom: 4 }}>⛽</Text>
+                    <MaterialCommunityIcons name="gas-station" size={22} color={Colors.warning} style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
                       Fuel
                     </Text>
@@ -2144,7 +2142,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={handleLogIssue}
                     activeOpacity={0.8}
                   >
-                    <Text style={{ fontSize: 22, marginBottom: 4 }}>🚨</Text>
+                    <Ionicons name="alert-circle" size={22} color="#EF4444" style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: '#EF4444', fontFamily: 'Nunito_600SemiBold' }]}>
                       Issue
                     </Text>
@@ -2249,7 +2247,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           borderWidth: 1,
                           borderColor: Colors.steelBlue + '25',
                         }}>
-                          <Text style={{ fontSize: 14, marginRight: Spacing.sm }}>📋</Text>
+                          <Ionicons name="document-text" size={14} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
                           <Text style={[Typography.caption, { color: Colors.steelBlue, flex: 1, fontFamily: 'Nunito_400Regular' }]}>
                             Standard maintenance schedule (not model-specific)
                           </Text>
@@ -2344,9 +2342,9 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                <Text style={{ fontSize: 20, marginRight: Spacing.sm }}>
-                                  {entry.type === 'ev_charge' ? '⚡' : '⛽'}
-                                </Text>
+                                {entry.type === 'ev_charge'
+                                  ? <Ionicons name="flash" size={20} color={Colors.success} style={{ marginRight: Spacing.sm }} />
+                                  : <MaterialCommunityIcons name="gas-station" size={20} color={Colors.warning} style={{ marginRight: Spacing.sm }} />}
                                 <View>
                                   <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
                                     {entry.type === 'ev_charge'
@@ -2387,9 +2385,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                               <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
-                                <Text style={{ fontSize: 20, marginRight: Spacing.sm, marginTop: 2 }}>
-                                  🚨
-                                </Text>
+                                <Ionicons name="alert-circle" size={20} color={Colors.danger} style={{ marginRight: Spacing.sm, marginTop: 2 }} />
                                 <View style={{ flex: 1 }}>
                                   <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
                                     {entry.title}
@@ -2451,7 +2447,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                           borderTopColor: Colors.glassBorder,
                                         }}>
                                           <Text style={[Typography.small, { color: Colors.textTertiary, fontStyle: 'italic' }]} numberOfLines={1}>
-                                            💬 {latestNote.note}
+                                            {latestNote.note}
                                           </Text>
                                         </View>
                                       );
@@ -2481,7 +2477,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             style={[Shared.card, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: conditionColors[entry.condition] || Colors.primary }]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                              <Text style={{ fontSize: 24, marginRight: Spacing.sm }}>📸</Text>
+                              <Ionicons name="camera" size={24} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
                               <View style={{ flex: 1 }}>
                                 <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: 2 }]}>
                                   {entry.title}
@@ -2545,7 +2541,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.9}
                   >
-                    <Text style={{ fontSize: 18, marginRight: Spacing.sm }}>📸</Text>
+                    <Ionicons name="camera" size={18} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
                     <Text style={[Typography.h2, { color: Colors.primary }]}>
                       Take Snapshot
                     </Text>

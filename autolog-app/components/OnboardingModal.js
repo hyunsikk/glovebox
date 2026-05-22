@@ -52,7 +52,7 @@ const WelcomeScreen = ({ onNext }) => {
         transform: [{ scale: breathingValue }],
         marginBottom: Spacing.section,
       }]}>
-        <Text style={{ fontSize: 80 }}>🚗</Text>
+        <MaterialCommunityIcons name="car" size={80} color={Colors.primary} />
       </Animated.View>
       
       <Text style={[Typography.hero, { 

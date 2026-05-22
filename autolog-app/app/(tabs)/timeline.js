@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, SectionList, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStorage, ImageStorage } from '../../lib/storage';
@@ -245,7 +245,9 @@ const FuelCard = ({ fuelLog, vehicle }) => {
           borderWidth: 1,
           borderColor: (isFuel ? Colors.warning : Colors.success) + '30',
         }}>
-          <Text style={{ fontSize: 20 }}>{isFuel ? '⛽' : '⚡'}</Text>
+          {isFuel
+            ? <MaterialCommunityIcons name="gas-station" size={20} color={Colors.warning} />
+            : <Ionicons name="flash" size={20} color={Colors.success} />}
         </View>
 
         {/* Details */}
@@ -301,7 +303,7 @@ const IssueCard = ({ issue, vehicle }) => {
           borderWidth: 1,
           borderColor: severityColors[issue.severity] + '30',
         }}>
-          <Text style={{ fontSize: 20 }}>🚨</Text>
+          <Ionicons name="alert-circle" size={20} color={severityColors[issue.severity]} />
         </View>
 
         {/* Details */}
@@ -380,7 +382,6 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
     fair: Colors.warning || '#EAB308',
     poor: Colors.danger || '#EF4444',
   };
-  const conditionEmojis = { excellent: '✨', good: '👍', fair: '👌', poor: '⚠️' };
 
   return (
     <View style={[Shared.card, { marginBottom: Spacing.md, borderLeftWidth: 3, borderLeftColor: conditionColors[snapshot.condition] || Colors.primary }]}>
@@ -393,7 +394,7 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
           borderWidth: 1,
           borderColor: Colors.primary + '30',
         }}>
-          <Text style={{ fontSize: 20 }}>📸</Text>
+          <Ionicons name="camera" size={20} color={Colors.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -419,7 +420,7 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
                 fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
               }]}>
-                {conditionEmojis[snapshot.condition]} {snapshot.condition}
+                {snapshot.condition}
               </Text>
             </View>
             {snapshot.openIssuesCount > 0 && (
@@ -452,7 +453,7 @@ const EmptyState = ({ onLogService }) => (
     alignItems: 'center',
     paddingHorizontal: Spacing.horizontalLarge,
   }}>
-    <Text style={{ fontSize: 60, marginBottom: Spacing.xl }}>🔧</Text>
+    <Ionicons name="construct" size={60} color={Colors.textTertiary} style={{ marginBottom: Spacing.xl }} />
     
     <Text style={[Typography.hero, { 
       textAlign: 'center', 
@@ -619,10 +620,10 @@ const TimelineHeader = ({
     {/* Type Filter Chips */}
     <View style={{ flexDirection: 'row', marginBottom: Spacing.sm }}>
       {[
-        { key: 'service', label: '🔧 Services', count: services.length },
-        { key: 'fuel', label: '⛽ Fuel', count: fuelLogs.length },
-        { key: 'issue', label: '🚨 Issues', count: issues.length },
-        { key: 'snapshot', label: '📸 Snapshots', count: snapshots.length },
+        { key: 'service', label: 'Services', count: services.length },
+        { key: 'fuel', label: 'Fuel', count: fuelLogs.length },
+        { key: 'issue', label: 'Issues', count: issues.length },
+        { key: 'snapshot', label: 'Snapshots', count: snapshots.length },
       ].map(({ key, label, count }) => {
         const isActive = activeTypeFilters.has(key);
         return (

@@ -580,7 +580,7 @@ const EmptyState = () => (
     alignItems: 'center',
     paddingHorizontal: Spacing.horizontalLarge,
   }}>
-    <Text style={{ fontSize: 60, marginBottom: Spacing.xl }}>📊</Text>
+    <Ionicons name="bar-chart" size={60} color={Colors.textTertiary} style={{ marginBottom: Spacing.xl }} />
     
     <Text style={[Typography.hero, { 
       textAlign: 'center', 
@@ -751,7 +751,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
             paddingVertical: Spacing.sm,
           }}>
             <Text style={[Typography.small, { color: Colors.warning, textAlign: 'center' }]}>
-              ⏳ need at least 2 months of data to estimate annual costs
+              need at least 2 months of data to estimate annual costs
             </Text>
           </View>
         </View>
@@ -786,11 +786,11 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
               borderTopColor: Colors.glassBorder 
             }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔄 recurring (fuel + maintenance)</Text>
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>recurring (fuel + maintenance)</Text>
                 <Text style={[Typography.small, { color: Colors.textPrimary }]}>{formatCostShort(forecastData.recurringMonthly * 12)}/yr</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={[Typography.small, { color: Colors.textSecondary }]}>🔧 major repairs</Text>
+                <Text style={[Typography.small, { color: Colors.textSecondary }]}>major repairs</Text>
                 <Text style={[Typography.small, { color: Colors.textPrimary }]}>{formatCostShort(forecastData.oneOffAnnual)}/yr</Text>
               </View>
             </View>
@@ -800,9 +800,9 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
           <View style={{ marginTop: Spacing.md, alignItems: 'center' }}>
             <Text style={[Typography.small, { color: Colors.textTertiary, textAlign: 'center' }]}>
               Based on {forecastData.calendarMonths} month{forecastData.calendarMonths !== 1 ? 's' : ''} of data
-              {forecastData.confidence === 'low' && ' · ⚠️ low confidence'}
+              {forecastData.confidence === 'low' && ' · low confidence'}
               {forecastData.confidence === 'medium' && ' · moderate confidence'}
-              {forecastData.confidence === 'high' && ' · ✓ high confidence'}
+              {forecastData.confidence === 'high' && ' · high confidence'}
             </Text>
           </View>
         </>
@@ -1604,7 +1604,7 @@ export default function InsightsScreen() {
           return (
             <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
-                <Text style={{ fontSize: 18, marginRight: Spacing.sm }}>⚠️</Text>
+                <Ionicons name="warning" size={18} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
                 <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
                   needs attention
                 </Text>

@@ -18,31 +18,31 @@ import DatePickerField from './DatePickerField';
 import { CostAnalytics } from '../lib/analytics';
 
 const CONDITION_OPTIONS = [
-  { 
-    key: 'excellent', 
-    label: 'Excellent', 
-    emoji: '✨', 
+  {
+    key: 'excellent',
+    label: 'Excellent',
+    icon: 'sparkles',
     color: '#10B981',
     description: 'Like new condition, no issues',
   },
-  { 
-    key: 'good', 
-    label: 'Good', 
-    emoji: '😊', 
+  {
+    key: 'good',
+    label: 'Good',
+    icon: 'thumbs-up',
     color: '#3B82F6',
     description: 'Minor wear, well maintained',
   },
-  { 
-    key: 'fair', 
-    label: 'Fair', 
-    emoji: '😐', 
+  {
+    key: 'fair',
+    label: 'Fair',
+    icon: 'remove-circle',
     color: '#EAB308',
     description: 'Some wear, few minor issues',
   },
-  { 
-    key: 'poor', 
-    label: 'Poor', 
-    emoji: '😞', 
+  {
+    key: 'poor',
+    label: 'Poor',
+    icon: 'warning',
     color: '#EF4444',
     description: 'Significant issues, needs attention',
   },
@@ -75,9 +75,7 @@ const ConditionPicker = ({ value, onSelect }) => (
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Text style={{ fontSize: 20, marginRight: Spacing.sm }}>
-                  {option.emoji}
-                </Text>
+                <Ionicons name={option.icon} size={20} color={isSelected ? option.color : Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
                 <View>
                   <Text style={[Typography.body, { 
                     color: isSelected ? option.color : Colors.textPrimary,
@@ -400,7 +398,7 @@ export default function TakeSnapshotModal({
               marginBottom: Spacing.lg,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 16, marginRight: Spacing.sm }}>💡</Text>
+                <Ionicons name="bulb" size={16} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
                 <View style={{ flex: 1 }}>
                   <Text style={[Typography.body, { color: Colors.primary, marginBottom: Spacing.xs, fontFamily: 'Nunito_600SemiBold' }]}>
                     Snapshot Tips
