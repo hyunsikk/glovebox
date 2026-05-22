@@ -328,6 +328,13 @@ export default function LogIssueModal({
 
       onIssueLogged && onIssueLogged();
       onClose();
+      // Confirm after the modal dismisses (deferred to avoid the alert/modal race).
+      setTimeout(() => {
+        Alert.alert(
+          isEditing ? 'Issue updated' : 'Issue logged',
+          isEditing ? 'Your issue has been updated.' : 'Your issue has been recorded.',
+        );
+      }, 450);
     } catch (error) {
       console.error('Error saving issue:', error);
       Alert.alert('Error', 'Failed to save issue. Please try again.');

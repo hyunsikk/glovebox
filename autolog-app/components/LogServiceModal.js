@@ -164,7 +164,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     serviceType: '',
     date: todayLocal(),
     mileage: '',
-    cost: '0.00',
+    cost: '',
     vendor: '',
     notes: '',
   });
@@ -279,7 +279,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       serviceType: '',
       date: todayLocal(),
       mileage: '',
-      cost: '0.00',
+      cost: '',
       vendor: '',
       notes: '',
     });

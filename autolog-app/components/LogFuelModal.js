@@ -267,6 +267,13 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
     }
 
     onClose();
+    // Confirm after the modal dismisses (deferred to avoid the alert/modal race).
+    setTimeout(() => {
+      Alert.alert(
+        isEditing ? 'Fuel updated' : 'Fuel logged',
+        isEditing ? 'Your fuel entry has been updated.' : 'Your fuel entry has been recorded.',
+      );
+    }, 450);
   };
 
   const handleDelete = () => {
