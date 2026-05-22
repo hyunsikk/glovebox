@@ -573,7 +573,7 @@ const TimelineHeader = ({
   activeTypeFilters, toggleTypeFilter,
   hasActiveFilters, allTimelineEntries,
   currentSortLabel, cycleSortMode,
-  activeFilters, toggleFilter, clearFilters,
+  clearFilters,
 }) => (
   <View>
     {/* Vehicle Filter */}
@@ -685,12 +685,6 @@ const TimelineHeader = ({
         </Text>
       </TouchableOpacity>
 
-      <FilterChip label="This Year" active={activeFilters.has('thisYear')} onPress={() => toggleFilter('thisYear')} />
-      <FilterChip label="Last Year" active={activeFilters.has('lastYear')} onPress={() => toggleFilter('lastYear')} />
-      <FilterChip label="Oil Changes" active={activeFilters.has('oil')} onPress={() => toggleFilter('oil')} />
-      <FilterChip label="Brakes" active={activeFilters.has('brakes')} onPress={() => toggleFilter('brakes')} />
-      <FilterChip label=">$200" active={activeFilters.has('expensive')} onPress={() => toggleFilter('expensive')} />
-
       {hasActiveFilters && (
         <TouchableOpacity
           onPress={clearFilters}
@@ -729,7 +723,6 @@ export default function TimelineScreen() {
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilters, setActiveFilters] = useState(new Set());
   const [activeTypeFilters, setActiveTypeFilters] = useState(new Set()); // service, fuel, issue, snapshot
   const [sortMode, setSortMode] = useState('newest'); // newest | oldest | expensive
   const [selectedVehicleId, setSelectedVehicleId] = useState('all');
@@ -773,19 +766,6 @@ export default function TimelineScreen() {
     }
   };
 
-  const toggleFilter = (filter) => {
-    Haptics.selectionAsync();
-    setActiveFilters(prev => {
-      const next = new Set(prev);
-      if (next.has(filter)) {
-        next.delete(filter);
-      } else {
-        next.add(filter);
-      }
-      return next;
-    });
-  };
-
   const toggleTypeFilter = (type) => {
     Haptics.selectionAsync();
     setActiveTypeFilters(prev => {
@@ -801,7 +781,6 @@ export default function TimelineScreen() {
 
   const clearFilters = () => {
     Haptics.selectionAsync();
-    setActiveFilters(new Set());
     setActiveTypeFilters(new Set());
     setSearchQuery('');
   };
@@ -813,13 +792,10 @@ export default function TimelineScreen() {
     setSortMode(modes[(idx + 1) % modes.length]);
   };
 
-  const hasActiveFilters = activeFilters.size > 0 || activeTypeFilters.size > 0 || searchQuery.trim().length > 0;
+  const hasActiveFilters = activeTypeFilters.size > 0 || searchQuery.trim().length > 0;
 
   // Unified global search + filter across ALL entry types
   const allTimelineEntries = useMemo(() => {
-    const now = new Date();
-    const thisYear = now.getFullYear();
-    const lastYear = thisYear - 1;
     const query = searchQuery.trim().toLowerCase();
 
     // Build all entries with type tags
@@ -861,23 +837,6 @@ export default function TimelineScreen() {
       });
     }
 
-    // Date/category filters
-    if (activeFilters.has('thisYear')) {
-      allEntries = allEntries.filter(e => new Date(e.date).getFullYear() === thisYear);
-    }
-    if (activeFilters.has('lastYear')) {
-      allEntries = allEntries.filter(e => new Date(e.date).getFullYear() === lastYear);
-    }
-    if (activeFilters.has('oil')) {
-      allEntries = allEntries.filter(e => e._type === 'service' && e.serviceType?.toLowerCase().includes('oil'));
-    }
-    if (activeFilters.has('brakes')) {
-      allEntries = allEntries.filter(e => e._type === 'service' && e.serviceType?.toLowerCase().includes('brake'));
-    }
-    if (activeFilters.has('expensive')) {
-      allEntries = allEntries.filter(e => e.cost && e.cost > 200);
-    }
-
     // Sort
     if (sortMode === 'newest') {
       allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -888,7 +847,7 @@ export default function TimelineScreen() {
     }
 
     return allEntries;
-  }, [services, fuelLogs, issues, snapshots, vehicles, searchQuery, activeFilters, activeTypeFilters, sortMode, selectedVehicleId]);
+  }, [services, fuelLogs, issues, snapshots, vehicles, searchQuery, activeTypeFilters, sortMode, selectedVehicleId]);
 
   // Group by month
   const groupedEntries = useMemo(() => {
@@ -1021,8 +980,6 @@ export default function TimelineScreen() {
             allTimelineEntries={allTimelineEntries}
             currentSortLabel={currentSortLabel}
             cycleSortMode={cycleSortMode}
-            activeFilters={activeFilters}
-            toggleFilter={toggleFilter}
             clearFilters={clearFilters}
           />
         }
