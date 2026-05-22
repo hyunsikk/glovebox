@@ -92,10 +92,10 @@ None — no data is collected.
 © 2026 TeamAM
 
 ## Support URL
-https://hyunsikk.github.io/glovebox/support.html
+https://support-teamam.github.io/carstory-data/support.html
 
 ## Privacy Policy URL
-https://hyunsikk.github.io/glovebox/privacy.html
+https://support-teamam.github.io/carstory-data/privacy.html
 
 ## Marketing URL
-https://hyunsikk.github.io/glovebox/
+https://support-teamam.github.io/carstory-data/

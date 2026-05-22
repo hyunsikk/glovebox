@@ -91,8 +91,8 @@ git push origin main
 ```
 
 Verify URLs work:
-- https://hyunsikk.github.io/glovebox/privacy.html
-- https://hyunsikk.github.io/glovebox/support.html
+- https://support-teamam.github.io/carstory-data/privacy.html
+- https://support-teamam.github.io/carstory-data/support.html
 
 ## Step 4: Submit to App Store Connect
 
@@ -132,9 +132,9 @@ This auto-uploads the latest build. You'll still need to fill in metadata in App
 | Promotional Text | New in v2.0: Cost benchmarks, monthly summary cards, spending heatmaps, month-over-month trends, dark/light mode, multi-currency support, and printable reports. |
 | Description | (Copy from store-listing.md — the full description) |
 | Keywords | car maintenance,vehicle tracker,fuel log,mileage,oil change,service record,auto repair,gas tracker,MPG,cost per mile,car expense,recall alert,maintenance schedule,fleet |
-| Support URL | https://hyunsikk.github.io/glovebox/support.html |
-| Marketing URL | https://hyunsikk.github.io/glovebox/ |
-| Privacy Policy URL | https://hyunsikk.github.io/glovebox/privacy.html |
+| Support URL | https://support-teamam.github.io/carstory-data/support.html |
+| Marketing URL | https://support-teamam.github.io/carstory-data/ |
+| Privacy Policy URL | https://support-teamam.github.io/carstory-data/privacy.html |
 | What's New | (Copy from store-listing.md) |
 
 **App Privacy (Privacy Nutrition Labels):**
