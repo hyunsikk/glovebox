@@ -758,7 +758,7 @@ const knowledgeBase = {
     {
       id: 'safety',
       title: 'Safety & Emergency',
-      icon: 'shield-checkmark',
+      icon: 'shield-check',
       emoji: '🛡️',
       color: '#F44336',
       articles: [
@@ -888,7 +888,7 @@ const CategoryCard = ({ category, onPress }) => (
         borderWidth: 1,
         borderColor: category.color + '30',
       }}>
-        <Text style={{ fontSize: 28 }}>{category.emoji}</Text>
+        <MaterialCommunityIcons name={category.icon} size={28} color={category.color} />
       </View>
       
       <View style={{ flex: 1 }}>
@@ -1052,7 +1052,7 @@ const CategoryView = ({ category, onBack, onArticlePress }) => (
           borderWidth: 1,
           borderColor: category.color + '30',
         }}>
-          <Text style={{ fontSize: 20 }}>{category.emoji}</Text>
+          <MaterialCommunityIcons name={category.icon} size={20} color={category.color} />
         </View>
         <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
           {category.title}
@@ -1135,7 +1135,7 @@ export default function LearnScreen() {
       if (!category) return null;
       const article = category.articles[featured.articleIndex];
       if (!article) return null;
-      return { ...article, category, categoryEmoji: category.emoji };
+      return { ...article, category, categoryIcon: category.icon, categoryColor: category.color };
     }).filter(Boolean);
   };
 
@@ -1217,7 +1217,7 @@ export default function LearnScreen() {
         {!searchQuery && featuredArticlesData.length > 0 && (
           <View style={{ marginBottom: Spacing.section }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
-              <Text style={{ fontSize: 20, marginRight: Spacing.sm }}>⭐</Text>
+              <Ionicons name="star" size={20} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
               <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
                 Essential Reading
               </Text>
@@ -1231,9 +1231,12 @@ export default function LearnScreen() {
                 activeOpacity={0.8}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 24, marginRight: Spacing.md }}>
-                    {article.categoryEmoji}
-                  </Text>
+                  <MaterialCommunityIcons
+                    name={article.categoryIcon}
+                    size={26}
+                    color={article.categoryColor}
+                    style={{ marginRight: Spacing.md }}
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={[Typography.body, { 
                       color: Colors.textPrimary, 
