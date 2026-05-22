@@ -209,7 +209,7 @@ const GetStartedScreen = ({ onAddVehicle, onBack }) => {
         alignItems: 'center',
         marginBottom: Spacing.section,
       }}>
-        <MaterialCommunityIcons name="car-plus" size={48} color={Colors.primary} />
+        <MaterialCommunityIcons name="car" size={48} color={Colors.primary} />
       </View>
       
       <Text style={[Typography.hero, { 
