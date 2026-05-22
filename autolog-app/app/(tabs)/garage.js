@@ -972,6 +972,7 @@ export default function GarageScreen() {
         onVehicleAdded={handleVehicleAdded}
       />
 
+      {showVehicleDetailModal && (
       <VehicleDetailModal
         visible={showVehicleDetailModal}
         onClose={() => setShowVehicleDetailModal(false)}
@@ -979,7 +980,9 @@ export default function GarageScreen() {
         onVehicleUpdated={handleVehicleUpdated}
         onServiceLogged={handleServiceLogged}
       />
+      )}
 
+      {showLogServiceModal && (
       <LogServiceModal
         visible={showLogServiceModal}
         onClose={() => { setShowLogServiceModal(false); setPreselectedServiceType(null); }}
@@ -987,6 +990,7 @@ export default function GarageScreen() {
         preselectedVehicle={selectedVehicle}
         preselectedServiceType={preselectedServiceType}
       />
+      )}
 
       <OnboardingModal
         visible={showOnboardingModal}
