@@ -4,15 +4,16 @@
 
 Your maintenance history just got safer, and the app got cleaner.
 
-• iCloud backup — your vehicles, service records, fuel logs, and photos back up to
-  your own private iCloud and restore automatically on a new device or after a
-  reinstall. No accounts, no servers — your data stays yours.
+• iCloud backup & restore — your vehicles, service/fuel/issue logs, attached photos,
+  and each vehicle's profile picture back up to your own private iCloud and restore
+  automatically after a reinstall or on a new device. Keep multiple named snapshots
+  and restore any one. No accounts, no servers — your data stays yours.
+• Attach photo receipts to service, fuel, and issue logs.
 • Send feedback or report a bug right from Settings.
-• Service reports now export as PDF.
-• More currencies — JPY, CNY, INR, CAD, AUD, and more.
-• Refreshed icons throughout, a fixed launch screen, and lots of polish.
-
-_(If iCloud slips to the next build, delete the first bullet.)_
+• Service reports export as PDF, with a preview before you share.
+• Car Story Pro — unlock unlimited vehicles, recall alerts, cost insights, and PDF
+  reports.
+• Cleaner logging forms, refreshed icons, a fixed launch screen, and lots of polish.
 
 ## App Review notes (App Store Connect → App Review Information → Notes)
 
@@ -26,8 +27,8 @@ Testing:
   unlocks unlimited vehicles, NHTSA recall alerts, cost forecasts/benchmarks, and PDF
   service reports. To test: Settings → Unlock Pro (works with a sandbox account).
 • iCloud backup: Settings → Back up now (device must be signed into iCloud with iCloud
-  Drive on). It writes a single backup file to the app's private iCloud container;
-  no data is sent to any server we operate.
+  Drive on). It writes backup snapshots to the app's private iCloud container; no data
+  is sent to any server we operate.
 
 Network use (all disclosed in the privacy policy):
 • NHTSA recall lookups — sends only make/model/year, never personal data.
@@ -41,7 +42,10 @@ No analytics, tracking, or personal-data collection.
 • Privacy Policy URL: https://support-teamam.github.io/carstory-data/privacy.html
 
 ## Pre-submit reminders
-• Reject the in-review 2.1.0 (build 16) so 2.2.0 can take its place.
-• Confirm the Pro IAP is attached to the 2.2.0 version.
-• Submit only after the TestFlight 4-point verification passes (iCloud restore,
-  feedback, Pro purchase+restore, notifications).
+• Attach the new build (41+) to the 2.2.0 version; remove the earlier build from
+  review if one is still selected.
+• Confirm the Pro IAP (dev.teamam.glovebox.pro) is attached to the 2.2.0 version and in
+  the "Ready to Submit" state.
+• Submit only after the on-device QA pass: iCloud restore (vehicle + profile pic +
+  service/fuel/issue receipts), the log forms (required-field validation), Pro
+  purchase + restore (sandbox), feedback, and notifications.
