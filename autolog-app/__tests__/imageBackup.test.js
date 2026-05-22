@@ -1,5 +1,5 @@
-jest.mock('expo-file-system', () => ({}), { virtual: true });
-jest.mock('../lib/imageUtils', () => ({ imagesDir: () => 'file:///docs/images/' }), { virtual: true });
+jest.mock('expo-file-system', () => ({ EncodingType: { Base64: 'base64' }, documentDirectory: 'file:///docs/' }));
+jest.mock('../lib/imageUtils', () => ({ imagesDir: () => 'file:///docs/images/' }));
 
 import { basename, isLocalFileUri, rewriteImageUris } from '../lib/imageBackup';
 
