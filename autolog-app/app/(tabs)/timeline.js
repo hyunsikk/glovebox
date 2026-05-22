@@ -1040,32 +1040,6 @@ export default function TimelineScreen() {
         keyboardShouldPersistTaps="handled"
       />
 
-      {/* Floating Add Button */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          right: 20,
-          backgroundColor: Colors.primary,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          justifyContent: 'center',
-          alignItems: 'center',
-          shadowColor: Colors.primary,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-          elevation: 8,
-          borderWidth: 1,
-          borderColor: Colors.glassBorder,
-        }}
-        onPress={handleLogService}
-        activeOpacity={0.9}
-      >
-        <Ionicons name="add" size={28} color={Colors.textPrimary} />
-      </TouchableOpacity>
-
       <LogServiceModal
         visible={showLogServiceModal}
         onClose={() => setShowLogServiceModal(false)}
