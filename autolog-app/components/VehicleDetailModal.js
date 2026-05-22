@@ -1550,12 +1550,14 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
 
   const handleSaveFuelLog = async (logData) => {
     try {
+      let result = null;
       if (logData._delete) {
         await FuelStorage.delete(logData.id);
       } else if (logData.id) {
         await FuelStorage.update(logData.id, logData);
+        result = { id: logData.id };
       } else {
-        await FuelStorage.add(logData);
+        result = await FuelStorage.add(logData);
       }
       // Update vehicle odometer if toggle was on
       if (logData._updateOdometer && logData.odometer > 0) {
@@ -1565,9 +1567,11 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
       const updatedLogs = await FuelStorage.getByVehicleId(vehicle.id);
       setFuelLogs(updatedLogs);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return result;
     } catch (error) {
       console.error('Error saving fuel log:', error);
       Alert.alert('Error', 'Failed to save fuel log');
+      return null;
     }
   };
 

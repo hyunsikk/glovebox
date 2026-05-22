@@ -221,10 +221,10 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
   );
 };
 
-const FuelCard = ({ fuelLog, vehicle }) => {
+const FuelCard = ({ fuelLog, vehicle, photos = [] }) => {
   const { formatCost, formatDistance, formatVolume } = useSettings();
   const isFuel = fuelLog.type !== 'ev_charge';
-  
+
   return (
     <View style={[Shared.card, { marginBottom: Spacing.md }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -255,6 +255,31 @@ const FuelCard = ({ fuelLog, vehicle }) => {
           </Text>
         </View>
 
+        {/* Photo thumbnails */}
+        {photos.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: Spacing.sm }}>
+            <Ionicons name="camera" size={16} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+            <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 4 }]}>
+              {photos.length}
+            </Text>
+            {photos.slice(0, 2).map((photo, index) => (
+              <Image
+                key={photo.id || index}
+                source={{ uri: getThumbnailUri(photo) }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: Colors.glassBorder,
+                  marginLeft: 2,
+                }}
+                resizeMode="cover"
+              />
+            ))}
+          </View>
+        )}
+
         {/* Cost & Date */}
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
@@ -269,7 +294,7 @@ const FuelCard = ({ fuelLog, vehicle }) => {
   );
 };
 
-const IssueCard = ({ issue, vehicle }) => {
+const IssueCard = ({ issue, vehicle, photos = [] }) => {
   const { formatCost } = useSettings();
   const severityColors = {
     minor: '#3B82F6',
@@ -309,9 +334,9 @@ const IssueCard = ({ issue, vehicle }) => {
           <Text style={[Typography.body, { color: Colors.textSecondary, marginBottom: Spacing.sm }]} numberOfLines={2}>
             {issue.description}
           </Text>
-          
+
           {/* Severity and Status badges */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
             <View style={{
               paddingHorizontal: 8,
               paddingVertical: 2,
@@ -321,7 +346,7 @@ const IssueCard = ({ issue, vehicle }) => {
               borderColor: severityColors[issue.severity] + '40',
               marginRight: Spacing.sm,
             }}>
-              <Text style={[Typography.small, { 
+              <Text style={[Typography.small, {
                 color: severityColors[issue.severity],
                 fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
@@ -338,7 +363,7 @@ const IssueCard = ({ issue, vehicle }) => {
               borderWidth: 1,
               borderColor: statusColors[issue.status] + '40',
             }}>
-              <Text style={[Typography.small, { 
+              <Text style={[Typography.small, {
                 color: statusColors[issue.status],
                 fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
@@ -347,6 +372,31 @@ const IssueCard = ({ issue, vehicle }) => {
                 {issue.status === 'in_progress' ? 'in progress' : issue.status}
               </Text>
             </View>
+
+            {/* Photo thumbnails */}
+            {photos.length > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: Spacing.sm }}>
+                <Ionicons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 2 }} />
+                <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 2 }]}>
+                  {photos.length}
+                </Text>
+                {photos.slice(0, 2).map((photo, index) => (
+                  <Image
+                    key={photo.id || index}
+                    source={{ uri: getThumbnailUri(photo) }}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: Colors.glassBorder,
+                      marginLeft: 2,
+                    }}
+                    resizeMode="cover"
+                  />
+                ))}
+              </View>
+            )}
           </View>
         </View>
 
@@ -712,6 +762,8 @@ export default function TimelineScreen() {
   const [selectedService, setSelectedService] = useState(null);
   const [fuelLogs, setFuelLogs] = useState([]);
   const [servicePhotosMap, setServicePhotosMap] = useState({});
+  const [fuelPhotosMap, setFuelPhotosMap] = useState({});
+  const [issuePhotosMap, setIssuePhotosMap] = useState({});
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -742,15 +794,19 @@ export default function TimelineScreen() {
       setIssues(allIssues);
       setSnapshots(allSnapshots);
 
-      // Load photos once and group by serviceId (avoids re-reading the whole
-      // image blob once per service on every tab focus).
-      const photosMap = {};
+      // Load photos once and group by serviceId / fuelLogId / issueId in one pass.
+      const svcMap = {};
+      const fuelMap = {};
+      const issueMap = {};
       const allImages = await ImageStorage.getAll();
       for (const img of allImages) {
-        if (!img.serviceId) continue;
-        (photosMap[img.serviceId] = photosMap[img.serviceId] || []).push(img);
+        if (img.serviceId) (svcMap[img.serviceId] = svcMap[img.serviceId] || []).push(img);
+        if (img.fuelLogId) (fuelMap[img.fuelLogId] = fuelMap[img.fuelLogId] || []).push(img);
+        if (img.issueId) (issueMap[img.issueId] = issueMap[img.issueId] || []).push(img);
       }
-      setServicePhotosMap(photosMap);
+      setServicePhotosMap(svcMap);
+      setFuelPhotosMap(fuelMap);
+      setIssuePhotosMap(issueMap);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -872,8 +928,8 @@ export default function TimelineScreen() {
 
   const renderEntry = (entry) => {
     const vehicle = vehicles.find(v => v.id === entry.vehicleId);
-    if (entry._type === 'fuel') return <FuelCard fuelLog={entry} vehicle={vehicle} />;
-    if (entry._type === 'issue') return <IssueCard issue={entry} vehicle={vehicle} />;
+    if (entry._type === 'fuel') return <FuelCard fuelLog={entry} vehicle={vehicle} photos={fuelPhotosMap[entry.id] || []} />;
+    if (entry._type === 'issue') return <IssueCard issue={entry} vehicle={vehicle} photos={issuePhotosMap[entry.id] || []} />;
     if (entry._type === 'snapshot') return <SnapshotCard snapshot={entry} vehicle={vehicle} />;
     return (
       <ServiceCard

@@ -16,7 +16,7 @@ const hasData = fs.existsSync(path.join(CARSTORY_DATA, 'manifest.json'))
 
 // In-memory expo-file-system (the on-disk cache the app writes the dataset to).
 const memFS = {};
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/cs-test/',
   writeAsStringAsync: jest.fn(async (p, c) => { memFS[p] = c; }),
   readAsStringAsync: jest.fn(async (p) => {

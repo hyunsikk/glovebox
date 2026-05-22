@@ -1,4 +1,4 @@
-jest.mock('expo-file-system', () => ({ EncodingType: { Base64: 'base64' }, documentDirectory: 'file:///docs/' }));
+jest.mock('expo-file-system/legacy', () => ({ EncodingType: { Base64: 'base64' }, documentDirectory: 'file:///docs/' }));
 jest.mock('../lib/imageUtils', () => ({ imagesDir: () => 'file:///docs/images/' }));
 
 import { basename, isLocalFileUri, rewriteImageUris } from '../lib/imageBackup';

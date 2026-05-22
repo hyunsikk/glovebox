@@ -9,11 +9,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
-import { IssueStorage, ServiceStorage } from '../lib/storage';
+import { IssueStorage, ServiceStorage, ImageStorage } from '../lib/storage';
+import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import { todayLocal } from '../lib/dateUtils';
 import DatePickerField from './DatePickerField';
 
@@ -162,6 +164,7 @@ export default function LogIssueModal({
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
 
   const isEditing = !!editingIssue;
 
@@ -181,6 +184,9 @@ export default function LogIssueModal({
         });
         setUpdateNote('');
         loadServices(editingIssue.vehicleId);
+        ImageStorage.getByIssueId(editingIssue.id)
+          .then(photos => setSelectedPhotos(photos || []))
+          .catch(() => setSelectedPhotos([]));
       } else {
         setForm({
           vehicleId: selectedVehicle?.id || '',
@@ -194,6 +200,7 @@ export default function LogIssueModal({
           resolvedServiceId: '',
         });
         setUpdateNote('');
+        setSelectedPhotos([]);
       }
       setErrors({});
     }
@@ -217,6 +224,25 @@ export default function LogIssueModal({
       loadServices(form.vehicleId);
     }
   }, [form.vehicleId]);
+
+  const handlePickPhoto = async () => {
+    if (selectedPhotos.length >= 5) return;
+    Haptics.selectionAsync();
+    try {
+      const imageData = await pickImageAsync();
+      if (imageData) {
+        setSelectedPhotos(prev => [...prev, imageData]);
+      }
+    } catch (error) {
+      console.error('Error picking photo:', error);
+      Alert.alert('Error', 'Failed to pick photo. Please try again.');
+    }
+  };
+
+  const handleRemovePhoto = (index) => {
+    Haptics.selectionAsync();
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -267,14 +293,37 @@ export default function LogIssueModal({
         resolvedServiceId: form.resolvedServiceId || undefined,
       };
 
+      let issueId;
       if (isEditing) {
         // Pass update note as internal field for history tracking
         if (updateNote.trim()) {
           issueData._updateNote = updateNote.trim();
         }
         await IssueStorage.update(editingIssue.id, issueData);
+        issueId = editingIssue.id;
       } else {
-        await IssueStorage.add(issueData);
+        const savedIssue = await IssueStorage.add(issueData);
+        issueId = savedIssue.id;
+      }
+
+      // Persist newly-added photos (no `id` means they came from the picker, not storage)
+      for (const photo of selectedPhotos) {
+        if (photo.id) continue; // already persisted
+        try {
+          const storedUri = await persistImage(photo.uri);
+          await ImageStorage.add({
+            id: `issue_${issueId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            uri: storedUri,
+            width: photo.width,
+            height: photo.height,
+            type: photo.type,
+            createdAt: new Date().toISOString(),
+            issueId,
+            vehicleId: form.vehicleId,
+          });
+        } catch (photoError) {
+          console.error('Error saving issue photo:', photoError);
+        }
       }
 
       onIssueLogged && onIssueLogged();
@@ -419,9 +468,88 @@ export default function LogIssueModal({
               )}
             </View>
 
+            {/* Photos */}
+            <View style={{ marginBottom: Spacing.lg }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
+                <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
+                  Photos (Optional)
+                </Text>
+                <Text style={[Typography.caption, { color: Colors.arcticSilver }]}>
+                  {selectedPhotos.length}/5 photos
+                </Text>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: Spacing.sm }}
+                contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}
+              >
+                {selectedPhotos.map((photo, index) => (
+                  <View key={index} style={{ position: 'relative' }}>
+                    <Image
+                      source={{ uri: getThumbnailUri(photo) }}
+                      style={{
+                        width: 70,
+                        height: 70,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: Colors.glassBorder,
+                      }}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      onPress={() => handleRemovePhoto(index)}
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor: Colors.deepRed,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Ionicons name="close" size={12} color={Colors.pearlWhite} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {selectedPhotos.length < 5 && (
+                  <TouchableOpacity
+                    onPress={handlePickPhoto}
+                    style={{
+                      width: 70,
+                      height: 70,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: Colors.glassBorder,
+                      borderStyle: 'dashed',
+                      backgroundColor: Colors.surface1,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="camera-outline" size={24} color={Colors.steelBlue} />
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+
+              <Text style={[Typography.caption, {
+                color: Colors.arcticSilver,
+                marginTop: 4,
+                textAlign: 'center',
+              }]}>
+                Add receipts, work photos, or any relevant images
+              </Text>
+            </View>
+
             {/* Severity */}
             <View style={{ marginBottom: Spacing.lg }}>
-              <SeverityPicker 
+              <SeverityPicker
                 value={form.severity}
                 onSelect={(severity) => setForm(prev => ({ ...prev, severity }))}
               />

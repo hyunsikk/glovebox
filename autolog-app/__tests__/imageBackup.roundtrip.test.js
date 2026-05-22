@@ -5,7 +5,7 @@
 const store = {}; // uri -> contents
 
 jest.mock('../lib/imageUtils', () => ({ imagesDir: () => 'file:///NEW/images/' }));
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   EncodingType: { Base64: 'base64' },
   documentDirectory: 'file:///NEW/',
   getInfoAsync: jest.fn(async (uri) => ({ exists: uri in store })),

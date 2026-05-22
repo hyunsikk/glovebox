@@ -345,6 +345,28 @@ export const ImageStorage = {
     }
   },
 
+  // Get images for a specific fuel log
+  getByFuelLogId: async (fuelLogId) => {
+    try {
+      const images = await ImageStorage.getAll();
+      return images.filter(img => img.fuelLogId === fuelLogId);
+    } catch (error) {
+      console.error('Error getting images by fuel log ID:', error);
+      return [];
+    }
+  },
+
+  // Get images for a specific issue
+  getByIssueId: async (issueId) => {
+    try {
+      const images = await ImageStorage.getAll();
+      return images.filter(img => img.issueId === issueId);
+    } catch (error) {
+      console.error('Error getting images by issue ID:', error);
+      return [];
+    }
+  },
+
   // Get images for a specific vehicle
   getByVehicleId: async (vehicleId) => {
     try {
