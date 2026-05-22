@@ -77,19 +77,21 @@ const CollapsibleSection = ({ title, children, defaultExpanded = false, hasConte
 
 // Small photo strip for activity-log entries (fuel/issue), matching the service
 // item's thumbnail style.
-const EntryPhotoThumbs = ({ photos = [] }) => {
+const EntryPhotoThumbs = ({ photos = [], onPressPhoto }) => {
   if (!photos.length) return null;
+  const thumbStyle = { width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: Colors.glassBorder, marginRight: 6 };
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm }}>
       <Ionicons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
       <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 6 }]}>{photos.length}</Text>
       {photos.slice(0, 3).map((photo, i) => (
-        <Image
-          key={photo.id || i}
-          source={{ uri: getThumbnailUri(photo) }}
-          style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: Colors.glassBorder, marginRight: 6 }}
-          resizeMode="cover"
-        />
+        onPressPhoto ? (
+          <TouchableOpacity key={photo.id || i} onPress={() => onPressPhoto(photo)} activeOpacity={0.8}>
+            <Image source={{ uri: getThumbnailUri(photo) }} style={thumbStyle} resizeMode="cover" />
+          </TouchableOpacity>
+        ) : (
+          <Image key={photo.id || i} source={{ uri: getThumbnailUri(photo) }} style={thumbStyle} resizeMode="cover" />
+        )
       ))}
     </View>
   );
@@ -175,38 +177,11 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
               {service.vendor}
             </Text>
           )}
-          
-          {/* Photo thumbnails */}
-          {servicePhotos.length > 0 && (
-            <View style={{ flexDirection: 'row', marginTop: 4, alignItems: 'center' }}>
-              <MaterialCommunityIcons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-              <Text style={[Typography.small, { color: Colors.textSecondary }]}>
-                {servicePhotos.length}
-              </Text>
-              {servicePhotos.slice(0, 2).map((photo, index) => (
-                <TouchableOpacity 
-                  key={photo.id || index} 
-                  onPress={() => setPreviewImage(getThumbnailUri(photo))}
-                  activeOpacity={0.8}
-                  style={{ marginLeft: 4 }}
-                >
-                  <Image
-                    source={{ uri: getThumbnailUri(photo) }}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 4,
-                      borderWidth: 1,
-                      borderColor: Colors.glassBorder,
-                    }}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
       </View>
+
+      {/* Photos below the row (left-aligned), matching fuel/issue entries */}
+      <EntryPhotoThumbs photos={servicePhotos} onPressPhoto={(photo) => setPreviewImage(getThumbnailUri(photo))} />
 
       {/* Shop Review Stars / DIY Badge */}
       {(service.shopReview || service.diyLog) && (
