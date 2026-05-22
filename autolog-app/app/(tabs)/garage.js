@@ -169,16 +169,17 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
         </TouchableOpacity>
         )}
 
-        {/* Subtle gradient accent line at top */}
+        {/* Status accent line at top — inset by the card's corner radius (20) so
+            it sits on the straight edge and doesn't poke past the rounded corners. */}
         <View style={{
           position: 'absolute',
           top: 0,
-          left: 0,
-          right: 0,
+          left: 20,
+          right: 20,
           height: 3,
           backgroundColor: getServiceStatusColor(),
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          borderBottomLeftRadius: 2,
+          borderBottomRightRadius: 2,
           opacity: 0.7,
         }} />
         

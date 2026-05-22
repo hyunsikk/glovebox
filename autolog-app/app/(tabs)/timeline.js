@@ -123,23 +123,15 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
 
   return (
     <TouchableOpacity
-      style={[Shared.card, { 
+      style={[Shared.card, {
         marginBottom: Spacing.md,
-        position: 'relative',
+        borderLeftWidth: 4,
+        borderLeftColor: serviceColor,
       }]}
       onPress={() => onEdit(service)}
       activeOpacity={0.9}
     >
-      <View style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 4,
-        backgroundColor: serviceColor,
-        borderTopLeftRadius: 20,
-        borderBottomLeftRadius: 20,
-      }} /><View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
         <View style={{
           backgroundColor: serviceColor + '20',
           borderRadius: 24,
