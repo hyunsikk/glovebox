@@ -1,18 +1,24 @@
 /**
- * Backup / restore layer.
+ * Backup / restore layer — snapshot model.
  *
- * Serializes the full local dataset (via DataUtils) into one JSON blob and
- * stores it through a pluggable adapter. The goal is durability: surviving an
- * app delete+reinstall or a device switch, which plain AsyncStorage does not.
+ * Serializes the full local dataset (+ photo bytes) into JSON blobs stored in the
+ * user's iCloud Documents container (with an on-device mirror). Survives an app
+ * delete+reinstall or a device switch, which plain AsyncStorage does not.
  *
- * Adapter seam (same pattern as PurchaseContext): the real fix is iCloud, which
- * needs a native module + entitlement + EAS build. Until that's wired, a local
- * adapter (FileSystem on native, AsyncStorage on web) makes the entire
- * backup/restore UX work and verifiable today. When the iCloud module is added,
- * it becomes the active adapter with no changes to callers.
+ * Snapshots:
+ *  - ONE rolling "auto" backup, overwritten silently on app background:
+ *      cs-auto__<ts>__<vehicleCount>.json
+ *  - Up to MAX_MANUAL_SNAPSHOTS named manual snapshots from "Back up now":
+ *      cs-snap__<ts>__<vehicleCount>__<sanitized-label>.json
+ *  - A legacy single-file backup (carstory-backup.json) is still recognized for
+ *    restore so upgrading users don't lose their existing backup.
  *
- * To make backups truly reinstall-safe (the whole point), the iCloud adapter
- * must write to the user's iCloud ubiquity container — see ICLOUD_SETUP below.
+ * Metadata (timestamp, vehicle count, label) is encoded in the filename so the
+ * snapshot list can be built from names alone — no multi-MB file reads.
+ *
+ * Adapter seam: a name-based file API (writeFile/readFile/listFiles/deleteFile)
+ * backed by the iCloud native module when present, else a local FileSystem /
+ * AsyncStorage fallback (web, Expo Go, pre-iCloud builds).
  */
 
 import { Platform } from 'react-native';
@@ -21,90 +27,107 @@ import * as FileSystem from 'expo-file-system';
 import { DataUtils } from './storage';
 import { collectImageFiles, restoreImageFiles, rewriteImageUris } from './imageBackup';
 
-const BACKUP_FILENAME = 'carstory-backup.json';
 const LAST_BACKUP_KEY = '@autolog_last_backup_at';
-const LAST_LOCATION_KEY = '@autolog_last_backup_location'; // 'icloud' | 'local'
 const AUTO_BACKUP_KEY = '@autolog_auto_backup'; // '0' to disable; default on
 
-/*
- * ICLOUD_SETUP (device-build checklist — only you can do these):
- *  1. Apple Developer: enable the iCloud capability and create a container
- *     (e.g. iCloud.dev.teamam.glovebox) for the app id.
- *  2. app.json: add the iCloud entitlement + container via a config plugin.
- *  3. Add the native bridge (a small Expo Module, Swift) that reads/writes a
- *     file in the ubiquity container; expose it here as `iCloudAdapter`.
- *  4. EAS build + verify on device: back up, delete app, reinstall, restore.
- */
+export const MAX_MANUAL_SNAPSHOTS = 3;
+const AUTO_PREFIX = 'cs-auto__';
+const SNAP_PREFIX = 'cs-snap__';
+const LEGACY_FILE = 'carstory-backup.json';
 
-// --- adapters ----------------------------------------------------------------
+// --- adapters: name-based file ops ------------------------------------------
 
-// Local fallback: a real file on native (documentDirectory), AsyncStorage on
-// web. NOT reinstall-safe on its own — it always runs as a mirror so there is
-// some on-device copy even when iCloud is the primary target. write() returns
-// the location it wrote to.
+const localDir = () => (FileSystem.documentDirectory ? `${FileSystem.documentDirectory}backups/` : null);
+const WEB_PREFIX = '@autolog_bk_';
+
 const localAdapter = {
   kind: 'local',
-  async write(contents) {
-    if (FileSystem.documentDirectory) {
-      await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + BACKUP_FILENAME, contents);
+  async writeFile(name, contents) {
+    const dir = localDir();
+    if (dir) {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+      await FileSystem.writeAsStringAsync(dir + name, contents);
     } else {
-      await AsyncStorage.setItem('@autolog_backup_blob', contents);
+      await AsyncStorage.setItem(WEB_PREFIX + name, contents);
     }
     return 'local';
   },
-  async read() {
-    if (FileSystem.documentDirectory) {
-      const path = FileSystem.documentDirectory + BACKUP_FILENAME;
-      const info = await FileSystem.getInfoAsync(path).catch(() => ({ exists: false }));
+  async readFile(name) {
+    const dir = localDir();
+    if (dir) {
+      const info = await FileSystem.getInfoAsync(dir + name).catch(() => ({ exists: false }));
       if (!info.exists) return null;
-      return FileSystem.readAsStringAsync(path).catch(() => null);
+      return FileSystem.readAsStringAsync(dir + name).catch(() => null);
     }
-    return AsyncStorage.getItem('@autolog_backup_blob');
+    return AsyncStorage.getItem(WEB_PREFIX + name);
+  },
+  async listFiles() {
+    const dir = localDir();
+    if (dir) {
+      return FileSystem.readDirectoryAsync(dir).catch(() => []);
+    }
+    const keys = await AsyncStorage.getAllKeys().catch(() => []);
+    return keys.filter((k) => k.startsWith(WEB_PREFIX)).map((k) => k.slice(WEB_PREFIX.length));
+  },
+  async deleteFile(name) {
+    const dir = localDir();
+    if (dir) {
+      await FileSystem.deleteAsync(dir + name, { idempotent: true }).catch(() => {});
+    } else {
+      await AsyncStorage.removeItem(WEB_PREFIX + name);
+    }
+    return true;
   },
   async available() {
     return false;
   },
 };
 
-// iCloud adapter — present once the native module (modules/icloud-backup) is in
-// the build. Required lazily inside try/catch so web, Expo Go, and the
-// pre-iCloud production build fall straight through to the local adapter.
-// write() always mirrors to local too, so a backup is never lost if iCloud is
-// momentarily unavailable. write/read fall back to local on any iCloud error.
+// iCloud adapter — present once the native module is in the build. Mirrors every
+// write to local too, and falls back to local on any iCloud error.
 function loadICloudAdapter() {
   try {
     if (Platform.OS !== 'ios') return null;
     const native = require('../modules/icloud-backup').default;
-    if (!native || typeof native.write !== 'function') return null;
+    if (!native || typeof native.writeFile !== 'function') return null;
     return {
       kind: 'icloud',
-      async write(contents) {
+      async writeFile(name, contents) {
         try {
           if (await native.isAvailable()) {
-            await native.write(contents);
-            await localAdapter.write(contents); // keep an on-device mirror
+            await native.writeFile(name, contents);
+            await localAdapter.writeFile(name, contents); // on-device mirror
             return 'icloud';
           }
         } catch (e) {
-          console.warn('iCloud backup failed, using local:', e?.message);
+          console.warn('iCloud write failed, using local:', e?.message);
         }
-        return localAdapter.write(contents);
+        return localAdapter.writeFile(name, contents);
       },
-      async read() {
+      async readFile(name) {
         try {
-          const remote = await native.read();
+          const remote = await native.readFile(name);
           if (remote) return remote;
         } catch (e) {
           console.warn('iCloud read failed, using local:', e?.message);
         }
-        return localAdapter.read();
+        return localAdapter.readFile(name);
+      },
+      async listFiles() {
+        try {
+          const names = await native.listFiles();
+          if (names && names.length) return names;
+        } catch (e) {
+          console.warn('iCloud list failed, using local:', e?.message);
+        }
+        return localAdapter.listFiles();
+      },
+      async deleteFile(name) {
+        try { await native.deleteFile(name); } catch (e) { /* ignore */ }
+        return localAdapter.deleteFile(name);
       },
       async available() {
-        try {
-          return await native.isAvailable();
-        } catch {
-          return false;
-        }
+        try { return await native.isAvailable(); } catch { return false; }
       },
     };
   } catch {
@@ -112,25 +135,57 @@ function loadICloudAdapter() {
   }
 }
 
-const iCloudAdapter = loadICloudAdapter();
-const adapter = iCloudAdapter || localAdapter;
+const adapter = loadICloudAdapter() || localAdapter;
 
-/** Whether the build can use iCloud at all (module present), regardless of sign-in. */
 export function isICloudCapable() {
   return adapter.kind === 'icloud';
 }
-
-/** Whether iCloud is usable right now (module present AND signed into iCloud). */
 export async function isICloudActive() {
   return adapter.available();
+}
+
+// --- filename <-> metadata --------------------------------------------------
+
+function sanitizeLabel(label) {
+  const cleaned = (label || 'Latest')
+    .replace(/[^A-Za-z0-9 ]/g, ' ')
+    .trim()
+    .slice(0, 30)
+    .replace(/\s+/g, '-');
+  return cleaned || 'Latest';
+}
+
+function snapFileName({ kind, ts, count, label }) {
+  if (kind === 'auto') return `${AUTO_PREFIX}${ts}__${count}.json`;
+  return `${SNAP_PREFIX}${ts}__${count}__${sanitizeLabel(label)}.json`;
+}
+
+/** Parse a backup filename into { file, kind, ts, count, label } or null. */
+function parseSnapFile(name) {
+  if (name === LEGACY_FILE) return { file: name, kind: 'legacy', ts: 1, count: null, label: 'Backup' };
+  const base = name.replace(/\.json$/, '');
+  if (name.startsWith(AUTO_PREFIX)) {
+    const [ts, count] = base.slice(AUTO_PREFIX.length).split('__');
+    return { file: name, kind: 'auto', ts: Number(ts) || 0, count: Number(count) || 0, label: 'Auto backup' };
+  }
+  if (name.startsWith(SNAP_PREFIX)) {
+    const parts = base.slice(SNAP_PREFIX.length).split('__');
+    return {
+      file: name,
+      kind: 'manual',
+      ts: Number(parts[0]) || 0,
+      count: Number(parts[1]) || 0,
+      label: (parts.slice(2).join(' ') || 'Snapshot').replace(/-/g, ' '),
+    };
+  }
+  return null;
 }
 
 // --- public API --------------------------------------------------------------
 
 /**
- * The complete, portable snapshot: all data plus the actual photo bytes inlined
- * (base64, keyed by filename) so a restore on another device/install has the
- * images, not dead paths. Shared by backupNow and the Settings "Export data".
+ * Complete, portable snapshot: all data plus photo bytes inlined (base64, keyed
+ * by filename) so a restore on another device/install keeps the images.
  */
 export async function buildBackupPayload() {
   const data = await DataUtils.exportData();
@@ -138,27 +193,60 @@ export async function buildBackupPayload() {
   return data;
 }
 
-/** Serialize all data and write it through the active adapter. */
-export async function backupNow() {
-  try {
-    const data = await buildBackupPayload();
-    if (!data || (data.vehicles || []).length === 0) {
-      return { success: false, reason: 'empty' }; // nothing worth backing up
+/** All snapshots (auto + manual + legacy), newest first. Built from filenames. */
+export async function listSnapshots() {
+  let names = [];
+  try { names = await adapter.listFiles(); } catch (e) { names = []; }
+  return names.map(parseSnapFile).filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
+
+async function writeBackup({ kind, label }) {
+  const data = await buildBackupPayload();
+  if (!data || (data.vehicles || []).length === 0) {
+    return { success: false, reason: 'empty' };
+  }
+  const ts = Date.now();
+  const count = (data.vehicles || []).length;
+  data.label = kind === 'manual' ? (label || 'Latest') : 'Auto backup';
+  data.exportedAt = data.exportedAt || new Date(ts).toISOString();
+  const name = snapFileName({ kind, ts, count, label: data.label });
+
+  const location = (await adapter.writeFile(name, JSON.stringify(data))) || 'local';
+
+  // Eviction
+  const snaps = await listSnapshots();
+  if (kind === 'auto') {
+    // Keep only the newest auto; drop older autos and the legacy single-file.
+    for (const s of snaps.filter((x) => (x.kind === 'auto' && x.file !== name) || x.kind === 'legacy')) {
+      await adapter.deleteFile(s.file);
     }
-    const location = (await adapter.write(JSON.stringify(data))) || 'local';
-    const at = new Date().toISOString();
-    await AsyncStorage.multiSet([[LAST_BACKUP_KEY, at], [LAST_LOCATION_KEY, location]]);
-    return { success: true, at, location, vehicleCount: data.vehicles.length };
+  } else {
+    const manuals = snaps.filter((x) => x.kind === 'manual');
+    for (const s of manuals.slice(MAX_MANUAL_SNAPSHOTS)) {
+      await adapter.deleteFile(s.file);
+    }
+  }
+
+  await AsyncStorage.setItem(LAST_BACKUP_KEY, new Date(ts).toISOString());
+  return { success: true, at: new Date(ts).toISOString(), location, vehicleCount: count };
+}
+
+/**
+ * Create a backup. opts.kind: 'manual' (default, named, kept up to 3) or 'auto'
+ * (the single rolling slot). opts.label is the manual snapshot's description.
+ */
+export async function backupNow(opts = {}) {
+  try {
+    return await writeBackup({ kind: opts.kind || 'manual', label: opts.label });
   } catch (e) {
     console.error('Backup failed:', e?.message);
     return { success: false, error: e?.message || 'Backup failed' };
   }
 }
 
-/** Read the backup blob and return parsed data if a valid one exists. */
-export async function readBackup() {
+async function readAndValidate(file) {
   try {
-    const raw = await adapter.read();
+    const raw = await adapter.readFile(file);
     if (!raw) return null;
     const data = JSON.parse(raw);
     return DataUtils.validateImportData(data) ? data : null;
@@ -168,24 +256,21 @@ export async function readBackup() {
 }
 
 export async function hasBackup() {
-  return (await readBackup()) !== null;
+  return (await listSnapshots()).length > 0;
 }
 
 /**
- * Restore the dataset from the backup blob. Non-destructive: snapshots current
- * data first and rolls back if the import throws, so a mis-tapped or corrupt
- * restore can't leave the user with no data.
+ * Restore a specific snapshot file. Non-destructive: snapshots current data and
+ * rolls back if the import throws.
  */
-export async function restoreFromBackup() {
+export async function restoreSnapshot(file) {
   try {
-    const data = await readBackup();
+    const data = await readAndValidate(file);
     if (!data) return { success: false, reason: 'none' };
 
     let rollback = null;
     try { rollback = await DataUtils.exportData(); } catch {}
 
-    // Write the photo bytes back into the current container and repoint each
-    // image record at its restored file before importing.
     if (data.imageFiles) {
       try {
         const nameToUri = await restoreImageFiles(data.imageFiles);
@@ -193,7 +278,7 @@ export async function restoreFromBackup() {
       } catch (e) {
         console.warn('Image restore partial/failed:', e?.message);
       }
-      delete data.imageFiles; // don't persist the blob map into storage
+      delete data.imageFiles;
     }
 
     try {
@@ -209,16 +294,22 @@ export async function restoreFromBackup() {
   }
 }
 
+/** Restore the most recent snapshot (used by the launch prompt). */
+export async function restoreFromBackup() {
+  const snaps = await listSnapshots();
+  if (!snaps.length) return { success: false, reason: 'none' };
+  return restoreSnapshot(snaps[0].file);
+}
+
 export async function getBackupMeta() {
-  const [lastBackupAt, lastLocation, autoRaw] = await Promise.all([
+  const [lastBackupAt, autoRaw] = await Promise.all([
     AsyncStorage.getItem(LAST_BACKUP_KEY).catch(() => null),
-    AsyncStorage.getItem(LAST_LOCATION_KEY).catch(() => null),
     AsyncStorage.getItem(AUTO_BACKUP_KEY).catch(() => null),
   ]);
   const iCloud = await isICloudActive();
   return {
     lastBackupAt,
-    location: lastLocation || (iCloud ? 'icloud' : 'local'),
+    location: iCloud ? 'icloud' : 'local',
     iCloud,
     autoEnabled: autoRaw !== '0',
   };
@@ -232,12 +323,12 @@ async function autoBackupEnabled() {
   return (await AsyncStorage.getItem(AUTO_BACKUP_KEY).catch(() => null)) !== '0';
 }
 
-/** Debounced auto-backup, e.g. on app background. No-op if disabled. */
+/** Debounced auto-backup (rolling single slot), e.g. on app background. */
 let _debounce = null;
 export function scheduleAutoBackup({ delay = 1500 } = {}) {
   if (_debounce) clearTimeout(_debounce);
   _debounce = setTimeout(async () => {
-    if (await autoBackupEnabled()) await backupNow();
+    if (await autoBackupEnabled()) await backupNow({ kind: 'auto' });
   }, delay);
 }
 

@@ -11,14 +11,24 @@ export async function isAvailable() {
   return Native.isAvailable();
 }
 
-/** Write the backup blob into the app's iCloud Documents container. */
-export async function write(contents) {
-  return Native.write(contents);
+/** Write a named file into the app's iCloud Documents container. */
+export async function writeFile(name, contents) {
+  return Native.writeFile(name, contents);
 }
 
-/** Read the backup blob (downloading from iCloud first if needed). null if none. */
-export async function read() {
-  return Native.read();
+/** Read a named file (downloading from iCloud first if needed). null if absent. */
+export async function readFile(name) {
+  return Native.readFile(name);
 }
 
-export default { isAvailable, write, read };
+/** List filenames in the container (names only — no contents download needed). */
+export async function listFiles() {
+  return Native.listFiles();
+}
+
+/** Delete a named file from the container. */
+export async function deleteFile(name) {
+  return Native.deleteFile(name);
+}
+
+export default { isAvailable, writeFile, readFile, listFiles, deleteFile };

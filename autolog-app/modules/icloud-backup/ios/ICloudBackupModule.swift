@@ -9,7 +9,10 @@ import Foundation
 // All work runs on Expo's async function queue (AsyncFunction), never the main
 // thread — forUbiquityContainerIdentifier and file coordination can block.
 public class ICloudBackupModule: Module {
-  private let fileName = "carstory-backup.json"
+  // Only allow simple backup filenames inside the container (no path traversal).
+  private func safe(_ name: String) -> String {
+    return name.replacingOccurrences(of: "/", with: "_")
+  }
 
   public func definition() -> ModuleDefinition {
     Name("ICloudBackup")
@@ -18,19 +21,32 @@ public class ICloudBackupModule: Module {
       return self.ubiquityDocumentsURL() != nil
     }
 
-    AsyncFunction("write") { (contents: String) -> Bool in
-      guard let dir = self.ensureDocumentsURL() else {
-        throw ICloudUnavailableException()
-      }
-      try self.coordinatedWrite(contents, to: dir.appendingPathComponent(self.fileName))
+    // Write a named file into the iCloud Documents container.
+    AsyncFunction("writeFile") { (name: String, contents: String) -> Bool in
+      guard let dir = self.ensureDocumentsURL() else { throw ICloudUnavailableException() }
+      try self.coordinatedWrite(contents, to: dir.appendingPathComponent(self.safe(name)))
       return true
     }
 
-    AsyncFunction("read") { () -> String? in
-      guard let dir = self.ubiquityDocumentsURL() else {
-        throw ICloudUnavailableException()
-      }
-      return try self.coordinatedRead(from: dir.appendingPathComponent(self.fileName))
+    // Read a named file (downloading from iCloud first if needed). nil if absent.
+    AsyncFunction("readFile") { (name: String) -> String? in
+      guard let dir = self.ubiquityDocumentsURL() else { throw ICloudUnavailableException() }
+      return try self.coordinatedRead(from: dir.appendingPathComponent(self.safe(name)))
+    }
+
+    // List the filenames currently in the container (metadata only — names are
+    // available even when the file contents aren't downloaded yet).
+    AsyncFunction("listFiles") { () -> [String] in
+      guard let dir = self.ensureDocumentsURL() else { throw ICloudUnavailableException() }
+      let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+      return names
+    }
+
+    AsyncFunction("deleteFile") { (name: String) -> Bool in
+      guard let dir = self.ubiquityDocumentsURL() else { throw ICloudUnavailableException() }
+      let url = dir.appendingPathComponent(self.safe(name))
+      try? FileManager.default.removeItem(at: url)
+      return true
     }
   }
 

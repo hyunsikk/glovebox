@@ -12,7 +12,7 @@ import PaywallModal from '../../components/PaywallModal';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
 import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
 import { escapeHtml } from '../../lib/htmlUtils';
-import { backupNow, restoreFromBackup, getBackupMeta, setAutoBackup, buildBackupPayload } from '../../lib/backup';
+import { backupNow, restoreSnapshot, listSnapshots, getBackupMeta, setAutoBackup, buildBackupPayload, MAX_MANUAL_SNAPSHOTS } from '../../lib/backup';
 import { contactSupport, openHelp, SUPPORT_EMAIL } from '../../lib/support';
 import * as Application from 'expo-application';
 
@@ -98,30 +98,58 @@ export default function SettingsScreen() {
 
   const [backup, setBackup] = useState({ lastBackupAt: null, iCloud: false, autoEnabled: true });
   const [backingUp, setBackingUp] = useState(false);
-  useEffect(() => { getBackupMeta().then(setBackup); }, []);
+  const [snapshots, setSnapshots] = useState([]);
+  const loadSnapshots = useCallback(async () => {
+    try { setSnapshots(await listSnapshots()); } catch (e) {}
+  }, []);
+  useEffect(() => { getBackupMeta().then(setBackup); loadSnapshots(); }, [loadSnapshots]);
 
-  const handleBackupNow = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const runBackup = useCallback(async (label) => {
     setBackingUp(true);
-    const r = await backupNow();
+    const r = await backupNow({ kind: 'manual', label });
     setBackingUp(false);
     setBackup(await getBackupMeta());
+    loadSnapshots();
     if (r.success) Alert.alert('Backed up', `Saved ${r.vehicleCount} vehicle(s)${r.location === 'icloud' ? ' to iCloud' : ' on this device'}.`);
     else if (r.reason === 'empty') Alert.alert('Nothing to back up', 'Add a vehicle first.');
     else Alert.alert('Backup failed', 'Could not save a backup. Try again.');
-  }, []);
+  }, [loadSnapshots]);
 
-  const handleRestore = useCallback(async () => {
+  // Manual "Back up now" → name the snapshot (iOS prompt). Kept up to 3.
+  const handleBackupNow = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Restore from backup?', 'This replaces the data currently on this device with your latest backup.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Restore', style: 'destructive', onPress: async () => {
-        const r = await restoreFromBackup();
-        if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s)${r.savedAt ? `\nfrom your backup saved ${new Date(r.savedAt).toLocaleString()}` : ''}.`); loadStats(); }
-        else if (r.reason === 'none') Alert.alert('No backup found', 'There is no backup to restore from yet.');
-        else Alert.alert('Restore failed', 'Could not restore. Your current data is unchanged.');
-      } },
-    ]);
+    if (Platform.OS === 'ios' && Alert.prompt) {
+      Alert.prompt(
+        'Name this backup',
+        'Add a short description so you can tell snapshots apart.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Back up', onPress: (text) => runBackup((text || '').trim() || 'Latest') },
+        ],
+        'plain-text',
+        'Latest',
+      );
+    } else {
+      runBackup('Latest');
+    }
+  }, [runBackup]);
+
+  const handleRestoreSnapshot = useCallback((snap) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const when = snap.ts > 1 ? ` (saved ${new Date(snap.ts).toLocaleString()})` : '';
+    Alert.alert(
+      'Restore this backup?',
+      `This replaces the data on this device with "${snap.label}"${when}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', style: 'destructive', onPress: async () => {
+          const r = await restoreSnapshot(snap.file);
+          if (r.success) { Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s).`); loadStats(); }
+          else if (r.reason === 'none') Alert.alert('Couldn’t read backup', 'That snapshot couldn’t be read — make sure you’re signed into the same iCloud account.');
+          else Alert.alert('Restore failed', 'Could not restore. Your current data is unchanged.');
+        } },
+      ],
+    );
   }, []);
 
   const handleToggleAutoBackup = useCallback(async (val) => {
@@ -600,7 +628,9 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         </View>
       </View>
 
-      {/* Backup */}
+      {/* Backup — one rolling auto-backup + up to MAX_MANUAL_SNAPSHOTS (3) named
+          manual snapshots, stored in the user's own iCloud (mirrored on-device).
+          Tap a snapshot to restore it. */}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         backup
       </Text>
@@ -612,19 +642,43 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           rightElement={<Switch value={backup.autoEnabled} onValueChange={handleToggleAutoBackup} trackColor={{ true: colors.primary }} />}
           colors={colors}
         />
-        <View style={{ flexDirection: 'row', gap: Spacing.sm, paddingTop: Spacing.md }}>
-          <TouchableOpacity style={[Shared.buttonSecondary, { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }]} onPress={handleBackupNow} disabled={backingUp} activeOpacity={0.8}>
+        <View style={{ paddingTop: Spacing.md }}>
+          <TouchableOpacity style={[Shared.buttonSecondary, { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }]} onPress={handleBackupNow} disabled={backingUp} activeOpacity={0.8}>
             {backingUp ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />}
             <Text style={[Typography.caption, { color: colors.primary, fontFamily: 'Nunito_700Bold' }]}>back up now</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[Shared.buttonSecondary, { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }]} onPress={handleRestore} activeOpacity={0.8}>
-            <Ionicons name="cloud-download-outline" size={18} color={colors.textSecondary} />
-            <Text style={[Typography.caption, { color: colors.textSecondary, fontFamily: 'Nunito_600SemiBold' }]}>restore</Text>
-          </TouchableOpacity>
         </View>
+
+        {snapshots.length > 0 && (
+          <View style={{ marginTop: Spacing.md }}>
+            <Text style={[Typography.small, { color: colors.textSecondary, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 }]}>
+              restore a backup
+            </Text>
+            {snapshots.map((s) => (
+              <TouchableOpacity
+                key={s.file}
+                onPress={() => handleRestoreSnapshot(s)}
+                activeOpacity={0.8}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: colors.glassBorder }}
+              >
+                <Ionicons name={s.kind === 'auto' ? 'sync-outline' : 'bookmark-outline'} size={16} color={colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.caption, { color: colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
+                    {s.label}{s.count != null ? ` · ${s.count} vehicle${s.count === 1 ? '' : 's'}` : ''}
+                  </Text>
+                  {s.ts > 1 && (
+                    <Text style={[Typography.small, { color: colors.textTertiary }]}>{new Date(s.ts).toLocaleString()}</Text>
+                  )}
+                </View>
+                <Text style={[Typography.caption, { color: colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>Restore</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         <Text style={[Typography.small, { color: colors.textTertiary, marginTop: Spacing.sm }]}>
           {backup.iCloud
-            ? 'Backed up to iCloud — your records sync across your devices and survive reinstalling the app.'
+            ? `Backed up to iCloud — keeps your latest auto-backup plus up to ${MAX_MANUAL_SNAPSHOTS} named snapshots, synced across your devices.`
             : 'On-device backup. Sign in to iCloud (Settings → your name) to sync across devices and survive reinstalls.'}
         </Text>
       </View>
