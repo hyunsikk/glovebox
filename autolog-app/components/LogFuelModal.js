@@ -608,7 +608,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             <SectionLabel>Notes (optional)</SectionLabel>
             <TextInput
               style={[Shared.input, { minHeight: 60, textAlignVertical: 'top', paddingTop: Spacing.md, marginBottom: Spacing.lg }]}
-              placeholder="Premium gas, road trip, etc."
+              placeholder={type === 'fuel' ? 'Premium gas, road trip, etc.' : 'Supercharging, road trip, etc.'}
               placeholderTextColor={Colors.arcticSilver}
               value={notes}
               onChangeText={setNotes}
