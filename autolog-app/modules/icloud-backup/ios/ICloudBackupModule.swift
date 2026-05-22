@@ -98,7 +98,7 @@ public class ICloudBackupModule: Module {
   }
 }
 
-private final class ICloudUnavailableException: Exception {
+private final class ICloudUnavailableException: Exception, @unchecked Sendable {
   override var reason: String {
     "iCloud is unavailable. Sign into iCloud and enable iCloud Drive, then try again."
   }
