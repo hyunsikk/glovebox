@@ -12,6 +12,7 @@ import { Colors, Typography, Spacing, Shared } from '../../theme';
 import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage, DataUtils } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
+import { useDataVersion } from '../../lib/DataVersion';
 import { addSampleData, clearSampleData } from '../../lib/sampleData';
 import { scheduleServiceNotifications } from '../../lib/notifications';
 import { recordPositiveEvent } from '../../lib/reviewPrompt';
@@ -709,6 +710,13 @@ export default function GarageScreen() {
     }, [])
   );
 
+  // Reload when the global data version bumps (e.g. after an iCloud restore),
+  // since the screen may already be focused and won't otherwise re-read.
+  const { version: dataVersion } = useDataVersion();
+  useEffect(() => {
+    loadVehicles();
+  }, [dataVersion]);
+
   const checkOnboarding = async () => {
     try {
       const onboardingComplete = await AsyncStorage.getItem('onboarding_complete');
@@ -836,8 +844,12 @@ export default function GarageScreen() {
   const handleLogServiceFromDetail = (vehicle, serviceName) => {
     setSelectedVehicle(vehicle);
     setPreselectedServiceType(serviceName || null);
+    // Let the detail modal fully dismiss before presenting the log modal.
+    // Presenting a modal while another is dismissing leaves iOS's modal system
+    // stuck (later modals won't open until the screen is remounted) — that was
+    // the "can't open a vehicle until I switch tabs" bug.
     setShowVehicleDetailModal(false);
-    setShowLogServiceModal(true);
+    setTimeout(() => setShowLogServiceModal(true), 400);
   };
 
   const handleServiceLogged = () => {

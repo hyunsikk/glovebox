@@ -26,6 +26,13 @@ import { getVehicleSchedule } from '../lib/vehicleDB';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
+// Local YYYY-MM-DD (NOT toISOString, which is UTC and reads as "tomorrow" in the
+// evening for users behind UTC — that tripped the "date can't be in the future" check).
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // Star Rating Component
 const StarRating = ({ rating, onRate, size = 28 }) => (
   <View style={{ flexDirection: 'row', gap: 4 }}>
@@ -161,7 +168,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
   // Form data
   const [formData, setFormData] = useState({
     serviceType: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     mileage: '',
     cost: '',
     vendor: '',
@@ -273,7 +280,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
     setSelectedPhotos([]);
     setFormData({
       serviceType: '',
-      date: new Date().toISOString().split('T')[0],
+      date: todayLocal(),
       mileage: '',
       cost: '',
       vendor: '',

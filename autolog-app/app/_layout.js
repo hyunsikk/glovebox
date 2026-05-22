@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Stack, useRouter, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
@@ -16,6 +16,7 @@ import {
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
 import { DataUtils } from '../lib/storage';
 import { scheduleAutoBackup, shouldOfferRestore, restoreFromBackup } from '../lib/backup';
+import { DataVersionProvider, useDataVersion } from '../lib/DataVersion';
 
 /**
  * Catches render-time errors anywhere in the tree so a single bad component
@@ -55,9 +56,9 @@ class ErrorBoundary extends React.Component {
 function RootLayoutInner() {
   const { isDark, colors } = useTheme();
   const router = useRouter();
-  // Bumped after a successful restore to remount the tab tree so every screen
-  // re-reads the freshly imported data instead of its initial (empty) load.
-  const [dataEpoch, setDataEpoch] = useState(0);
+  // After a successful restore, bump the global data version so already-mounted
+  // screens (e.g. the garage) re-read the freshly imported data immediately.
+  const { bumpDataVersion } = useDataVersion();
 
   useEffect(() => {
     (async () => {
@@ -74,7 +75,7 @@ function RootLayoutInner() {
             { text: 'Restore', onPress: async () => {
               const r = await restoreFromBackup();
               if (r.success) {
-                setDataEpoch((e) => e + 1); // remount so screens show restored data
+                bumpDataVersion(); // make mounted screens reload the restored data
                 Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s) from your backup.`);
               } else {
                 Alert.alert(
@@ -124,7 +125,7 @@ function RootLayoutInner() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.background} />
-      <Stack key={dataEpoch}>
+      <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </>
@@ -148,7 +149,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <SettingsProvider>
           <PurchaseProvider>
-            <RootLayoutInner />
+            <DataVersionProvider>
+              <RootLayoutInner />
+            </DataVersionProvider>
           </PurchaseProvider>
         </SettingsProvider>
       </ThemeProvider>
