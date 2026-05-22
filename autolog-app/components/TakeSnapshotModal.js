@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { SnapshotStorage, IssueStorage } from '../lib/storage';
+import { todayLocal } from '../lib/dateUtils';
 import DatePickerField from './DatePickerField';
 import { CostAnalytics } from '../lib/analytics';
 
@@ -118,7 +119,7 @@ export default function TakeSnapshotModal({
     title: '',
     condition: 'good',
     notes: '',
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     odometer: '',
   });
   
@@ -139,7 +140,7 @@ export default function TakeSnapshotModal({
         title: generateDefaultTitle(),
         condition: 'good',
         notes: '',
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         odometer: vehicle.currentMileage?.toString() || '',
       });
       setErrors({});

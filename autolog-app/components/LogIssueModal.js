@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared } from '../theme';
 import { IssueStorage, ServiceStorage } from '../lib/storage';
+import { todayLocal } from '../lib/dateUtils';
 import DatePickerField from './DatePickerField';
 
 const SEVERITY_OPTIONS = [
@@ -152,7 +153,7 @@ export default function LogIssueModal({
     description: '',
     severity: 'moderate',
     status: 'open',
-    date: new Date().toISOString().split('T')[0],
+    date: todayLocal(),
     odometer: '',
     cost: '',
     resolvedServiceId: '',
@@ -173,7 +174,7 @@ export default function LogIssueModal({
           description: editingIssue.description || '',
           severity: editingIssue.severity || 'moderate',
           status: editingIssue.status || 'open',
-          date: editingIssue.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+          date: editingIssue.date?.split('T')[0] || todayLocal(),
           odometer: editingIssue.odometer?.toString() || '',
           cost: editingIssue.cost?.toString() || '',
           resolvedServiceId: editingIssue.resolvedServiceId || '',
@@ -187,7 +188,7 @@ export default function LogIssueModal({
           description: '',
           severity: 'moderate',
           status: 'open',
-          date: new Date().toISOString().split('T')[0],
+          date: todayLocal(),
           odometer: '',
           cost: '',
           resolvedServiceId: '',

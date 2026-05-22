@@ -21,17 +21,11 @@ import { useSettings } from '../lib/SettingsContext';
 import { VehicleStorage, ServiceStorage, ImageStorage, ReminderStorage } from '../lib/storage';
 import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import DatePickerField from './DatePickerField';
+import { todayLocal } from '../lib/dateUtils';
 
 import { getVehicleSchedule } from '../lib/vehicleDB';
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
-
-// Local YYYY-MM-DD (NOT toISOString, which is UTC and reads as "tomorrow" in the
-// evening for users behind UTC — that tripped the "date can't be in the future" check).
-const todayLocal = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
 
 // Star Rating Component
 const StarRating = ({ rating, onRate, size = 28 }) => (
@@ -461,21 +455,18 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         ? `\n\nVehicle mileage updated to ${enteredMileage.toLocaleString()} mi.`
         : '';
 
-      const alertButtons = [
-            {
-              text: 'OK',
-              onPress: () => {
-                onServiceLogged(savedService);
-                handleClose();
-              },
-            },
-          ];
-
-      Alert.alert(
-        'Service Logged!',
-        `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}`,
-        alertButtons,
-      );
+      // Close the modal FIRST, then confirm. Dismissing the modal from inside an
+      // Alert's OK handler raced the Alert dismissal with the modal dismissal and
+      // left iOS's modal stack stuck — that was the "can't open a vehicle after
+      // logging a service (but fuel is fine)" bug; fuel has no confirm Alert.
+      onServiceLogged(savedService);
+      handleClose();
+      setTimeout(() => {
+        Alert.alert(
+          'Service logged',
+          `${formData.serviceType} for ${vehicleName} has been recorded.${mileageMsg}`,
+        );
+      }, 450);
 
     } catch (error) {
       console.error('Error saving service:', error);

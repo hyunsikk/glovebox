@@ -15,7 +15,7 @@ import {
 } from '../lib/notifications';
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
 import { DataUtils } from '../lib/storage';
-import { scheduleAutoBackup, shouldOfferRestore, restoreFromBackup } from '../lib/backup';
+import { scheduleAutoBackup, shouldOfferRestore, restoreFromBackup, listSnapshots, restoreSnapshot } from '../lib/backup';
 import { DataVersionProvider, useDataVersion } from '../lib/DataVersion';
 
 /**
@@ -67,26 +67,39 @@ function RootLayoutInner() {
       // Fresh install / no local data but a backup exists (e.g. after reinstall
       // or on a new device via iCloud) — offer to restore it.
       if (await shouldOfferRestore()) {
+        // file === undefined → restore the most recent snapshot.
+        const doRestore = async (file) => {
+          const r = file ? await restoreSnapshot(file) : await restoreFromBackup();
+          if (r.success) {
+            bumpDataVersion(); // make mounted screens reload the restored data
+            const when = r.savedAt ? new Date(r.savedAt).toLocaleString() : null;
+            Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s)${when ? `\nfrom your backup saved ${when}` : ' from your backup'}.`);
+          } else {
+            Alert.alert(
+              'Restore failed',
+              r.reason === 'none'
+                ? 'No backup could be read. Make sure you are signed into the same iCloud account.'
+                : (r.error || 'Could not restore your backup. Please try again.'),
+            );
+          }
+        };
+        const chooseSnapshot = async () => {
+          const snaps = await listSnapshots();
+          if (snaps.length <= 1) { doRestore(snaps[0]?.file); return; }
+          const buttons = snaps.slice(0, 5).map((s) => ({
+            text: `${s.label}${s.ts > 1 ? ` — ${new Date(s.ts).toLocaleDateString()}` : ''}${s.count != null ? ` (${s.count})` : ''}`,
+            onPress: () => doRestore(s.file),
+          }));
+          buttons.push({ text: 'Cancel', style: 'cancel' });
+          Alert.alert('Choose a backup', 'Pick which snapshot to restore.', buttons);
+        };
         Alert.alert(
           'Restore your data?',
-          'We found a Car Story backup for this device. Restore your vehicles and records now?',
+          'We found Car Story backups. Restore your most recent one, or choose a specific snapshot.',
           [
             { text: 'Not now', style: 'cancel' },
-            { text: 'Restore', onPress: async () => {
-              const r = await restoreFromBackup();
-              if (r.success) {
-                bumpDataVersion(); // make mounted screens reload the restored data
-                const when = r.savedAt ? new Date(r.savedAt).toLocaleString() : null;
-                Alert.alert('Restored', `Recovered ${r.vehicleCount} vehicle(s)${when ? `\nfrom your backup saved ${when}` : ' from your backup'}.`);
-              } else {
-                Alert.alert(
-                  'Restore failed',
-                  r.reason === 'none'
-                    ? 'No backup could be read. Make sure you are signed into the same iCloud account.'
-                    : (r.error || 'Could not restore your backup. Please try again.'),
-                );
-              }
-            } },
+            { text: 'Choose…', onPress: chooseSnapshot },
+            { text: 'Restore latest', onPress: () => doRestore() },
           ],
         );
       }
