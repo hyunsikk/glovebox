@@ -1,6 +1,6 @@
 # Car Story — Roadmap
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-05-25_
 
 ## Product thesis
 
@@ -83,3 +83,98 @@ Port the proven apps to Android. Mostly mechanical.
 - Backup + low entry-friction are retention prerequisites, not features. Protect them.
 - Price is not the lever; distribution + retention are. Optimize those first.
 - Build Phase-1 code with clean boundaries so the Phase-2 engine extraction is cheap.
+
+---
+
+## Deferred — Pro 2.0 feature spec (DO NOT BUILD UNTIL PAID-USER GATE)
+
+**Gate to start building any of this:** the Phase 1 → 2 retention/channel gate is met
+(~50 paid users from a repeatable channel + week-3 retention). Until then, this section
+exists so the ideas aren't lost, not as a build queue.
+
+### Theme: "Pro = Evidence Locker + Diagnostic Toolkit"
+
+Two reinforcing pillars. Storage system × content factory. Together they pitch as
+*"the receipts your mechanic actually believes, and the diagnostic kit you forgot was
+in your phone."*
+
+### Pillar A — Evidence Locker
+
+- **Voice memos** attached to any Issue / Service / Fuel log. `expo-av` AudioRecording.
+  ≤ 5 min, AAC 64 kbps mono → ~2–3 MB per memo.
+- **Short video clips** attached to any log. `expo-image-picker` (already a dep) with
+  `mediaTypes: Videos`. ≤ 60 s, H.265 720p → ~8–12 MB per clip.
+- **iCloud sync** for all attachments (photos + voice + video). Files live in the app's
+  iCloud Documents container, in the user's own quota. Reuses Phase-1 iCloud groundwork.
+- **Share-to-mechanic bundle** — `expo-sharing` rolls media + log notes into one share
+  sheet, or a temporary link.
+- **Storage policy: sync everything by default, transparent quota.** Aggressive
+  compression at capture; show app's iCloud footprint in Settings; graceful "iCloud full"
+  failure with deep link to Apple's storage manager. Defer Photos-style "Optimize
+  Storage" toggle until real heavy-user behavior says we need it.
+  - Considered and rejected: app-managed auto-archive (breaks "evidence survives wipe"
+    promise); per-entry sync toggle (decision fatigue, same risk without the upside).
+
+### Pillar B — Diagnostic Toolkit
+
+UX pattern shared by all tools: **sample → numeric summary → attach to a log entry**.
+Build that pipeline once as the generic core primitive; each tool plugs in.
+
+| Tool                  | What                                           | Sensor / lib                          | Priority |
+|-----------------------|------------------------------------------------|---------------------------------------|----------|
+| Noise meter           | Relative dB graph over 10–30s, peak/avg, tag idle/40/65 mph | `expo-av` averagePower @ ~20Hz | First — sets the rails |
+| Vibration logger      | 30s accelerometer capture, intensity over time + dominant frequency (FFT) | `expo-sensors` Accelerometer | Second — genuinely differentiated |
+| Drive cycle recorder  | Background trip GPS + accel; smoothness score, hard events, real MPG | `expo-location` + `expo-sensors` (needs background entitlement) | Third — heaviest lift |
+| VIN scanner           | Camera → VIN barcode/OCR → autofill vehicle    | barcode + VIN decode API              | Anytime, slot with onboarding pass |
+| Light meter           | Headlight brightness via camera, track over time | camera EV/ISO              | Maybe — accuracy hard |
+| Tire tread depth      | Photo w/ coin for scale → measure tread        | camera + CV                | Maybe — accuracy hard without ML |
+| Fluid color check     | Oil/coolant photo vs. reference chart          | camera + color distance    | Maybe — DIYer love, tutorial heavy |
+| Garage location pin   | Auto-pin on CarPlay/BT disconnect              | location + BT hook         | Skip — overlaps with Find My |
+| Engine sound classifier | "Rod knock / lifter tick / belt squeal"      | on-device ML or hosted     | Skip v1 — liability risk |
+| OBD2 integration      | Real check-engine codes via BT dongle          | external $15–25 hardware   | Skip v1 — support burden |
+
+**Accuracy honesty (non-negotiable):** phone sensors are not calibrated instruments.
+Frame all readings as **relative on the same phone**, not absolute clinical values.
+Track deltas, not numbers. Undersell accuracy and ship the actually-useful version.
+
+### Decisions already made
+
+- **Cloud backend: iCloud only.** Drive/Dropbox deferred until Play Store port (Phase 3).
+- **Free-tier teaser: none.** Clean line between Free and Pro; sharper paywall pitch.
+- **Pricing on launch: hold at $4.99**, raise after conversion stabilizes. Don't add
+  Pro+ tier yet — fragments the funnel too early.
+
+### Build order (when the gate is met)
+
+1. Voice memo attachments on Issue logs (smallest viable shape, 2–3 days)
+2. Video attachments + capture-time compression (2–3 days)
+3. iCloud sync extended to all attachments (3–4 days)
+4. Share-to-mechanic bundle (1–2 days)
+5. Noise meter — establishes sample-pipeline rails (3–4 days)
+6. Vibration logger (3–5 days)
+7. Drive cycle recorder (5–7 days)
+
+Rough total: ~4 weeks focused work. VIN scanner is independent, slot anywhere.
+
+### Phase-2 architecture prep is the only thing worth doing right now
+
+Even before the gate, do the **cheap rename** that makes Phase-2 engine extraction
+costless when it comes:
+
+```
+autolog-app/
+  app/                  # routes (unchanged)
+  components/           # generic UI primitives
+  domain/car/           # ← car-specific only (recalls, costBenchmarks, etc.)
+  core/                 # ← domain-agnostic (storage, attachments, iCloudSync,
+                        #     PurchaseContext, samplePipeline)
+```
+
+No new abstractions, no extracted packages. Just physical separation between
+"things only a car needs" and "things any Story app would need." When Home Story #1
+starts, `core/` lifts cleanly into `packages/core` of the future monorepo.
+
+### Reference artifacts
+
+- v1 brainstorm: `~/Desktop/Brain/Design/glovebox/glovebox_pro-tier-features_v1_20260525-1926.html`
+- v2 decisions + storage + cross-app strategy + build-vs-wait: `~/Desktop/Brain/Design/glovebox/glovebox_pro-tier-features_v2_20260525-1957.html`
