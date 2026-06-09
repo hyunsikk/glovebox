@@ -146,7 +146,7 @@ const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
 
       {/* Main stat */}
       <View style={{ alignItems: 'center', marginBottom: Spacing.lg }}>
-        <Text style={[Typography.hero, { color: Colors.textPrimary, fontSize: 36 }]}>
+        <Text style={[Typography.figureLg, { color: Colors.textPrimary }]}>
           {formatCostShort(summary.totalSpent)}
         </Text>
         <Text style={[Typography.caption, { color: Colors.textSecondary }]}>total spent</Text>
@@ -450,11 +450,9 @@ const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, tren
     </View>
     
     {/* Larger value text */}
-    <Text style={[Typography.hero, { 
-      color: Colors.textPrimary, 
+    <Text style={[Typography.figure, {
+      color: Colors.textPrimary,
       marginBottom: 4,
-      fontSize: 28,
-      fontFamily: 'Nunito_700Bold',
     }]}>
       {value}
     </Text>

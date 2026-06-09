@@ -180,6 +180,22 @@ function buildTypography() {
     color: Colors.textTertiary,
   },
 
+  // Figure - big numeric stats (Bold). `figure` for compact metric cards,
+  // `figureLg` for a single hero stat. Replaces ad-hoc fontSize overrides
+  // on Typography.hero.
+  figure: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 28,
+    lineHeight: 34,
+    color: Colors.textPrimary,
+  },
+  figureLg: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 36,
+    lineHeight: 42,
+    color: Colors.textPrimary,
+  },
+
   // Legacy aliases (for compatibility)
   display: {
     fontFamily: 'Nunito_700Bold',

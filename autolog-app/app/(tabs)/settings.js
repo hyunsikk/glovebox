@@ -28,7 +28,7 @@ const RowIcon = ({ icon, colors, color }) => {
     <View style={{
       width: 36,
       height: 36,
-      borderRadius: Radii.md,
+      borderRadius: Radii.pill,
       backgroundColor: c + '15',
       alignItems: 'center',
       justifyContent: 'center',
