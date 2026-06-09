@@ -31,4 +31,14 @@ export async function deleteFile(name) {
   return Native.deleteFile(name);
 }
 
-export default { isAvailable, writeFile, readFile, listFiles, deleteFile };
+/** Begin an iOS background task so a background-triggered write isn't suspended mid-flight. */
+export async function beginBackgroundTask() {
+  return Native.beginBackgroundTask();
+}
+
+/** End the background task started by beginBackgroundTask(). */
+export async function endBackgroundTask() {
+  return Native.endBackgroundTask();
+}
+
+export default { isAvailable, writeFile, readFile, listFiles, deleteFile, beginBackgroundTask, endBackgroundTask };

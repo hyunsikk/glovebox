@@ -340,13 +340,29 @@ async function autoBackupEnabled() {
   return (await AsyncStorage.getItem(AUTO_BACKUP_KEY).catch(() => null)) !== '0';
 }
 
-/** Debounced auto-backup (rolling single slot), e.g. on app background. */
-let _debounce = null;
-export function scheduleAutoBackup({ delay = 1500 } = {}) {
-  if (_debounce) clearTimeout(_debounce);
-  _debounce = setTimeout(async () => {
-    if (await autoBackupEnabled()) await backupNow({ kind: 'auto' });
-  }, delay);
+// Lazy handle to the native iCloud module for its background-task helpers.
+// Absent on web / Expo Go / local-only builds — callers no-op via `?.`.
+function nativeBackupModule() {
+  try { return require('../modules/icloud-backup').default; } catch { return null; }
+}
+
+/**
+ * Auto-backup for the app-background transition (rolling single slot). Runs
+ * immediately — a debounced timer often never fires once iOS suspends the JS
+ * thread — and holds an iOS background task so the write completes before
+ * suspension. Respects the user's auto-backup toggle.
+ */
+export async function runAutoBackupOnBackground() {
+  if (!(await autoBackupEnabled())) return;
+  const native = nativeBackupModule();
+  try { await native?.beginBackgroundTask?.(); } catch {}
+  try {
+    await backupNow({ kind: 'auto' });
+  } catch (e) {
+    console.warn('Background auto-backup failed:', e?.message);
+  } finally {
+    try { await native?.endBackgroundTask?.(); } catch {}
+  }
 }
 
 /**
@@ -356,9 +372,18 @@ export function scheduleAutoBackup({ delay = 1500 } = {}) {
 export async function shouldOfferRestore() {
   try {
     const data = await DataUtils.exportData();
-    const empty = !data || (data.vehicles || []).length === 0;
-    if (!empty) return false;
-    return await hasBackup();
+    if (data && (data.vehicles || []).length > 0) return false; // have local data
+    if (await hasBackup()) return true;
+    // Fresh install + iCloud: the container's file list may not have synced to
+    // this device yet, so the first check can be falsely empty. Retry briefly
+    // (only when iCloud is actually active) so a real backup isn't missed and
+    // the user doesn't think their data is gone. No effect on local-only setups.
+    if (!(await isICloudActive())) return false;
+    for (let i = 0; i < 4; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (await hasBackup()) return true;
+    }
+    return false;
   } catch {
     return false;
   }

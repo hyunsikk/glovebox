@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import Foundation
+import UIKit
 
 // Reads/writes a single backup file in the app's iCloud Documents (ubiquity)
 // container. The container id is configured via the iCloud entitlement injected
@@ -9,9 +10,24 @@ import Foundation
 // All work runs on Expo's async function queue (AsyncFunction), never the main
 // thread — forUbiquityContainerIdentifier and file coordination can block.
 public class ICloudBackupModule: Module {
+  // Held while an app-background auto-backup is in flight so iOS grants enough
+  // time to finish the write before suspending the app.
+  private var bgTask: UIBackgroundTaskIdentifier = .invalid
+
   // Only allow simple backup filenames inside the container (no path traversal).
   private func safe(_ name: String) -> String {
     return name.replacingOccurrences(of: "/", with: "_")
+  }
+
+  // iCloud lists a not-yet-downloaded file as ".<name>.icloud" placeholder.
+  // Strip that wrapper so the returned name matches what was written — otherwise
+  // a fresh device (where nothing is downloaded yet) reports unparseable names
+  // and the restore prompt never fires.
+  private func displayName(_ raw: String) -> String {
+    guard raw.hasSuffix(".icloud") else { return raw }
+    var name = String(raw.dropLast(".icloud".count))
+    if name.hasPrefix(".") { name = String(name.dropFirst()) }
+    return name
   }
 
   public func definition() -> ModuleDefinition {
@@ -39,7 +55,9 @@ public class ICloudBackupModule: Module {
     AsyncFunction("listFiles") { () -> [String] in
       guard let dir = self.ensureDocumentsURL() else { throw ICloudUnavailableException() }
       let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
-      return names
+      // Normalize ".<name>.icloud" placeholders to real names and de-dupe in case
+      // both a placeholder and a downloaded copy momentarily coexist.
+      return Array(Set(names.map { self.displayName($0) }))
     }
 
     AsyncFunction("deleteFile") { (name: String) -> Bool in
@@ -47,6 +65,32 @@ public class ICloudBackupModule: Module {
       let url = dir.appendingPathComponent(self.safe(name))
       try? FileManager.default.removeItem(at: url)
       return true
+    }
+
+    // Hold an iOS background task so a backup triggered as the app backgrounds
+    // gets enough time to finish writing before suspension. Paired begin/end
+    // from JS around the write; the expiration handler ends it if iOS reclaims
+    // the time first.
+    AsyncFunction("beginBackgroundTask") { () -> Void in
+      DispatchQueue.main.sync {
+        if self.bgTask != .invalid {
+          UIApplication.shared.endBackgroundTask(self.bgTask)
+        }
+        self.bgTask = UIApplication.shared.beginBackgroundTask(withName: "carstory-backup") { [weak self] in
+          guard let self = self, self.bgTask != .invalid else { return }
+          UIApplication.shared.endBackgroundTask(self.bgTask)
+          self.bgTask = .invalid
+        }
+      }
+    }
+
+    AsyncFunction("endBackgroundTask") { () -> Void in
+      DispatchQueue.main.sync {
+        if self.bgTask != .invalid {
+          UIApplication.shared.endBackgroundTask(self.bgTask)
+          self.bgTask = .invalid
+        }
+      }
     }
   }
 
@@ -88,8 +132,13 @@ public class ICloudBackupModule: Module {
     // The file may be present in iCloud metadata but not downloaded locally yet.
     if !fm.fileExists(atPath: fileURL.path) {
       try? fm.startDownloadingUbiquitousItem(at: fileURL)
-      let deadline = Date().addingTimeInterval(15)
-      while !fm.fileExists(atPath: fileURL.path) && Date() < deadline {
+      // Poll the iCloud download status so we return as soon as the current
+      // version is local. 45s of headroom for large, photo-laden backups on a
+      // slow link — the old 15s cap silently failed those (reported "no backup").
+      let deadline = Date().addingTimeInterval(45)
+      while Date() < deadline {
+        let status = (try? fileURL.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]))?.ubiquitousItemDownloadingStatus
+        if status == .current || fm.fileExists(atPath: fileURL.path) { break }
         Thread.sleep(forTimeInterval: 0.3)
       }
       if !fm.fileExists(atPath: fileURL.path) {

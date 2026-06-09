@@ -15,7 +15,7 @@ import {
 } from '../lib/notifications';
 import { initVehicleDB, checkForUpdate } from '../lib/vehicleDB';
 import { DataUtils } from '../lib/storage';
-import { scheduleAutoBackup, shouldOfferRestore, restoreFromBackup, listSnapshots, restoreSnapshot } from '../lib/backup';
+import { runAutoBackupOnBackground, shouldOfferRestore, restoreFromBackup, listSnapshots, restoreSnapshot } from '../lib/backup';
 import { DataVersionProvider, useDataVersion } from '../lib/DataVersion';
 
 /**
@@ -127,11 +127,13 @@ function RootLayoutInner() {
     return () => sub.remove();
   }, [router, navState?.key]);
 
-  // Auto-backup when the app goes to the background (debounced; respects the
-  // user's toggle). Cheap insurance against data loss between manual backups.
+  // Auto-backup when the app goes to the background (immediate + held by a native
+  // background task; respects the user's toggle). Only on 'background' — 'inactive'
+  // fires constantly (control center, app-switcher peek) and isn't a real exit.
+  // Cheap insurance against data loss between manual backups.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'background' || s === 'inactive') scheduleAutoBackup();
+      if (s === 'background') runAutoBackupOnBackground();
     });
     return () => sub.remove();
   }, []);
