@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage, ReminderStorage } from '../lib/storage';
 import { useSettings } from '../lib/SettingsContext';
 import LogServiceModal from './LogServiceModal';
@@ -60,7 +60,7 @@ const CollapsibleSection = ({ title, children, defaultExpanded = false, hasConte
         </Text>
         <Ionicons
           name={isExpanded ? 'chevron-down' : 'chevron-forward'}
-          size={20}
+          size={IconSize.md}
           color={Colors.textSecondary}
         />
       </TouchableOpacity>
@@ -79,10 +79,10 @@ const CollapsibleSection = ({ title, children, defaultExpanded = false, hasConte
 // item's thumbnail style.
 const EntryPhotoThumbs = ({ photos = [], onPressPhoto }) => {
   if (!photos.length) return null;
-  const thumbStyle = { width: 40, height: 40, borderRadius: 8, borderWidth: 1, borderColor: Colors.glassBorder, marginRight: 6 };
+  const thumbStyle = { width: 40, height: 40, borderRadius: Radii.sm, borderWidth: 1, borderColor: Colors.glassBorder, marginRight: 6 };
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm }}>
-      <Ionicons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+      <Ionicons name="camera" size={IconSize.xs} color={Colors.textSecondary} style={{ marginRight: 4 }} />
       <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 6 }]}>{photos.length}</Text>
       {photos.slice(0, 3).map((photo, i) => (
         onPressPhoto ? (
@@ -148,13 +148,13 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{
           backgroundColor: Colors.surface,
-          borderRadius: 16,
+          borderRadius: Radii.pill,
           padding: 6,
           marginRight: Spacing.md,
         }}>
           <MaterialCommunityIcons
             name={getServiceIcon(service.serviceType)}
-            size={20}
+            size={IconSize.md}
             color={Colors.steelBlue}
           />
         </View>
@@ -192,7 +192,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
                 <Ionicons
                   key={s}
                   name={s <= service.shopReview.rating ? 'star' : 'star-outline'}
-                  size={14}
+                  size={IconSize.xs}
                   color={Colors.warning}
                 />
               ))}
@@ -204,7 +204,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
               alignItems: 'center',
               paddingHorizontal: Spacing.sm + 2,
               paddingVertical: 2,
-              borderRadius: 10,
+              borderRadius: Radii.md,
               backgroundColor: service.diyLog.difficulty === 'Hard' ? Colors.deepRed + '20'
                 : service.diyLog.difficulty === 'Medium' ? Colors.warning + '20'
                 : Colors.forestGreen + '20',
@@ -231,7 +231,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
           marginTop: Spacing.sm,
           padding: Spacing.sm,
           backgroundColor: Colors.surface,
-          borderRadius: 6,
+          borderRadius: Radii.sm,
         }}>
           <Text style={[Typography.caption, { color: Colors.textSecondary }]}>
             {service.notes}
@@ -266,7 +266,7 @@ const ServiceHistoryItem = ({ service, onEdit, servicePhotos = [] }) => {
           {previewImage && (
             <Image
               source={{ uri: previewImage }}
-              style={{ width: '90%', height: '70%', borderRadius: 12 }}
+              style={{ width: '90%', height: '70%', borderRadius: Radii.md }}
               resizeMode="contain"
             />
           )}
@@ -356,7 +356,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
     <TouchableOpacity 
       style={{
         backgroundColor: Colors.surface,
-        borderRadius: 8,
+        borderRadius: Radii.sm,
         padding: Spacing.lg,
         marginBottom: Spacing.md,
         borderLeftWidth: 4,
@@ -369,13 +369,13 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
         <View style={{
           backgroundColor: Colors.elevated,
-          borderRadius: 16,
+          borderRadius: Radii.pill,
           padding: 6,
           marginRight: Spacing.md,
         }}>
           <MaterialCommunityIcons
             name={getServiceIcon(scheduleItem.service)}
-            size={20}
+            size={IconSize.md}
             color={effectiveStatusColor()}
           />
         </View>
@@ -386,9 +386,9 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
               {scheduleItem.service}
             </Text>
             {isSnoozed ? (
-              <Ionicons name="notifications-off-outline" size={16} color={Colors.arcticSilver} />
+              <Ionicons name="notifications-off-outline" size={IconSize.sm} color={Colors.arcticSilver} />
             ) : (
-              <Ionicons name={getStatusIcon().name} size={16} color={getStatusIcon().color} style={{ marginLeft: Spacing.sm }} />
+              <Ionicons name={getStatusIcon().name} size={IconSize.sm} color={getStatusIcon().color} style={{ marginLeft: Spacing.sm }} />
             )}
           </View>
           
@@ -438,7 +438,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: Colors.forestGreen + '20',
-              borderRadius: 10,
+              borderRadius: Radii.md,
               paddingVertical: 8,
               marginRight: Spacing.sm,
               borderWidth: 1,
@@ -449,7 +449,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
               onQuickLog && onQuickLog(scheduleItem.service);
             }}
           >
-            <Ionicons name="checkmark-circle-outline" size={16} color={Colors.forestGreen} />
+            <Ionicons name="checkmark-circle-outline" size={IconSize.sm} color={Colors.forestGreen} />
             <Text style={[Typography.caption, { color: Colors.forestGreen, marginLeft: 4, fontFamily: 'Nunito_600SemiBold' }]}>
               Log Done
             </Text>
@@ -464,7 +464,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: Colors.surface2 || Colors.elevated,
-                  borderRadius: 10,
+                  borderRadius: Radii.md,
                   paddingVertical: 8,
                   paddingHorizontal: 12,
                   marginRight: Spacing.sm,
@@ -476,7 +476,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                   onSnooze && onSnooze(scheduleItem.service, 7);
                 }}
               >
-                <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                <Ionicons name="time-outline" size={IconSize.xs} color={Colors.textSecondary} />
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
                   1w
                 </Text>
@@ -488,7 +488,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: Colors.surface2 || Colors.elevated,
-                  borderRadius: 10,
+                  borderRadius: Radii.md,
                   paddingVertical: 8,
                   paddingHorizontal: 12,
                   borderWidth: 1,
@@ -499,7 +499,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                   onSnooze && onSnooze(scheduleItem.service, 30);
                 }}
               >
-                <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                <Ionicons name="time-outline" size={IconSize.xs} color={Colors.textSecondary} />
                 <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
                   1mo
                 </Text>
@@ -515,7 +515,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: Colors.surface2 || Colors.elevated,
-                borderRadius: 10,
+                borderRadius: Radii.md,
                 paddingVertical: 8,
                 paddingHorizontal: 12,
                 borderWidth: 1,
@@ -526,7 +526,7 @@ const MaintenanceScheduleItem = ({ scheduleItem, status, lastService, nextDueDat
                 onSnooze && onSnooze(scheduleItem.service, 0);
               }}
             >
-              <Ionicons name="notifications-outline" size={14} color={Colors.textSecondary} />
+              <Ionicons name="notifications-outline" size={IconSize.xs} color={Colors.textSecondary} />
               <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
                 Unsnooze
               </Text>
@@ -636,7 +636,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
         style={{
           marginTop: Spacing.lg,
           backgroundColor: Colors.surface1,
-          borderRadius: 12,
+          borderRadius: Radii.md,
           padding: Spacing.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
@@ -657,7 +657,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
     <View style={{
       marginTop: Spacing.lg,
       backgroundColor: Colors.surface1,
-      borderRadius: 12,
+      borderRadius: Radii.md,
       padding: Spacing.lg,
       borderWidth: 1,
       borderColor: recalls.length > 0 ? Colors.warning + '40' : Colors.glassBorder,
@@ -680,7 +680,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
             accessibilityRole="button"
             accessibilityLabel="Hide recall alerts"
           >
-            <Ionicons name="eye-off-outline" size={18} color={Colors.textTertiary} />
+            <Ionicons name="eye-off-outline" size={IconSize.md} color={Colors.textTertiary} />
           </TouchableOpacity>
 
         <TouchableOpacity
@@ -690,7 +690,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
             paddingHorizontal: Spacing.md,
             paddingVertical: Spacing.sm,
             backgroundColor: Colors.primary + '20',
-            borderRadius: 8,
+            borderRadius: Radii.sm,
             borderWidth: 1,
             borderColor: Colors.primary + '30',
             opacity: loading ? 0.6 : 1,
@@ -706,7 +706,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
       {error && (
         <View style={{
           backgroundColor: Colors.danger + '15',
-          borderRadius: 8,
+          borderRadius: Radii.sm,
           padding: Spacing.md,
           marginBottom: Spacing.md,
         }}>
@@ -725,7 +725,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
             <View>
               <View style={{
                 backgroundColor: Colors.warning + '15',
-                borderRadius: 8,
+                borderRadius: Radii.sm,
                 padding: Spacing.md,
                 marginBottom: Spacing.md,
                 borderWidth: 1,
@@ -745,7 +745,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
                 return (
                   <View key={recallId} style={{
                     backgroundColor: Colors.surface2,
-                    borderRadius: 8,
+                    borderRadius: Radii.sm,
                     padding: Spacing.md,
                     marginBottom: index < Math.min(activeRecalls.length, 3) - 1 ? Spacing.sm : 0,
                   }}>
@@ -775,7 +775,7 @@ const RecallCheck = ({ vehicleId, make, model, year }) => {
                         alignSelf: 'flex-start',
                         paddingHorizontal: Spacing.md,
                         paddingVertical: Spacing.xs,
-                        borderRadius: 8,
+                        borderRadius: Radii.sm,
                         backgroundColor: Colors.surface3,
                       }}
                       activeOpacity={0.7}
@@ -921,7 +921,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
       {reminders.map((reminder) => (
         <View key={reminder.id} style={{
           backgroundColor: Colors.surface1,
-          borderRadius: 12,
+          borderRadius: Radii.md,
           padding: Spacing.md,
           marginBottom: Spacing.md,
           borderWidth: 1,
@@ -961,7 +961,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
                 }}
                 style={{ padding: 4 }}
               >
-                <Ionicons name="trash-outline" size={16} color={Colors.textSecondary} />
+                <Ionicons name="trash-outline" size={IconSize.sm} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -982,7 +982,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
       ) : (
         <View style={{
           backgroundColor: Colors.surface2,
-          borderRadius: 12,
+          borderRadius: Radii.md,
           padding: Spacing.lg,
           marginTop: reminders.length > 0 ? Spacing.md : 0,
           borderWidth: 1,
@@ -1006,7 +1006,7 @@ const MaintenanceReminders = ({ vehicleId }) => {
                     style={{
                       paddingHorizontal: Spacing.md,
                       paddingVertical: Spacing.sm,
-                      borderRadius: 8,
+                      borderRadius: Radii.sm,
                       borderWidth: 1,
                       borderColor: newReminderForm.serviceType === service ? Colors.primary : Colors.glassBorder,
                       backgroundColor: newReminderForm.serviceType === service ? Colors.primary + '20' : Colors.surface1,
@@ -1632,7 +1632,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
               onPress={onClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -1648,17 +1648,17 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   }}
                   style={{ padding: 4 }}
                 >
-                  <Ionicons name="share-outline" size={22} color={Colors.steelBlue} />
+                  <Ionicons name="share-outline" size={IconSize.lg} color={Colors.steelBlue} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={editMode ? handleSaveEdit : handleEdit}
                 style={{ padding: 4 }}
               >
-                <Ionicons 
-                  name={editMode ? "checkmark" : "create-outline"} 
-                  size={24} 
-                  color={editMode ? Colors.forestGreen : Colors.steelBlue} 
+                <Ionicons
+                  name={editMode ? "checkmark" : "create-outline"}
+                  size={IconSize.lg}
+                  color={editMode ? Colors.forestGreen : Colors.steelBlue}
                 />
               </TouchableOpacity>
             </View>
@@ -1698,7 +1698,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                         style={{
                           width: 80,
                           height: 80,
-                          borderRadius: 16,
+                          borderRadius: Radii.lg,
                           borderWidth: 1,
                           borderColor: Colors.glassBorder,
                         }}
@@ -1707,14 +1707,14 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       <View style={{
                         width: 80,
                         height: 80,
-                        borderRadius: 16,
+                        borderRadius: Radii.lg,
                         backgroundColor: Colors.surface1,
                         borderWidth: 1,
                         borderColor: Colors.glassBorder,
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}>
-                        <Ionicons name="camera-outline" size={28} color={Colors.textTertiary} />
+                        <Ionicons name="camera-outline" size={IconSize.xl} color={Colors.textTertiary} />
                         <Text style={[Typography.small, { color: Colors.textTertiary, marginTop: 2 }]}>
                           Add Photo
                         </Text>
@@ -1822,11 +1822,11 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     {/* Delete the whole vehicle — surfaced here in edit mode (the
                         natural place) rather than buried under Reports & Export. */}
                     <TouchableOpacity
-                      style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: Spacing.md, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.danger + '50', borderRadius: 14 }}
+                      style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: Spacing.md, marginBottom: Spacing.lg, borderWidth: 1, borderColor: Colors.danger + '50', borderRadius: Radii.lg }}
                       onPress={handleDeleteVehicle}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="trash-outline" size={18} color={Colors.danger} />
+                      <Ionicons name="trash-outline" size={IconSize.md} color={Colors.danger} />
                       <Text style={[Typography.body, { color: Colors.danger, fontFamily: 'Nunito_600SemiBold' }]}>
                         Delete this vehicle
                       </Text>
@@ -1914,7 +1914,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             Haptics.selectionAsync();
                           }
                         }} style={{ padding: 4 }}>
-                          <Ionicons name={editingProfile ? 'checkmark' : 'create-outline'} size={20} color={editingProfile ? Colors.forestGreen : Colors.steelBlue} />
+                          <Ionicons name={editingProfile ? 'checkmark' : 'create-outline'} size={IconSize.md} color={editingProfile ? Colors.forestGreen : Colors.steelBlue} />
                         </TouchableOpacity>
                       </View>
 
@@ -2085,7 +2085,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     style={{
                       flex: 1,
                       backgroundColor: Colors.surface1,
-                      borderRadius: 16,
+                      borderRadius: Radii.lg,
                       paddingVertical: Spacing.md,
                       alignItems: 'center',
                       borderWidth: 1,
@@ -2094,7 +2094,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={handleLogService}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="construct" size={22} color={Colors.primary} style={{ marginBottom: 4 }} />
+                    <Ionicons name="construct" size={IconSize.lg} color={Colors.primary} style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
                       Service
                     </Text>
@@ -2103,7 +2103,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     style={{
                       flex: 1,
                       backgroundColor: Colors.surface1,
-                      borderRadius: 16,
+                      borderRadius: Radii.lg,
                       paddingVertical: Spacing.md,
                       alignItems: 'center',
                       borderWidth: 1,
@@ -2116,7 +2116,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.8}
                   >
-                    <MaterialCommunityIcons name="gas-station" size={22} color={Colors.warning} style={{ marginBottom: 4 }} />
+                    <MaterialCommunityIcons name="gas-station" size={IconSize.lg} color={Colors.warning} style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: Colors.warning, fontFamily: 'Nunito_600SemiBold' }]}>
                       Fuel
                     </Text>
@@ -2125,7 +2125,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     style={{
                       flex: 1,
                       backgroundColor: Colors.surface1,
-                      borderRadius: 16,
+                      borderRadius: Radii.lg,
                       paddingVertical: Spacing.md,
                       alignItems: 'center',
                       borderWidth: 1,
@@ -2134,7 +2134,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={handleLogIssue}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="alert-circle" size={22} color="#EF4444" style={{ marginBottom: 4 }} />
+                    <Ionicons name="alert-circle" size={IconSize.lg} color="#EF4444" style={{ marginBottom: 4 }} />
                     <Text style={[Typography.caption, { color: '#EF4444', fontFamily: 'Nunito_600SemiBold' }]}>
                       Issue
                     </Text>
@@ -2159,7 +2159,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       <View style={{ 
                         marginBottom: Spacing.lg,
                         backgroundColor: Colors.surface1,
-                        borderRadius: 16,
+                        borderRadius: Radii.lg,
                         padding: Spacing.lg,
                         borderWidth: 1,
                         borderColor: statusColor + '30',
@@ -2167,7 +2167,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: overdueCount > 0 || dueSoonCount > 0 ? Spacing.md : 0 }}>
                           {overdueCount > 0 ? (
                             <View style={{
-                              width: 48, height: 48, borderRadius: 24,
+                              width: 48, height: 48, borderRadius: Radii.pill,
                               backgroundColor: Colors.deepRed + '20',
                               justifyContent: 'center', alignItems: 'center',
                               marginRight: Spacing.md,
@@ -2178,7 +2178,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             </View>
                           ) : dueSoonCount > 0 ? (
                             <View style={{
-                              width: 48, height: 48, borderRadius: 24,
+                              width: 48, height: 48, borderRadius: Radii.pill,
                               backgroundColor: Colors.amberAlert + '20',
                               justifyContent: 'center', alignItems: 'center',
                               marginRight: Spacing.md,
@@ -2189,12 +2189,12 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             </View>
                           ) : (
                             <View style={{
-                              width: 48, height: 48, borderRadius: 24,
+                              width: 48, height: 48, borderRadius: Radii.pill,
                               backgroundColor: Colors.forestGreen + '20',
                               justifyContent: 'center', alignItems: 'center',
                               marginRight: Spacing.md,
                             }}>
-                              <Ionicons name="checkmark" size={24} color={Colors.forestGreen} />
+                              <Ionicons name="checkmark" size={IconSize.lg} color={Colors.forestGreen} />
                             </View>
                           )}
                           
@@ -2233,13 +2233,13 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           flexDirection: 'row',
                           alignItems: 'center',
                           backgroundColor: Colors.steelBlue + '15',
-                          borderRadius: 8,
+                          borderRadius: Radii.sm,
                           padding: Spacing.md,
                           marginBottom: Spacing.md,
                           borderWidth: 1,
                           borderColor: Colors.steelBlue + '25',
                         }}>
-                          <Ionicons name="document-text" size={14} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+                          <Ionicons name="document-text" size={IconSize.xs} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
                           <Text style={[Typography.caption, { color: Colors.steelBlue, flex: 1, fontFamily: 'Nunito_400Regular' }]}>
                             Standard maintenance schedule (not model-specific)
                           </Text>
@@ -2261,7 +2261,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                   ) : (
                     <View style={{
                       backgroundColor: Colors.surface,
-                      borderRadius: 8,
+                      borderRadius: Radii.sm,
                       padding: Spacing.xl,
                       alignItems: 'center',
                     }}>
@@ -2298,7 +2298,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                       return (
                         <View style={{
                           backgroundColor: Colors.surface,
-                          borderRadius: 8,
+                          borderRadius: Radii.sm,
                           padding: Spacing.xl,
                           alignItems: 'center',
                         }}>
@@ -2335,8 +2335,8 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                 {entry.type === 'ev_charge'
-                                  ? <Ionicons name="flash" size={20} color={Colors.success} style={{ marginRight: Spacing.sm }} />
-                                  : <MaterialCommunityIcons name="gas-station" size={20} color={Colors.warning} style={{ marginRight: Spacing.sm }} />}
+                                  ? <Ionicons name="flash" size={IconSize.md} color={Colors.success} style={{ marginRight: Spacing.sm }} />
+                                  : <MaterialCommunityIcons name="gas-station" size={IconSize.md} color={Colors.warning} style={{ marginRight: Spacing.sm }} />}
                                 <View>
                                   <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
                                     {entry.type === 'ev_charge'
@@ -2378,7 +2378,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                               <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
-                                <Ionicons name="alert-circle" size={20} color={Colors.danger} style={{ marginRight: Spacing.sm, marginTop: 2 }} />
+                                <Ionicons name="alert-circle" size={IconSize.md} color={Colors.danger} style={{ marginRight: Spacing.sm, marginTop: 2 }} />
                                 <View style={{ flex: 1 }}>
                                   <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
                                     {entry.title}
@@ -2390,17 +2390,15 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                     <View style={{
                                       paddingHorizontal: 8,
                                       paddingVertical: 2,
-                                      borderRadius: 8,
+                                      borderRadius: Radii.sm,
                                       backgroundColor: severityColors[entry.severity] + '20',
                                       borderWidth: 1,
                                       borderColor: severityColors[entry.severity] + '40',
                                       marginRight: Spacing.sm,
                                     }}>
-                                      <Text style={[Typography.small, { 
+                                      <Text style={[Typography.micro, {
                                         color: severityColors[entry.severity],
-                                        fontSize: 10,
                                         fontFamily: 'Nunito_600SemiBold',
-                                        textTransform: 'uppercase',
                                       }]}>
                                         {entry.severity}
                                       </Text>
@@ -2408,16 +2406,14 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                     <View style={{
                                       paddingHorizontal: 8,
                                       paddingVertical: 2,
-                                      borderRadius: 8,
+                                      borderRadius: Radii.sm,
                                       backgroundColor: statusColors[entry.status] + '20',
                                       borderWidth: 1,
                                       borderColor: statusColors[entry.status] + '40',
                                     }}>
-                                      <Text style={[Typography.small, { 
+                                      <Text style={[Typography.micro, {
                                         color: statusColors[entry.status],
-                                        fontSize: 10,
                                         fontFamily: 'Nunito_600SemiBold',
-                                        textTransform: 'uppercase',
                                       }]}>
                                         {entry.status === 'in_progress' ? 'in progress' : entry.status}
                                       </Text>
@@ -2471,7 +2467,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                             style={[Shared.card, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: conditionColors[entry.condition] || Colors.primary }]}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                              <Ionicons name="camera" size={24} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+                              <Ionicons name="camera" size={IconSize.lg} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
                               <View style={{ flex: 1 }}>
                                 <Text style={[Typography.h2, { color: Colors.textPrimary, marginBottom: 2 }]}>
                                   {entry.title}
@@ -2535,7 +2531,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.9}
                   >
-                    <Ionicons name="camera" size={18} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+                    <Ionicons name="camera" size={IconSize.md} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
                     <Text style={[Typography.h2, { color: Colors.primary }]}>
                       Take Snapshot
                     </Text>
@@ -2549,7 +2545,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     }}
                     activeOpacity={0.9}
                   >
-                    <Ionicons name="document-text-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
+                    <Ionicons name="document-text-outline" size={IconSize.md} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
                     <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
                       Generate Report
                     </Text>
@@ -2592,7 +2588,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={() => setEditingService(null)}
                     style={{ padding: 4 }}
                   >
-                    <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+                    <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
                   </TouchableOpacity>
 
                   <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -2603,7 +2599,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                     onPress={handleSaveServiceEdit}
                     style={{ padding: 4 }}
                   >
-                    <Ionicons name="checkmark" size={24} color={Colors.forestGreen} />
+                    <Ionicons name="checkmark" size={IconSize.lg} color={Colors.forestGreen} />
                   </TouchableOpacity>
                 </View>
 
@@ -2617,7 +2613,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                         </Text>
                         <View style={{
                           backgroundColor: Colors.surface,
-                          borderRadius: 16,
+                          borderRadius: Radii.lg,
                           height: 48,
                           paddingHorizontal: Spacing.lg,
                           justifyContent: 'center',
@@ -2712,7 +2708,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                 style={{
                                   width: 70,
                                   height: 70,
-                                  borderRadius: 10,
+                                  borderRadius: Radii.md,
                                   borderWidth: 1,
                                   borderColor: Colors.glassBorder,
                                 }}
@@ -2724,14 +2720,14 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                                   right: -6,
                                   width: 22,
                                   height: 22,
-                                  borderRadius: 11,
+                                  borderRadius: Radii.pill,
                                   backgroundColor: Colors.deepRed,
                                   justifyContent: 'center',
                                   alignItems: 'center',
                                 }}
                                 onPress={() => handleRemoveServicePhoto(photo.id)}
                               >
-                                <Ionicons name="close" size={14} color={Colors.textPrimary} />
+                                <Ionicons name="close" size={IconSize.xs} color={Colors.textPrimary} />
                               </TouchableOpacity>
                             </View>
                           ))}
@@ -2741,7 +2737,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                               style={{
                                 width: 70,
                                 height: 70,
-                                borderRadius: 10,
+                                borderRadius: Radii.md,
                                 borderWidth: 1,
                                 borderColor: Colors.glassBorder,
                                 borderStyle: 'dashed',
@@ -2751,7 +2747,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                               }}
                               onPress={handleAddServicePhoto}
                             >
-                              <Ionicons name="camera-outline" size={22} color={Colors.textSecondary} />
+                              <Ionicons name="camera-outline" size={IconSize.lg} color={Colors.textSecondary} />
                               <Text style={[Typography.small, { color: Colors.textSecondary, marginTop: 2 }]}>
                                 Add
                               </Text>
@@ -2774,7 +2770,7 @@ export default function VehicleDetailModal({ visible, onClose, vehicle, onVehicl
                         onPress={handleDeleteService}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
+                        <Ionicons name="trash-outline" size={IconSize.md} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
                         <Text style={[Typography.body, { color: Colors.deepRed }]}>
                           Delete Service Record
                         </Text>

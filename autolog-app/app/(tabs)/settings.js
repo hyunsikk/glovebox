@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Colors, Typography, Spacing, Shared } from '../../theme';
+import { Colors, Typography, Spacing, Shared, Radii } from '../../theme';
 import { useTheme } from '../../lib/ThemeContext';
 import { usePurchases } from '../../lib/PurchaseContext';
 import PaywallModal from '../../components/PaywallModal';
@@ -19,7 +19,29 @@ import * as Application from 'expo-application';
 const UNITS_KEY = '@autolog_units';
 const CURRENCY_KEY = '@autolog_currency';
 
-const SettingRow = ({ icon, label, value, onPress, rightElement, colors }) => (
+// Leading row icon — defined once so every settings row's icon "box" is
+// byte-for-byte identical (size, corner, tint). Previously each section
+// hand-rolled this View, which let the boxes drift out of sync.
+const RowIcon = ({ icon, colors, color }) => {
+  const c = color || colors.primary;
+  return (
+    <View style={{
+      width: 36,
+      height: 36,
+      borderRadius: Radii.md,
+      backgroundColor: c + '15',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: Spacing.md,
+    }}>
+      <Ionicons name={icon} size={18} color={c} />
+    </View>
+  );
+};
+
+// `last` drops the divider on the final row of a card so it doesn't leave a
+// stray line floating above the card's bottom padding.
+const SettingRow = ({ icon, label, value, onPress, rightElement, colors, last }) => (
   <TouchableOpacity
     onPress={onPress}
     disabled={!onPress}
@@ -28,21 +50,11 @@ const SettingRow = ({ icon, label, value, onPress, rightElement, colors }) => (
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 14,
-      borderBottomWidth: 1,
+      borderBottomWidth: last ? 0 : 1,
       borderBottomColor: colors.glassBorder,
     }}
   >
-    <View style={{
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      backgroundColor: colors.primary + '15',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: Spacing.md,
-    }}>
-      <Ionicons name={icon} size={18} color={colors.primary} />
-    </View>
+    <RowIcon icon={icon} colors={colors} />
     <View style={{ flex: 1 }}>
       <Text style={[Typography.body, { color: colors.textPrimary }]}>{label}</Text>
       {value && <Text style={[Typography.small, { color: colors.textSecondary, marginTop: 2 }]}>{value}</Text>}
@@ -63,7 +75,7 @@ const OptionPicker = ({ options, selected, onSelect, colors }) => (
         style={{
           paddingHorizontal: 14,
           paddingVertical: 8,
-          borderRadius: 20,
+          borderRadius: Radii.pill,
           backgroundColor: selected === opt.value ? colors.primary + '20' : colors.surface1,
           borderWidth: 1,
           borderColor: selected === opt.value ? colors.primary : colors.glassBorder,
@@ -458,6 +470,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           icon="moon-outline"
           label="dark mode"
           colors={colors}
+          last
           rightElement={
             <Switch
               value={isDark}
@@ -479,13 +492,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <View style={[Shared.card]}>
         <View style={{ paddingVertical: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
-            <View style={{
-              width: 36, height: 36, borderRadius: 10,
-              backgroundColor: colors.primary + '15',
-              alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
-            }}>
-              <Ionicons name="speedometer-outline" size={18} color={colors.primary} />
-            </View>
+            <RowIcon icon="speedometer-outline" colors={colors} />
             <Text style={[Typography.body, { color: colors.textPrimary }]}>distance units</Text>
           </View>
           <View style={{ paddingLeft: 48 }}>
@@ -521,6 +528,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           value={`${stats.vehicles} vehicles · ${stats.services} services · ${stats.fuelLogs} fuel logs`}
           onPress={handleClearData}
           colors={colors}
+          last
         />
       </View>
 
@@ -531,13 +539,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <View style={[Shared.card]}>
         <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
-            <View style={{
-              width: 36, height: 36, borderRadius: 10,
-              backgroundColor: colors.primary + '15',
-              alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md,
-            }}>
-              <Ionicons name="car-outline" size={18} color={colors.primary} />
-            </View>
+            <RowIcon icon="car-outline" colors={colors} />
             <Text style={[Typography.body, { color: colors.textPrimary }]}>vehicle</Text>
           </View>
           <View style={{ paddingLeft: 48 }}>
@@ -546,7 +548,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setReportVehicleId('all'); }}
                   style={{
-                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                    paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radii.pill,
                     backgroundColor: reportVehicleId === 'all' ? colors.primary + '20' : colors.surface1,
                     borderWidth: 1, borderColor: reportVehicleId === 'all' ? colors.primary : colors.glassBorder,
                   }}
@@ -561,7 +563,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
                     key={v.id}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setReportVehicleId(v.id); }}
                     style={{
-                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                      paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radii.pill,
                       backgroundColor: reportVehicleId === v.id ? colors.primary + '20' : colors.surface1,
                       borderWidth: 1, borderColor: reportVehicleId === v.id ? colors.primary : colors.glassBorder,
                     }}
@@ -594,8 +596,8 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
             {generatingReport ? 'generating...' : 'generate report'}
           </Text>
           {!isPro && !generatingReport && (
-            <View style={{ backgroundColor: colors.primary + '20', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 9, color: colors.primary, letterSpacing: 0.5 }}>PRO</Text>
+            <View style={{ backgroundColor: colors.primary + '20', borderRadius: Radii.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={[Typography.micro, { fontFamily: 'Nunito_700Bold', color: colors.primary }]}>PRO</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -607,9 +609,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       </Text>
       <View style={[Shared.card]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
-            <Ionicons name="server-outline" size={18} color={colors.primary} />
-          </View>
+          <RowIcon icon="server-outline" colors={colors} />
           <View style={{ flex: 1 }}>
             <Text style={[Typography.body, { color: colors.textPrimary }]}>
               {dbMeta.vehicleCount.toLocaleString()} vehicles{dbMeta.version ? ` · v${dbMeta.version}` : ' · built-in'}
@@ -618,7 +618,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
               {dbMeta.updatedAt ? `updated ${new Date(dbMeta.updatedAt).toLocaleDateString()}` : 'tap update to fetch the latest'}
             </Text>
           </View>
-          <TouchableOpacity onPress={handleUpdateDB} disabled={dbUpdating} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '30' }}>
+          <TouchableOpacity onPress={handleUpdateDB} disabled={dbUpdating} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radii.pill, backgroundColor: colors.primary + '15', borderWidth: 1, borderColor: colors.primary + '30' }}>
             {dbUpdating ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -690,9 +690,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <View style={[Shared.card]}>
         {isPro ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.success + '18', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
-              <Ionicons name="star" size={18} color={colors.success} />
-            </View>
+            <RowIcon icon="star" colors={colors} color={colors.success} />
             <View style={{ flex: 1 }}>
               <Text style={[Typography.body, { color: colors.textPrimary, fontFamily: 'Nunito_700Bold' }]}>Pro unlocked</Text>
               <Text style={[Typography.caption, { color: colors.textSecondary }]}>Thanks for your support{isStub ? ' (dev mode)' : ''}</Text>
@@ -702,9 +700,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         ) : (
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center', marginRight: Spacing.md }}>
-                <Ionicons name="star-outline" size={18} color={colors.primary} />
-              </View>
+              <RowIcon icon="star-outline" colors={colors} />
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.body, { color: colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>Unlock everything</Text>
                 <Text style={[Typography.caption, { color: colors.textSecondary }]}>Unlimited vehicles, recall alerts, forecasts, PDF reports</Text>
@@ -742,6 +738,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           label="Help & FAQ"
           onPress={handleHelp}
           colors={colors}
+          last
         />
       </View>
 
@@ -755,6 +752,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
           label="Car Story"
           value={`v${Application.nativeApplicationVersion || '2.1.0'}${Application.nativeBuildVersion ? ` (${Application.nativeBuildVersion})` : ''} · built by TeamAM`}
           colors={colors}
+          last
         />
       </View>
 

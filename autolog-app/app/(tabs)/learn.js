@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../../theme';
 
 const knowledgeBase = {
   categories: [
@@ -882,13 +882,13 @@ const CategoryCard = ({ category, onPress }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <View style={{
         backgroundColor: category.color + '20',
-        borderRadius: 24,
+        borderRadius: Radii.pill,
         padding: 16,
         marginRight: Spacing.md,
         borderWidth: 1,
         borderColor: category.color + '30',
       }}>
-        <MaterialCommunityIcons name={category.icon} size={28} color={category.color} />
+        <MaterialCommunityIcons name={category.icon} size={IconSize.xl} color={category.color} />
       </View>
       
       <View style={{ flex: 1 }}>
@@ -901,7 +901,7 @@ const CategoryCard = ({ category, onPress }) => (
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+      <Ionicons name="chevron-forward" size={IconSize.md} color={Colors.textSecondary} />
     </View>
   </TouchableOpacity>
 );
@@ -926,7 +926,7 @@ const ArticleCard = ({ article, onPress }) => (
     
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Ionicons name="bulb-outline" size={14} color={Colors.warning} style={{ marginRight: 4 }} />
+        <Ionicons name="bulb-outline" size={IconSize.xs} color={Colors.warning} style={{ marginRight: 4 }} />
         <Text style={[Typography.caption, { color: Colors.primary }]}>
           {article.tips.length} tip{article.tips.length !== 1 ? 's' : ''}
         </Text>
@@ -935,7 +935,7 @@ const ArticleCard = ({ article, onPress }) => (
         </Text>
       </View>
       
-      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+      <Ionicons name="chevron-forward" size={IconSize.sm} color={Colors.textSecondary} />
     </View>
   </TouchableOpacity>
 );
@@ -951,14 +951,14 @@ const ArticleView = ({ article, onBack }) => (
         onPress={onBack}
         style={{
           backgroundColor: Colors.surface1,
-          borderRadius: 24,
+          borderRadius: Radii.pill,
           padding: 10,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}
       >
-        <Ionicons name="arrow-back" size={20} color={Colors.primary} />
+        <Ionicons name="arrow-back" size={IconSize.md} color={Colors.primary} />
       </TouchableOpacity>
       
       <Text style={[Typography.h1, { color: Colors.textPrimary, flex: 1 }]}>
@@ -982,13 +982,13 @@ const ArticleView = ({ article, onBack }) => (
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
         <View style={{
           backgroundColor: Colors.warning + '20',
-          borderRadius: 20,
+          borderRadius: Radii.pill,
           padding: 8,
           marginRight: Spacing.sm,
           borderWidth: 1,
           borderColor: Colors.warning + '30',
         }}>
-          <Ionicons name="bulb" size={20} color={Colors.warning} />
+          <Ionicons name="bulb" size={IconSize.md} color={Colors.warning} />
         </View>
         <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
           pro tips
@@ -1003,7 +1003,7 @@ const ArticleView = ({ article, onBack }) => (
           <View style={{
             width: 8,
             height: 8,
-            borderRadius: 4,
+            borderRadius: Radii.pill,
             backgroundColor: Colors.primary,
             marginTop: 8,
             marginRight: Spacing.md,
@@ -1033,26 +1033,26 @@ const CategoryView = ({ category, onBack, onArticlePress }) => (
         onPress={onBack}
         style={{
           backgroundColor: Colors.surface1,
-          borderRadius: 24,
+          borderRadius: Radii.pill,
           padding: 10,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}
       >
-        <Ionicons name="arrow-back" size={20} color={Colors.primary} />
+        <Ionicons name="arrow-back" size={IconSize.md} color={Colors.primary} />
       </TouchableOpacity>
       
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <View style={{
           backgroundColor: category.color + '20',
-          borderRadius: 20,
+          borderRadius: Radii.pill,
           padding: 8,
           marginRight: Spacing.sm,
           borderWidth: 1,
           borderColor: category.color + '30',
         }}>
-          <MaterialCommunityIcons name={category.icon} size={20} color={category.color} />
+          <MaterialCommunityIcons name={category.icon} size={IconSize.md} color={category.color} />
         </View>
         <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
           {category.title}
@@ -1185,7 +1185,7 @@ export default function LearnScreen() {
             alignItems: 'center',
             paddingHorizontal: Spacing.md,
           }]}>
-            <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+            <Ionicons name="search" size={IconSize.md} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
             <TextInput
               style={{
                 flex: 1,
@@ -1202,7 +1202,7 @@ export default function LearnScreen() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
-                <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+                <Ionicons name="close-circle" size={IconSize.md} color={Colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1217,7 +1217,7 @@ export default function LearnScreen() {
         {!searchQuery && featuredArticlesData.length > 0 && (
           <View style={{ marginBottom: Spacing.section }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
-              <Ionicons name="star" size={20} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
+              <Ionicons name="star" size={IconSize.md} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
               <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
                 Essential Reading
               </Text>
@@ -1233,7 +1233,7 @@ export default function LearnScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons
                     name={article.categoryIcon}
-                    size={26}
+                    size={IconSize.lg}
                     color={article.categoryColor}
                     style={{ marginRight: Spacing.md }}
                   />
@@ -1249,7 +1249,7 @@ export default function LearnScreen() {
                       {article.content}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} style={{ marginLeft: Spacing.sm }} />
+                  <Ionicons name="chevron-forward" size={IconSize.md} color={Colors.textSecondary} style={{ marginLeft: Spacing.sm }} />
                 </View>
               </TouchableOpacity>
             ))}
@@ -1275,7 +1275,7 @@ export default function LearnScreen() {
         ) : (
           <View style={{
             backgroundColor: Colors.surface1,
-            borderRadius: 12,
+            borderRadius: Radii.md,
             padding: Spacing.xl,
             alignItems: 'center',
           }}>

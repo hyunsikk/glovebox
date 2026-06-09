@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import VehicleSearch from './VehicleSearch';
 import { VehicleStorage } from '../lib/storage';
 import vehicleData from '../content/v1/vehicles.json';
@@ -348,7 +348,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
       {selectedVehicle && (
         <View style={{
           backgroundColor: Colors.surface,
-          borderRadius: 8,
+          borderRadius: Radii.sm,
           padding: Spacing.lg,
           marginBottom: Spacing.xl,
           flexDirection: 'row',
@@ -356,11 +356,11 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
         }}>
           <View style={{
             backgroundColor: Colors.forestGreen + '20',
-            borderRadius: 20,
+            borderRadius: Radii.pill,
             padding: 8,
             marginRight: Spacing.md,
           }}>
-            <Ionicons name="checkmark-circle" size={24} color={Colors.forestGreen} />
+            <Ionicons name="checkmark-circle" size={IconSize.lg} color={Colors.forestGreen} />
           </View>
           
           <View style={{ flex: 1 }}>
@@ -504,7 +504,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                 paddingHorizontal: Spacing.md,
                 paddingVertical: Spacing.sm,
                 backgroundColor: Colors.primary + '20',
-                borderRadius: 8,
+                borderRadius: Radii.sm,
                 borderWidth: 1,
                 borderColor: Colors.primary + '30',
                 opacity: decodingVIN ? 0.6 : 1,
@@ -629,7 +629,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                 style={{
                   flex: 1,
                   height: 40,
-                  borderRadius: 12,
+                  borderRadius: Radii.md,
                   justifyContent: 'center',
                   alignItems: 'center',
                   backgroundColor: formData.conditionWhenPurchased === option ? Colors.steelBlue : Colors.surface1,
@@ -688,7 +688,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
         </Text>
         <Ionicons
           name={showConditionSection ? 'chevron-up' : 'chevron-down'}
-          size={20}
+          size={IconSize.md}
           color={Colors.textSecondary}
         />
       </TouchableOpacity>
@@ -722,7 +722,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                   style={{
                     flex: 1,
                     height: 40,
-                    borderRadius: 12,
+                    borderRadius: Radii.md,
                     justifyContent: 'center',
                     alignItems: 'center',
                     backgroundColor: formData.accidentHistory === option ? Colors.steelBlue : Colors.surface1,
@@ -771,7 +771,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                   style={{
                     flex: 1,
                     height: 40,
-                    borderRadius: 12,
+                    borderRadius: Radii.md,
                     justifyContent: 'center',
                     alignItems: 'center',
                     backgroundColor: formData.smokerVehicle === option ? Colors.steelBlue : Colors.surface1,
@@ -805,7 +805,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                   style={{
                     flex: 1,
                     height: 40,
-                    borderRadius: 12,
+                    borderRadius: Radii.md,
                     justifyContent: 'center',
                     alignItems: 'center',
                     backgroundColor: formData.petsTransported === option ? Colors.steelBlue : Colors.surface1,
@@ -841,7 +841,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                     style={{
                       paddingHorizontal: Spacing.lg,
                       height: 36,
-                      borderRadius: 18,
+                      borderRadius: Radii.pill,
                       justifyContent: 'center',
                       alignItems: 'center',
                       backgroundColor: isSelected ? Colors.steelBlue : Colors.surface1,
@@ -902,7 +902,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
               onPress={handleClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>
@@ -926,7 +926,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
               {showErrors && validationErrors.length > 0 && (
                 <View style={{
                   backgroundColor: (Colors.deepRed || '#EF4444') + '15',
-                  borderRadius: 12,
+                  borderRadius: Radii.md,
                   padding: Spacing.md,
                   marginBottom: Spacing.md,
                   borderWidth: 1,
@@ -934,7 +934,7 @@ export default function AddVehicleModal({ visible, onClose, onVehicleAdded }) {
                 }}>
                   {validationErrors.map((err, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: i < validationErrors.length - 1 ? 4 : 0 }}>
-                      <Ionicons name="alert-circle" size={14} color={Colors.deepRed || '#EF4444'} style={{ marginRight: 6 }} />
+                      <Ionicons name="alert-circle" size={IconSize.xs} color={Colors.deepRed || '#EF4444'} style={{ marginRight: 6 }} />
                       <Text style={[Typography.caption, { color: Colors.deepRed || '#EF4444' }]}>{err}</Text>
                     </View>
                   ))}

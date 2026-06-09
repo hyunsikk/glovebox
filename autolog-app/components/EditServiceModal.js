@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { ServiceStorage, VehicleStorage } from '../lib/storage';
 import DatePickerField from './DatePickerField';
 
@@ -187,7 +187,7 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
               style={{ padding: Spacing.sm }}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} />
             </TouchableOpacity>
             
             <View style={{ flex: 1, alignItems: 'center' }}>
@@ -221,13 +221,13 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
               <View style={{
                 backgroundColor: Colors.primary + '20',
-                borderRadius: 20,
+                borderRadius: Radii.pill,
                 padding: 12,
                 marginRight: Spacing.md,
                 borderWidth: 1,
                 borderColor: Colors.primary + '30',
               }}>
-                <Ionicons name="build" size={24} color={Colors.primary} />
+                <Ionicons name="build" size={IconSize.lg} color={Colors.primary} />
               </View>
               
               <View style={{ flex: 1 }}>
@@ -377,7 +377,7 @@ export default function EditServiceModal({ visible, onClose, service, onServiceU
               disabled={loading}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="trash-outline" size={20} color={Colors.textPrimary} style={{ marginRight: Spacing.sm }} />
+                <Ionicons name="trash-outline" size={IconSize.md} color={Colors.textPrimary} style={{ marginRight: Spacing.sm }} />
                 <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
                   delete service
                 </Text>

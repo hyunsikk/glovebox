@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii } from '../theme';
 import { useTheme } from '../lib/ThemeContext';
 
 export default function DatePickerField({ value, onChange, label, error, maxDate }) {
@@ -69,7 +69,7 @@ export default function DatePickerField({ value, onChange, label, error, maxDate
             backgroundColor: Colors.surface1 || '#111827',
             color: Colors.textPrimary || '#F1F5F9',
             border: `1px solid ${error ? (Colors.danger || '#EF4444') : (Colors.glassBorder || 'rgba(255,255,255,0.06)')}`,
-            borderRadius: 12,
+            borderRadius: Radii.md,
             padding: 16,
             fontSize: 15,
             fontFamily: 'Nunito',

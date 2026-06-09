@@ -16,7 +16,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { useSettings } from '../lib/SettingsContext';
 import { VehicleStorage, ServiceStorage, ImageStorage, ReminderStorage } from '../lib/storage';
 import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
@@ -50,7 +50,7 @@ const Chip = ({ label, selected, onPress }) => (
     style={{
       paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.sm,
-      borderRadius: 20,
+      borderRadius: Radii.pill,
       backgroundColor: selected ? Colors.primary + '20' : Colors.surface1,
       borderWidth: 1,
       borderColor: selected ? Colors.primary : Colors.glassBorder,
@@ -109,7 +109,7 @@ const ServiceTypeItem = ({ serviceType, estimatedCost, onSelect, isSelected }) =
         alignItems: 'center',
         padding: Spacing.md,
         backgroundColor: isSelected ? Colors.steelBlue + '20' : 'transparent',
-        borderRadius: 8,
+        borderRadius: Radii.sm,
         marginBottom: Spacing.sm,
         borderWidth: isSelected ? 1 : 0,
         borderColor: isSelected ? Colors.steelBlue : 'transparent',
@@ -119,13 +119,13 @@ const ServiceTypeItem = ({ serviceType, estimatedCost, onSelect, isSelected }) =
     >
       <View style={{
         backgroundColor: Colors.surface,
-        borderRadius: 16,
+        borderRadius: Radii.pill,
         padding: 6,
         marginRight: Spacing.md,
       }}>
         <MaterialCommunityIcons
           name={getServiceIcon(serviceType)}
-          size={20}
+          size={IconSize.md}
           color={isSelected ? Colors.steelBlue : Colors.arcticSilver}
         />
       </View>
@@ -140,7 +140,7 @@ const ServiceTypeItem = ({ serviceType, estimatedCost, onSelect, isSelected }) =
       </View>
       
       {isSelected && (
-        <Ionicons name="checkmark-circle" size={20} color={Colors.steelBlue} />
+        <Ionicons name="checkmark-circle" size={IconSize.md} color={Colors.steelBlue} />
       )}
     </TouchableOpacity>
   );
@@ -533,7 +533,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                 </Text>
               </View>
 
-              <Ionicons name="chevron-forward" size={20} color={Colors.arcticSilver} />
+              <Ionicons name="chevron-forward" size={IconSize.md} color={Colors.arcticSilver} />
             </View>
           </TouchableOpacity>
         ))}
@@ -621,7 +621,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
 
       <View style={{
         backgroundColor: Colors.surface,
-        borderRadius: 8,
+        borderRadius: Radii.sm,
         padding: Spacing.lg,
         marginBottom: Spacing.xl,
       }}>
@@ -653,7 +653,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
       {showServiceTemplate && previousService && (
         <View style={{
           backgroundColor: Colors.primary + '10',
-          borderRadius: 12,
+          borderRadius: Radii.md,
           padding: Spacing.md,
           marginBottom: Spacing.lg,
           borderWidth: 1,
@@ -667,7 +667,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
               onPress={() => setShowServiceTemplate(false)}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={16} color={Colors.textSecondary} />
+              <Ionicons name="close" size={IconSize.sm} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
           
@@ -678,7 +678,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
           <TouchableOpacity
             style={{
               backgroundColor: Colors.primary,
-              borderRadius: 8,
+              borderRadius: Radii.sm,
               paddingVertical: Spacing.sm,
               paddingHorizontal: Spacing.lg,
               alignSelf: 'flex-start',
@@ -723,7 +723,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         justifyContent: 'space-between',
         backgroundColor: Colors.surface1,
         padding: Spacing.md,
-        borderRadius: 12,
+        borderRadius: Radii.md,
         borderWidth: 1,
         borderColor: updateOdometer ? Colors.primary + '40' : Colors.glassBorder,
         marginBottom: Spacing.lg,
@@ -782,7 +782,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             alignItems: 'center',
             paddingHorizontal: Spacing.lg,
             paddingVertical: Spacing.sm + 2,
-            borderRadius: 20,
+            borderRadius: Radii.pill,
             backgroundColor: isDIY ? Colors.primary + '20' : Colors.surface1,
             borderWidth: 1,
             borderColor: isDIY ? Colors.primary : Colors.glassBorder,
@@ -792,7 +792,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
         >
           <MaterialCommunityIcons
             name="wrench"
-            size={16}
+            size={IconSize.sm}
             color={isDIY ? Colors.primary : Colors.textSecondary}
             style={{ marginRight: Spacing.sm }}
           />
@@ -817,7 +817,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                     style={{
                       paddingHorizontal: Spacing.lg,
                       paddingVertical: Spacing.sm,
-                      borderRadius: 20,
+                      borderRadius: Radii.pill,
                       backgroundColor: diyLog.difficulty === level ? Colors.primary + '20' : Colors.surface1,
                       borderWidth: 1,
                       borderColor: diyLog.difficulty === level ? Colors.primary : Colors.glassBorder,
@@ -891,7 +891,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                   <StarRating
                     rating={shopReview.rating}
                     onRate={(star) => { Haptics.selectionAsync(); setShopReview(prev => ({ ...prev, rating: prev.rating === star ? 0 : star })); }}
-                    size={28}
+                    size={IconSize.xl}
                   />
                 </View>
 
@@ -925,7 +925,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                         style={{
                           paddingHorizontal: Spacing.lg,
                           paddingVertical: Spacing.sm,
-                          borderRadius: 20,
+                          borderRadius: Radii.pill,
                           backgroundColor: shopReview.wouldReturn === opt.value ? Colors.primary + '20' : Colors.surface1,
                           borderWidth: 1,
                           borderColor: shopReview.wouldReturn === opt.value ? Colors.primary : Colors.glassBorder,
@@ -980,18 +980,18 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             paddingVertical: Spacing.md,
             paddingHorizontal: Spacing.lg,
             backgroundColor: Colors.surface1,
-            borderRadius: 12,
+            borderRadius: Radii.md,
             borderWidth: 1,
             borderColor: Colors.glassBorder,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+            <MaterialCommunityIcons name="clipboard-text-outline" size={IconSize.md} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
             <Text style={[Typography.body, { color: Colors.textSecondary }]}>
               Shop Recommendations
             </Text>
           </View>
-          <Ionicons name={shopRecsOpen ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textSecondary} />
+          <Ionicons name={shopRecsOpen ? 'chevron-up' : 'chevron-down'} size={IconSize.md} color={Colors.textSecondary} />
         </TouchableOpacity>
 
         {shopRecsOpen && (
@@ -1016,7 +1016,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             {recommendations.map((rec, index) => (
               <View key={rec.id || index} style={{
                 backgroundColor: Colors.surface1,
-                borderRadius: 12,
+                borderRadius: Radii.md,
                 padding: Spacing.md,
                 marginBottom: Spacing.sm,
                 borderWidth: 1,
@@ -1056,7 +1056,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                     }}
                     style={{ padding: 6 }}
                   >
-                    <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+                    <Ionicons name="notifications-outline" size={IconSize.md} color={Colors.primary} />
                   </TouchableOpacity>
                   {/* Remove button */}
                   <TouchableOpacity
@@ -1066,7 +1066,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                     }}
                     style={{ padding: 6 }}
                   >
-                    <Ionicons name="close-circle-outline" size={20} color={Colors.deepRed} />
+                    <Ionicons name="close-circle-outline" size={IconSize.md} color={Colors.deepRed} />
                   </TouchableOpacity>
                 </View>
 
@@ -1083,7 +1083,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                       style={{
                         paddingHorizontal: Spacing.md,
                         paddingVertical: Spacing.xs + 1,
-                        borderRadius: 14,
+                        borderRadius: Radii.pill,
                         backgroundColor: rec.urgency === urgency ? Colors.primary + '20' : Colors.surface1,
                         borderWidth: 1,
                         borderColor: rec.urgency === urgency ? Colors.primary : Colors.glassBorder,
@@ -1111,14 +1111,14 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                 alignItems: 'center',
                 justifyContent: 'center',
                 paddingVertical: Spacing.md,
-                borderRadius: 12,
+                borderRadius: Radii.md,
                 borderWidth: 1,
                 borderColor: Colors.glassBorder,
                 borderStyle: 'dashed',
                 backgroundColor: Colors.surface1,
               }}
             >
-              <Ionicons name="add" size={18} color={Colors.primary} style={{ marginRight: Spacing.xs }} />
+              <Ionicons name="add" size={IconSize.md} color={Colors.primary} style={{ marginRight: Spacing.xs }} />
               <Text style={[Typography.caption, { color: Colors.primary }]}>
                 Add recommendation
               </Text>
@@ -1151,7 +1151,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                 style={{
                   width: 70,
                   height: 70,
-                  borderRadius: 10,
+                  borderRadius: Radii.md,
                   borderWidth: 1,
                   borderColor: Colors.glassBorder,
                 }}
@@ -1165,7 +1165,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
                   right: -6,
                   width: 20,
                   height: 20,
-                  borderRadius: 10,
+                  borderRadius: Radii.pill,
                   backgroundColor: Colors.deepRed,
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -1182,7 +1182,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
               style={{
                 width: 70,
                 height: 70,
-                borderRadius: 10,
+                borderRadius: Radii.md,
                 borderWidth: 1,
                 borderColor: Colors.glassBorder,
                 borderStyle: 'dashed',
@@ -1192,7 +1192,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="camera-outline" size={24} color={Colors.steelBlue} />
+              <Ionicons name="camera-outline" size={IconSize.lg} color={Colors.steelBlue} />
             </TouchableOpacity>
           )}
         </ScrollView>
@@ -1279,7 +1279,7 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
               onPress={handleClose}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.text }]}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { searchVehicles } from '../lib/vehicleDB';
 
 const VehicleSearchItem = ({ vehicle, onSelect }) => (
@@ -27,7 +27,7 @@ const VehicleSearchItem = ({ vehicle, onSelect }) => (
     
     <View style={{
       backgroundColor: Colors.forestGreen + '20',
-      borderRadius: 12,
+      borderRadius: Radii.md,
       paddingHorizontal: Spacing.sm,
       paddingVertical: 2,
       marginRight: Spacing.sm,
@@ -40,7 +40,7 @@ const VehicleSearchItem = ({ vehicle, onSelect }) => (
       </Text>
     </View>
     
-    <Ionicons name="chevron-forward" size={16} color={Colors.arcticSilver} />
+    <Ionicons name="chevron-forward" size={IconSize.sm} color={Colors.arcticSilver} />
   </TouchableOpacity>
 );
 
@@ -121,7 +121,7 @@ export default function VehicleSearch({ onVehicleSelect, placeholder = "Search f
             }}
             onPress={clearSearch}
           >
-            <Ionicons name="close-circle" size={20} color={Colors.arcticSilver} />
+            <Ionicons name="close-circle" size={IconSize.md} color={Colors.arcticSilver} />
           </TouchableOpacity>
         ) : (
           <View style={{
@@ -129,7 +129,7 @@ export default function VehicleSearch({ onVehicleSelect, placeholder = "Search f
             right: Spacing.md,
             top: 14,
           }}>
-            <Ionicons name="search" size={20} color={Colors.arcticSilver} />
+            <Ionicons name="search" size={IconSize.md} color={Colors.arcticSilver} />
           </View>
         )}
       </View>
@@ -138,7 +138,7 @@ export default function VehicleSearch({ onVehicleSelect, placeholder = "Search f
       {(searchResults.length > 0 || isSearching) && (
         <View style={{
           backgroundColor: Colors.elevated,
-          borderRadius: 8,
+          borderRadius: Radii.sm,
           marginTop: Spacing.sm,
           overflow: 'hidden',
           maxHeight: 300,
@@ -199,7 +199,7 @@ export default function VehicleSearch({ onVehicleSelect, placeholder = "Search f
               onPress={() => setSearchQuery(example)}
               style={{
                 backgroundColor: Colors.surface,
-                borderRadius: 12,
+                borderRadius: Radii.md,
                 paddingHorizontal: Spacing.sm,
                 paddingVertical: 2,
                 marginRight: Spacing.sm,

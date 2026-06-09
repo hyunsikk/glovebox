@@ -3,7 +3,7 @@ import { View, Text, ScrollView, SectionList, TouchableOpacity, Alert, TextInput
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../../theme';
 import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStorage, ImageStorage } from '../../lib/storage';
 import { getThumbnailUri } from '../../lib/imageUtils';
 import LogServiceModal from '../../components/LogServiceModal';
@@ -22,11 +22,11 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
     <TouchableOpacity
       key="all"
       style={{
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
         height: 36,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 18,
+        borderRadius: Radii.pill,
         backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
         borderWidth: 1,
         borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
@@ -54,7 +54,7 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
           height: 36,
           justifyContent: 'center',
           alignItems: 'center',
-          borderRadius: 18,
+          borderRadius: Radii.pill,
           backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
           borderWidth: 1,
           borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
@@ -136,15 +136,15 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
         <View style={{
           backgroundColor: serviceColor + '20',
-          borderRadius: 24,
-          padding: 10,
+          borderRadius: Radii.pill,
+          padding: Spacing.md,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: serviceColor + '30',
         }}>
           <Ionicons
             name={getServiceIcon(service.serviceType)}
-            size={24}
+            size={IconSize.md}
             color={serviceColor}
           />
         </View><View style={{ flex: 1 }}>
@@ -158,7 +158,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
 
         {servicePhotos.length > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: Spacing.sm }}>
-            <Ionicons name="camera" size={16} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+            <Ionicons name="camera" size={IconSize.sm} color={Colors.textSecondary} style={{ marginRight: 4 }} />
             <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 4 }]}>
               {servicePhotos.length}
             </Text>
@@ -169,7 +169,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
                 style={{
                   width: 24,
                   height: 24,
-                  borderRadius: 6,
+                  borderRadius: Radii.sm,
                   borderWidth: 1,
                   borderColor: Colors.glassBorder,
                   marginLeft: 2,
@@ -181,7 +181,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
         )}
 
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[Typography.h2, { color: Colors.success, fontSize: 20 }]}>
+          <Text style={[Typography.h2, { color: Colors.success }]}>
             {formatCost(service.cost)}
           </Text>
           <Text style={[Typography.caption, { 
@@ -193,7 +193,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
         </View>
       </View><View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="speedometer-outline" size={16} color={Colors.textSecondary} />
+          <Ionicons name="speedometer-outline" size={IconSize.sm} color={Colors.textSecondary} />
           <Text style={[Typography.caption, { color: Colors.textSecondary, marginLeft: 4 }]}>
             {service.mileage ? formatDistance(service.mileage) : '---'}
           </Text>
@@ -210,7 +210,7 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
           marginTop: Spacing.md,
           padding: Spacing.md,
           backgroundColor: Colors.surface1 + '60',
-          borderRadius: 12,
+          borderRadius: Radii.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}>
@@ -237,15 +237,15 @@ const FuelCard = ({ fuelLog, vehicle, photos = [], onEdit }) => {
         {/* Icon */}
         <View style={{
           backgroundColor: (isFuel ? Colors.warning : Colors.success) + '20',
-          borderRadius: 24,
-          padding: 12,
+          borderRadius: Radii.pill,
+          padding: Spacing.md,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: (isFuel ? Colors.warning : Colors.success) + '30',
         }}>
           {isFuel
-            ? <MaterialCommunityIcons name="gas-station" size={20} color={Colors.warning} />
-            : <Ionicons name="flash" size={20} color={Colors.success} />}
+            ? <MaterialCommunityIcons name="gas-station" size={IconSize.md} color={Colors.warning} />
+            : <Ionicons name="flash" size={IconSize.md} color={Colors.success} />}
         </View>
 
         {/* Details */}
@@ -264,7 +264,7 @@ const FuelCard = ({ fuelLog, vehicle, photos = [], onEdit }) => {
         {/* Photo thumbnails */}
         {photos.length > 0 && (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: Spacing.sm }}>
-            <Ionicons name="camera" size={16} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+            <Ionicons name="camera" size={IconSize.sm} color={Colors.textSecondary} style={{ marginRight: 4 }} />
             <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 4 }]}>
               {photos.length}
             </Text>
@@ -275,7 +275,7 @@ const FuelCard = ({ fuelLog, vehicle, photos = [], onEdit }) => {
                 style={{
                   width: 24,
                   height: 24,
-                  borderRadius: 6,
+                  borderRadius: Radii.sm,
                   borderWidth: 1,
                   borderColor: Colors.glassBorder,
                   marginLeft: 2,
@@ -324,13 +324,13 @@ const IssueCard = ({ issue, vehicle, photos = [], onEdit }) => {
         {/* Icon */}
         <View style={{
           backgroundColor: severityColors[issue.severity] + '20',
-          borderRadius: 24,
-          padding: 12,
+          borderRadius: Radii.pill,
+          padding: Spacing.md,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: severityColors[issue.severity] + '30',
         }}>
-          <Ionicons name="alert-circle" size={20} color={severityColors[issue.severity]} />
+          <Ionicons name="alert-circle" size={IconSize.md} color={severityColors[issue.severity]} />
         </View>
 
         {/* Details */}
@@ -348,36 +348,32 @@ const IssueCard = ({ issue, vehicle, photos = [], onEdit }) => {
           {/* Severity and Status badges */}
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
             <View style={{
-              paddingHorizontal: 8,
+              paddingHorizontal: Spacing.sm,
               paddingVertical: 2,
-              borderRadius: 8,
+              borderRadius: Radii.sm,
               backgroundColor: severityColors[issue.severity] + '20',
               borderWidth: 1,
               borderColor: severityColors[issue.severity] + '40',
               marginRight: Spacing.sm,
             }}>
-              <Text style={[Typography.small, {
+              <Text style={[Typography.micro, {
                 color: severityColors[issue.severity],
-                fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
-                textTransform: 'uppercase',
               }]}>
                 {issue.severity}
               </Text>
             </View>
             <View style={{
-              paddingHorizontal: 8,
+              paddingHorizontal: Spacing.sm,
               paddingVertical: 2,
-              borderRadius: 8,
+              borderRadius: Radii.sm,
               backgroundColor: statusColors[issue.status] + '20',
               borderWidth: 1,
               borderColor: statusColors[issue.status] + '40',
             }}>
-              <Text style={[Typography.small, {
+              <Text style={[Typography.micro, {
                 color: statusColors[issue.status],
-                fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
-                textTransform: 'uppercase',
               }]}>
                 {issue.status === 'in_progress' ? 'in progress' : issue.status}
               </Text>
@@ -386,7 +382,7 @@ const IssueCard = ({ issue, vehicle, photos = [], onEdit }) => {
             {/* Photo thumbnails */}
             {photos.length > 0 && (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: Spacing.sm }}>
-                <Ionicons name="camera" size={14} color={Colors.textSecondary} style={{ marginRight: 2 }} />
+                <Ionicons name="camera" size={IconSize.xs} color={Colors.textSecondary} style={{ marginRight: 2 }} />
                 <Text style={[Typography.small, { color: Colors.textSecondary, marginRight: 2 }]}>
                   {photos.length}
                 </Text>
@@ -397,7 +393,7 @@ const IssueCard = ({ issue, vehicle, photos = [], onEdit }) => {
                     style={{
                       width: 24,
                       height: 24,
-                      borderRadius: 6,
+                      borderRadius: Radii.sm,
                       borderWidth: 1,
                       borderColor: Colors.glassBorder,
                       marginLeft: 2,
@@ -440,13 +436,13 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{
           backgroundColor: Colors.primary + '20',
-          borderRadius: 24,
-          padding: 12,
+          borderRadius: Radii.pill,
+          padding: Spacing.md,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: Colors.primary + '30',
         }}>
-          <Ionicons name="camera" size={20} color={Colors.primary} />
+          <Ionicons name="camera" size={IconSize.md} color={Colors.primary} />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -460,16 +456,15 @@ const SnapshotCard = ({ snapshot, vehicle }) => {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm }}>
             <View style={{
-              paddingHorizontal: 8,
+              paddingHorizontal: Spacing.sm,
               paddingVertical: 2,
-              borderRadius: 8,
+              borderRadius: Radii.sm,
               backgroundColor: conditionColors[snapshot.condition] + '20',
               borderWidth: 1,
               borderColor: conditionColors[snapshot.condition] + '40',
             }}>
-              <Text style={[Typography.small, {
+              <Text style={[Typography.micro, {
                 color: conditionColors[snapshot.condition],
-                fontSize: 10,
                 fontFamily: 'Nunito_600SemiBold',
               }]}>
                 {snapshot.condition}
@@ -590,7 +585,7 @@ const FilterChip = ({ label, active, onPress }) => (
     style={{
       paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.sm,
-      borderRadius: 20,
+      borderRadius: Radii.pill,
       marginRight: Spacing.sm,
       marginBottom: Spacing.sm,
       backgroundColor: active ? Colors.primary : Colors.glassBackground,
@@ -646,7 +641,7 @@ const TimelineHeader = ({
         alignItems: 'center',
         paddingHorizontal: Spacing.md,
       }]}>
-        <Ionicons name="search" size={18} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+        <Ionicons name="search" size={IconSize.md} color={Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
         <TextInput
           style={{
             flex: 1,
@@ -663,7 +658,7 @@ const TimelineHeader = ({
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+            <Ionicons name="close-circle" size={IconSize.md} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -686,17 +681,16 @@ const TimelineHeader = ({
             style={{
               paddingHorizontal: Spacing.md,
               paddingVertical: Spacing.sm,
-              borderRadius: 20,
+              borderRadius: Radii.pill,
               marginRight: Spacing.xs,
               backgroundColor: isActive ? Colors.primary : Colors.glassBackground,
               borderWidth: 1,
               borderColor: isActive ? Colors.primary : Colors.glassBorder,
             }}
           >
-            <Text style={[Typography.caption, {
+            <Text style={[Typography.small, {
               color: isActive ? Colors.textPrimary : Colors.textSecondary,
               fontFamily: isActive ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
-              fontSize: 11,
             }]}>
               {label}
             </Text>
@@ -721,7 +715,7 @@ const TimelineHeader = ({
         style={{
           paddingHorizontal: Spacing.md,
           paddingVertical: Spacing.sm,
-          borderRadius: 20,
+          borderRadius: Radii.pill,
           marginRight: Spacing.sm,
           marginBottom: Spacing.sm,
           backgroundColor: Colors.surface2,
@@ -731,7 +725,7 @@ const TimelineHeader = ({
           alignItems: 'center',
         }}
       >
-        <Ionicons name="swap-vertical" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+        <Ionicons name="swap-vertical" size={IconSize.xs} color={Colors.primary} style={{ marginRight: 4 }} />
         <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>
           {currentSortLabel}
         </Text>
@@ -744,7 +738,7 @@ const TimelineHeader = ({
           style={{
             paddingHorizontal: Spacing.md,
             paddingVertical: Spacing.sm,
-            borderRadius: 20,
+            borderRadius: Radii.pill,
             marginBottom: Spacing.sm,
             backgroundColor: Colors.danger + '20',
             borderWidth: 1,

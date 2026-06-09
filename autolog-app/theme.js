@@ -167,7 +167,19 @@ function buildTypography() {
     lineHeight: 15,
     color: Colors.textTertiary,
   },
-  
+
+  // Micro - tiny uppercase status caps on badges/pills (10px Medium).
+  // Bakes in the uppercase + letter-spacing every badge label was repeating by
+  // hand at 8-9px. Callers override color/fontFamily as needed.
+  micro: {
+    fontFamily: 'Nunito_500Medium',
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: Colors.textTertiary,
+  },
+
   // Legacy aliases (for compatibility)
   display: {
     fontFamily: 'Nunito_700Bold',
@@ -194,6 +206,27 @@ export const Spacing = {
   horizontalLarge: 24,
   cardMargin: 16, // 16px between cards
   buttonMargin: 12, // 12px between related buttons
+};
+
+// Corner radius scale. Use `pill` for anything meant to be fully round
+// (avatars, dots, FABs) — radius >= half the box renders a circle.
+export const Radii = {
+  sm: 8,      // chips, small tags
+  md: 12,     // badges, thumbnails, inline panels
+  lg: 16,     // buttons, inputs, inner cards
+  xl: 20,     // primary cards (matches Shared.card)
+  pill: 999,  // fully round
+};
+
+// Icon size scale. xs pairs with caption/small text; xl is for FABs.
+// (Icons sized to sit inline next to a specific number/text may match that
+// text instead of snapping to this scale — that's intentional, not drift.)
+export const IconSize = {
+  xs: 14,
+  sm: 16,
+  md: 20,
+  lg: 24,
+  xl: 28,
 };
 
 // Build Shared styles using current Colors — called at init and on theme switch

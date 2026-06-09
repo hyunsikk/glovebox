@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Animated, Dimensions, Platform } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Rect, G } from 'react-native-svg';
-import { Colors, Typography, Spacing } from '../theme';
+import { Colors, Typography, Spacing, Radii } from '../theme';
 
 const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
@@ -326,7 +326,7 @@ export const StatTrendCard = ({ title, value, trend, trendLabel, sparkData, colo
   return (
     <View style={{
       backgroundColor: Colors.glassBackground,
-      borderRadius: 16, padding: Spacing.lg,
+      borderRadius: Radii.lg, padding: Spacing.lg,
       borderWidth: 1, borderColor: Colors.glassBorder,
       flex: 1, marginRight: Spacing.sm,
     }}>

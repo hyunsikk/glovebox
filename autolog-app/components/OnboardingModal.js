@@ -12,7 +12,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 
 const { width } = Dimensions.get('window');
 
@@ -143,20 +143,20 @@ const FeaturesScreen = ({ onNext, onBack }) => {
               marginBottom: Spacing.xl,
               backgroundColor: Colors.glassBackground,
               padding: Spacing.lg,
-              borderRadius: 16,
+              borderRadius: Radii.lg,
               borderWidth: 1,
               borderColor: Colors.glassBorder,
             }}
           >
             <View style={{
               backgroundColor: feature.color + '20',
-              borderRadius: 20,
+              borderRadius: Radii.pill,
               padding: 12,
               marginRight: Spacing.md,
               borderWidth: 1,
               borderColor: feature.color + '30',
             }}>
-              <Ionicons name={feature.icon} size={24} color={feature.color} />
+              <Ionicons name={feature.icon} size={IconSize.lg} color={feature.color} />
             </View>
             
             <View style={{ flex: 1 }}>
@@ -201,7 +201,7 @@ const GetStartedScreen = ({ onAddVehicle, onBack }) => {
       <View style={{
         width: 120,
         height: 120,
-        borderRadius: 60,
+        borderRadius: Radii.pill,
         backgroundColor: Colors.primary + '15',
         borderWidth: 2,
         borderColor: Colors.primary + '30',
@@ -335,7 +335,7 @@ export default function OnboardingModal({ visible, onClose, onAddVehicle }) {
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={24} color={Colors.textSecondary} />
+            <Ionicons name="chevron-back" size={IconSize.lg} color={Colors.textSecondary} />
           </TouchableOpacity>
 
           {/* Progress dots */}
@@ -346,7 +346,7 @@ export default function OnboardingModal({ visible, onClose, onAddVehicle }) {
                 style={{
                   width: currentScreen === index ? 16 : 8,
                   height: 8,
-                  borderRadius: 4,
+                  borderRadius: Radii.pill,
                   backgroundColor: currentScreen === index ? Colors.primary : Colors.textTertiary,
                   marginHorizontal: 4,
                 }}

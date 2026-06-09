@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { Colors, Typography, Spacing, Shared } from '../../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../../theme';
 import { VehicleStorage, ServiceStorage, IssueStorage, FuelStorage, SettingsStorage, DataUtils } from '../../lib/storage';
 import { HealthScore, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
@@ -117,7 +117,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
       <View style={{
         width: 32,
         height: 32,
-        borderRadius: 16,
+        borderRadius: Radii.pill,
         backgroundColor: color + '20',
         borderWidth: 1,
         borderColor: color + '40',
@@ -163,7 +163,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
         >
           <Ionicons
             name={vehicle.isFavorite ? 'star' : 'star-outline'}
-            size={18}
+            size={IconSize.md}
             color={vehicle.isFavorite ? Colors.warning : Colors.textTertiary}
           />
         </TouchableOpacity>
@@ -216,7 +216,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 10,
+                borderRadius: Radii.md,
                 borderWidth: 1,
                 borderColor: Colors.glassBorder,
               }}
@@ -225,39 +225,35 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
 
           {/* Open Issues Badge */}
           {openIssuesCount > 0 && (
-            <View style={{ 
+            <View style={{
               marginLeft: Spacing.sm,
               alignItems: 'center',
               backgroundColor: '#EF4444' + '15',
-              borderRadius: 12,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
+              borderRadius: Radii.md,
+              paddingHorizontal: Spacing.sm,
+              paddingVertical: Spacing.xs,
               borderWidth: 1,
               borderColor: '#EF4444' + '30',
               minWidth: 32,
             }}>
-              <Ionicons name="alert-circle" size={13} color="#EF4444" />
-              <Text style={{
+              <Ionicons name="alert-circle" size={IconSize.xs} color="#EF4444" />
+              <Text style={[Typography.micro, {
                 fontFamily: 'Nunito_600SemiBold',
-                fontSize: 8,
                 color: '#EF4444',
-                lineHeight: 10,
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}>
+              }]}>
                 {openIssuesCount} issue{openIssuesCount !== 1 ? 's' : ''}
               </Text>
             </View>
           )}
           
           {/* Service Status Badge */}
-          <View style={{ 
-            marginLeft: Spacing.md, 
+          <View style={{
+            marginLeft: Spacing.md,
             alignItems: 'center',
             backgroundColor: getServiceStatusColor() + '15',
-            borderRadius: 12,
-            paddingHorizontal: 10,
-            paddingVertical: 6,
+            borderRadius: Radii.md,
+            paddingHorizontal: Spacing.sm,
+            paddingVertical: Spacing.xs,
             borderWidth: 1,
             borderColor: getServiceStatusColor() + '30',
           }}>
@@ -271,14 +267,7 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
                 }}>
                   {overdueServices.length}
                 </Text>
-                <Text style={{
-                  fontFamily: 'Nunito_500Medium',
-                  fontSize: 9,
-                  color: Colors.danger,
-                  lineHeight: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}>
+                <Text style={[Typography.micro, { color: Colors.danger }]}>
                   overdue
                 </Text>
               </>
@@ -292,28 +281,14 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
                 }}>
                   {dueSoonServices.length}
                 </Text>
-                <Text style={{
-                  fontFamily: 'Nunito_500Medium',
-                  fontSize: 9,
-                  color: Colors.warning,
-                  lineHeight: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}>
+                <Text style={[Typography.micro, { color: Colors.warning }]}>
                   due soon
                 </Text>
               </>
             ) : (
               <>
                 <Ionicons name="checkmark" size={18} color={Colors.success} />
-                <Text style={{
-                  fontFamily: 'Nunito_500Medium',
-                  fontSize: 9,
-                  color: Colors.success,
-                  lineHeight: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}>
+                <Text style={[Typography.micro, { color: Colors.success }]}>
                   good
                 </Text>
               </>
@@ -327,14 +302,14 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
           alignItems: 'center',
           backgroundColor: Colors.surface1 + '60',
           padding: Spacing.md,
-          borderRadius: 16,
+          borderRadius: Radii.lg,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}>
           <View style={{
             width: 8,
             height: 8,
-            borderRadius: 4,
+            borderRadius: Radii.pill,
             backgroundColor: getServiceStatusColor(),
             marginRight: Spacing.sm,
           }} />
@@ -351,10 +326,10 @@ const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
             )}
           </View>
 
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={Colors.textSecondary} 
+          <Ionicons
+            name="chevron-forward"
+            size={IconSize.md}
+            color={Colors.textSecondary}
           />
         </View>
       </TouchableOpacity>
@@ -400,7 +375,7 @@ const EmptyState = ({ onAddVehicle, onLoadSampleData }) => {
         top: '30%',
         width: 200,
         height: 200,
-        borderRadius: 100,
+        borderRadius: Radii.pill,
         backgroundColor: Colors.primary,
         opacity: 0.03,
       }} />
@@ -582,7 +557,7 @@ const DashboardSummary = ({ vehicles }) => {
           marginTop: Spacing.lg,
           padding: Spacing.md,
           backgroundColor: Colors.surface1 + '60',
-          borderRadius: 12,
+          borderRadius: Radii.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}>
@@ -590,7 +565,7 @@ const DashboardSummary = ({ vehicles }) => {
             <View style={{
               width: 8,
               height: 8,
-              borderRadius: 4,
+              borderRadius: Radii.pill,
               backgroundColor: summaryData.nextServiceDue.isOverdue ? Colors.danger : Colors.warning,
               marginRight: Spacing.sm,
             }} />
@@ -619,7 +594,7 @@ const DemoBanner = ({ onClear }) => (
       backgroundColor: Colors.primary + '15',
       borderWidth: 1,
       borderColor: Colors.primary + '30',
-      borderRadius: 12,
+      borderRadius: Radii.md,
       paddingVertical: Spacing.sm,
       paddingHorizontal: Spacing.lg,
       marginBottom: Spacing.lg,
@@ -627,11 +602,11 @@ const DemoBanner = ({ onClear }) => (
       alignItems: 'center',
     }}
   >
-    <Ionicons name="sparkles-outline" size={16} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+    <Ionicons name="sparkles-outline" size={IconSize.sm} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
     <Text style={[Typography.caption, { color: Colors.primary, flex: 1 }]}>
       exploring demo data — tap to clear & start fresh
     </Text>
-    <Ionicons name="close-circle-outline" size={16} color={Colors.primary} />
+    <Ionicons name="close-circle-outline" size={IconSize.sm} color={Colors.primary} />
   </TouchableOpacity>
 );
 
@@ -957,7 +932,7 @@ export default function GarageScreen() {
           backgroundColor: Colors.primary,
           width: 56,
           height: 56,
-          borderRadius: 28,
+          borderRadius: Radii.pill,
           justifyContent: 'center',
           alignItems: 'center',
           shadowColor: Colors.primary,
@@ -973,7 +948,7 @@ export default function GarageScreen() {
         accessibilityRole="button"
         accessibilityLabel="Add vehicle"
       >
-        <Ionicons name="add" size={28} color={Colors.textPrimary} />
+        <Ionicons name="add" size={IconSize.xl} color={Colors.textPrimary} />
       </TouchableOpacity>
 
       <AddVehicleModal

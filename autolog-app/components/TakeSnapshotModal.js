@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { SnapshotStorage, IssueStorage } from '../lib/storage';
 import { todayLocal } from '../lib/dateUtils';
 import DatePickerField from './DatePickerField';
@@ -67,7 +67,7 @@ const ConditionPicker = ({ value, onSelect }) => (
             style={{
               paddingVertical: Spacing.md,
               paddingHorizontal: Spacing.lg,
-              borderRadius: 12,
+              borderRadius: Radii.md,
               backgroundColor: isSelected ? option.color + '20' : Colors.surface1,
               borderWidth: 1.5,
               borderColor: isSelected ? option.color : Colors.glassBorder,
@@ -76,7 +76,7 @@ const ConditionPicker = ({ value, onSelect }) => (
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Ionicons name={option.icon} size={20} color={isSelected ? option.color : Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
+                <Ionicons name={option.icon} size={IconSize.md} color={isSelected ? option.color : Colors.textSecondary} style={{ marginRight: Spacing.sm }} />
                 <View>
                   <Text style={[Typography.body, { 
                     color: isSelected ? option.color : Colors.textPrimary,
@@ -93,7 +93,7 @@ const ConditionPicker = ({ value, onSelect }) => (
                 <View style={{
                   width: 20,
                   height: 20,
-                  borderRadius: 10,
+                  borderRadius: Radii.pill,
                   backgroundColor: option.color,
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -237,7 +237,7 @@ export default function TakeSnapshotModal({
             paddingBottom: Spacing.lg,
           }]}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} />
             </TouchableOpacity>
             
             <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
@@ -249,7 +249,7 @@ export default function TakeSnapshotModal({
               style={{ padding: 4, opacity: loading ? 0.6 : 1 }}
               disabled={loading}
             >
-              <Ionicons name="checkmark" size={24} color={Colors.primary} />
+              <Ionicons name="checkmark" size={IconSize.lg} color={Colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -392,14 +392,14 @@ export default function TakeSnapshotModal({
             {/* Info Box */}
             <View style={{
               backgroundColor: Colors.primary + '10',
-              borderRadius: 12,
+              borderRadius: Radii.md,
               padding: Spacing.lg,
               borderWidth: 1,
               borderColor: Colors.primary + '20',
               marginBottom: Spacing.lg,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <Ionicons name="bulb" size={16} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
+                <Ionicons name="bulb" size={IconSize.sm} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
                 <View style={{ flex: 1 }}>
                   <Text style={[Typography.body, { color: Colors.primary, marginBottom: Spacing.xs, fontFamily: 'Nunito_600SemiBold' }]}>
                     Snapshot Tips

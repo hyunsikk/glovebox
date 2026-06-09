@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../lib/storage';
 import { getBenchmark, compareToBenchmark } from '../lib/costBenchmarks';
 import { useSettings } from '../lib/SettingsContext';
@@ -149,10 +149,10 @@ export default function BenchmarkComparison({ vehicles, selectedVehicleId }) {
             <View style={{
               flexDirection: 'row', alignItems: 'center',
               backgroundColor: verdictConfig.color + '15',
-              borderRadius: 8, padding: Spacing.sm,
+              borderRadius: Radii.sm, padding: Spacing.sm,
               marginBottom: Spacing.md,
             }}>
-              <Ionicons name={verdictConfig.icon} size={18} color={verdictConfig.color} style={{ marginRight: 8 }} />
+              <Ionicons name={verdictConfig.icon} size={IconSize.md} color={verdictConfig.color} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={[Typography.body, { color: Colors.textPrimary }]}>
                   {comparison.annualPct > 0 ? '+' : ''}{comparison.annualPct.toFixed(0)}% {verdictConfig.label}

@@ -5,7 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Colors, Typography, Spacing, Shared } from '../../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../../theme';
 import { VehicleStorage, ServiceStorage, FuelStorage, DataUtils, IssueStorage } from '../../lib/storage';
 import { HealthScore, CostAnalytics, FleetAnalytics, ServiceDue } from '../../lib/analytics';
 import { useSettings } from '../../lib/SettingsContext';
@@ -130,7 +130,7 @@ const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
           activeOpacity={0.7}
           style={{
             backgroundColor: Colors.primary + '15',
-            borderRadius: 12,
+            borderRadius: Radii.md,
             paddingHorizontal: 12,
             paddingVertical: 6,
             flexDirection: 'row',
@@ -139,7 +139,7 @@ const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
             borderColor: Colors.primary + '30',
           }}
         >
-          <Ionicons name="share-outline" size={14} color={Colors.primary} style={{ marginRight: 4 }} />
+          <Ionicons name="share-outline" size={IconSize.xs} color={Colors.primary} style={{ marginRight: 4 }} />
           <Text style={[Typography.caption, { color: Colors.primary, fontFamily: 'Nunito_600SemiBold' }]}>share</Text>
         </TouchableOpacity>
       </View>
@@ -155,7 +155,7 @@ const MonthlySummaryCard = ({ vehicles, selectedVehicleId }) => {
       {/* Stats grid */}
       <View style={{
         flexDirection: 'row', justifyContent: 'space-around',
-        backgroundColor: Colors.surface1 + '60', borderRadius: 12,
+        backgroundColor: Colors.surface1 + '60', borderRadius: Radii.md,
         paddingVertical: Spacing.md, borderWidth: 1, borderColor: Colors.glassBorder,
       }}>
         <View style={{ alignItems: 'center' }}>
@@ -269,7 +269,7 @@ const MonthOverMonthCard = ({ vehicles, selectedVehicleId }) => {
           <Text style={[Typography.body, { color: Colors.textPrimary, fontFamily: 'Nunito_600SemiBold' }]}>
             {formatCostShort(currentVal)}
           </Text>
-          <View style={{ backgroundColor: color + '15', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+          <View style={{ backgroundColor: color + '15', borderRadius: Radii.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
             <Text style={{ fontSize: 12, color, fontFamily: 'Nunito_600SemiBold' }}>
               {arrow} {Math.abs(pct).toFixed(0)}%
             </Text>
@@ -353,7 +353,7 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
         height: 36,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 18,
+        borderRadius: Radii.pill,
         backgroundColor: selectedVehicleId === 'all' ? Colors.primary : Colors.surface1,
         borderWidth: 1,
         borderColor: selectedVehicleId === 'all' ? Colors.primary : Colors.glassBorder,
@@ -381,7 +381,7 @@ const VehicleFilterChips = ({ vehicles, selectedVehicleId, onVehicleSelect }) =>
           height: 36,
           justifyContent: 'center',
           alignItems: 'center',
-          borderRadius: 18,
+          borderRadius: Radii.pill,
           backgroundColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.surface1,
           borderWidth: 1,
           borderColor: selectedVehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
@@ -414,7 +414,7 @@ const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, tren
       left: 12,
       width: 40,
       height: 40,
-      borderRadius: 20,
+      borderRadius: Radii.pill,
       backgroundColor: color,
       opacity: 0.1,
       shadowColor: color,
@@ -427,13 +427,13 @@ const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, tren
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
       <View style={{
         backgroundColor: color + '20',
-        borderRadius: 20,
+        borderRadius: Radii.pill,
         padding: 8,
         marginRight: Spacing.sm,
         borderWidth: 1,
         borderColor: color + '30',
       }}>
-        <Ionicons name={icon} size={20} color={color} />
+        <Ionicons name={icon} size={IconSize.md} color={color} />
       </View>
       
       <Text style={[Typography.caption, { color: Colors.textSecondary, flex: 1, fontSize: 12 }]}>
@@ -443,7 +443,7 @@ const MetricCard = ({ title, value, subtitle, icon, color = Colors.primary, tren
       {trend && (
         <Ionicons 
           name={trend > 0 ? "trending-up" : "trending-down"} 
-          size={16} 
+          size={IconSize.sm}
           color={trend > 0 ? Colors.success : Colors.danger} 
         />
       )}
@@ -515,7 +515,7 @@ const VehicleHealthCard = ({ vehicle, overdueServices, dueSoonServices }) => {
         {/* Status badge */}
         <View style={{
           backgroundColor: statusColor + '18',
-          borderRadius: 12,
+          borderRadius: Radii.md,
           paddingHorizontal: 10,
           paddingVertical: 6,
           marginRight: Spacing.md,
@@ -531,7 +531,7 @@ const VehicleHealthCard = ({ vehicle, overdueServices, dueSoonServices }) => {
           ) : (
             <Ionicons name="checkmark" size={18} color={Colors.success} />
           )}
-          <Text style={{ fontFamily: 'Nunito_500Medium', fontSize: 8, color: statusColor, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <Text style={[Typography.micro, { color: statusColor }]}>
             {overdueCount > 0 ? 'overdue' : dueSoonCount > 0 ? 'due' : 'good'}
           </Text>
         </View>
@@ -551,19 +551,19 @@ const VehicleHealthCard = ({ vehicle, overdueServices, dueSoonServices }) => {
         <View style={{
           backgroundColor: Colors.surface1 + '60',
           padding: Spacing.md,
-          borderRadius: 12,
+          borderRadius: Radii.md,
           borderWidth: 1,
           borderColor: Colors.glassBorder,
         }}>
           {overdueServices.map((s, i) => (
             <View key={`o${i}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: i < overdueCount - 1 || dueSoonCount > 0 ? 4 : 0 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.danger, marginRight: 8 }} />
+              <View style={{ width: 6, height: 6, borderRadius: Radii.pill, backgroundColor: Colors.danger, marginRight: 8 }} />
               <Text style={[Typography.caption, { color: Colors.danger }]}>{s.service} — overdue</Text>
             </View>
           ))}
           {dueSoonServices.map((s, i) => (
             <View key={`d${i}`} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: i < dueSoonCount - 1 ? 4 : 0 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.warning, marginRight: 8 }} />
+              <View style={{ width: 6, height: 6, borderRadius: Radii.pill, backgroundColor: Colors.warning, marginRight: 8 }} />
               <Text style={[Typography.caption, { color: Colors.warning }]}>{s.service} — {s.daysUntilDue === 0 ? 'due today' : `in ${s.daysUntilDue}d`}</Text>
             </View>
           ))}
@@ -716,13 +716,13 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg }}>
         <View style={{
           backgroundColor: Colors.success + '20',
-          borderRadius: 20,
+          borderRadius: Radii.pill,
           padding: 12,
           marginRight: Spacing.md,
           borderWidth: 1,
           borderColor: Colors.success + '30',
         }}>
-          <Ionicons name="trending-up-outline" size={24} color={Colors.success} />
+          <Ionicons name="trending-up-outline" size={IconSize.lg} color={Colors.success} />
         </View>
         
         <View style={{ flex: 1 }}>
@@ -746,7 +746,7 @@ const CostForecast = ({ vehicles, selectedVehicleId }) => {
           <View style={{
             marginTop: Spacing.md,
             backgroundColor: Colors.warning + '15',
-            borderRadius: 8,
+            borderRadius: Radii.sm,
             paddingHorizontal: Spacing.md,
             paddingVertical: Spacing.sm,
           }}>
@@ -1074,7 +1074,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
         activeOpacity={0.9}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="cloud-upload-outline" size={20} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
+          <Ionicons name="cloud-upload-outline" size={IconSize.md} color={Colors.steelBlue} style={{ marginRight: Spacing.sm }} />
           <Text style={[Typography.h2, { color: Colors.steelBlue }]}>
             import from CSV
           </Text>
@@ -1106,7 +1106,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
               onPress={() => setShowImportModal(false)}
               style={{ padding: 4 }}
             >
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
 
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
@@ -1133,7 +1133,7 @@ const CSVImport = ({ vehicles, onImportComplete }) => {
               <View style={{
                 backgroundColor: Colors.surface1,
                 padding: Spacing.md,
-                borderRadius: 8,
+                borderRadius: Radii.sm,
                 marginBottom: Spacing.lg,
               }}>
                 <Text style={[Typography.small, { color: Colors.textPrimary, fontFamily: 'monospace' }]}>
@@ -1604,7 +1604,7 @@ export default function InsightsScreen() {
           return (
             <View style={[Shared.card, { marginBottom: Spacing.lg }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
-                <Ionicons name="warning" size={18} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
+                <Ionicons name="warning" size={IconSize.md} color={Colors.warning} style={{ marginRight: Spacing.sm }} />
                 <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
                   needs attention
                 </Text>
@@ -1619,7 +1619,7 @@ export default function InsightsScreen() {
                   borderBottomColor: Colors.glassBorder,
                 }}>
                   <View style={{
-                    width: 8, height: 8, borderRadius: 4,
+                    width: 8, height: 8, borderRadius: Radii.pill,
                     backgroundColor: Colors.danger,
                     marginRight: Spacing.sm,
                   }} />
@@ -1643,7 +1643,7 @@ export default function InsightsScreen() {
                   borderBottomColor: Colors.glassBorder,
                 }}>
                   <View style={{
-                    width: 8, height: 8, borderRadius: 4,
+                    width: 8, height: 8, borderRadius: Radii.pill,
                     backgroundColor: Colors.warning,
                     marginRight: Spacing.sm,
                   }} />
@@ -1879,7 +1879,7 @@ export default function InsightsScreen() {
             <View style={{ 
               height: 160,
               backgroundColor: Colors.surface1 + '40', 
-              borderRadius: 12, 
+              borderRadius: Radii.md, 
               padding: Spacing.sm,
             }}>
               <View style={{ flexDirection: 'row', height: '100%', alignItems: 'flex-end', justifyContent: 'space-around' }}>
@@ -1952,13 +1952,13 @@ export default function InsightsScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
             <View style={{
               backgroundColor: Colors.warning + '20',
-              borderRadius: 20,
+              borderRadius: Radii.pill,
               padding: 12,
               marginRight: Spacing.md,
               borderWidth: 1,
               borderColor: Colors.warning + '30',
             }}>
-              <Ionicons name="download-outline" size={24} color={Colors.warning} />
+              <Ionicons name="download-outline" size={IconSize.lg} color={Colors.warning} />
             </View>
             
             <View style={{ flex: 1 }}>
@@ -1980,7 +1980,7 @@ export default function InsightsScreen() {
             activeOpacity={0.9}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="share-outline" size={20} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
+              <Ionicons name="share-outline" size={IconSize.md} color={Colors.primary} style={{ marginRight: Spacing.sm }} />
               <Text style={[Typography.h2, { color: Colors.primary }]}>
                 export data
               </Text>

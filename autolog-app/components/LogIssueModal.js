@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { IssueStorage, ServiceStorage, ImageStorage } from '../lib/storage';
 import { pickImageAsync, persistImage, getThumbnailUri } from '../lib/imageUtils';
 import { todayLocal } from '../lib/dateUtils';
@@ -50,7 +50,7 @@ const SeverityPicker = ({ value, onSelect }) => (
             style={{
               paddingHorizontal: Spacing.lg,
               paddingVertical: Spacing.sm,
-              borderRadius: 20,
+              borderRadius: Radii.pill,
               backgroundColor: isSelected ? option.color + '20' : Colors.surface1,
               borderWidth: 1.5,
               borderColor: isSelected ? option.color : Colors.glassBorder,
@@ -101,7 +101,7 @@ const StatusPicker = ({ value, onSelect, disabled = false }) => (
             style={{
               paddingVertical: Spacing.md,
               paddingHorizontal: Spacing.lg,
-              borderRadius: 12,
+              borderRadius: Radii.md,
               backgroundColor: isSelected ? Colors.primary + '20' : Colors.surface1,
               borderWidth: 1,
               borderColor: isSelected ? Colors.primary : Colors.glassBorder,
@@ -125,7 +125,7 @@ const StatusPicker = ({ value, onSelect, disabled = false }) => (
                 <View style={{
                   width: 20,
                   height: 20,
-                  borderRadius: 10,
+                  borderRadius: Radii.pill,
                   backgroundColor: Colors.primary,
                   justifyContent: 'center',
                   alignItems: 'center',
@@ -359,7 +359,7 @@ export default function LogIssueModal({
             paddingBottom: Spacing.lg,
           }]}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
             
             <Text style={[Typography.h1, { color: Colors.textPrimary }]}>
@@ -371,7 +371,7 @@ export default function LogIssueModal({
               style={{ padding: 4, opacity: loading ? 0.6 : 1 }}
               disabled={loading}
             >
-              <Ionicons name="checkmark" size={24} color={Colors.primary} />
+              <Ionicons name="checkmark" size={IconSize.lg} color={Colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -396,7 +396,7 @@ export default function LogIssueModal({
                       style={{
                         paddingVertical: Spacing.md,
                         paddingHorizontal: Spacing.lg,
-                        borderRadius: 12,
+                        borderRadius: Radii.md,
                         backgroundColor: form.vehicleId === vehicle.id ? Colors.primary + '20' : Colors.surface1,
                         borderWidth: 1,
                         borderColor: form.vehicleId === vehicle.id ? Colors.primary : Colors.glassBorder,
@@ -501,7 +501,7 @@ export default function LogIssueModal({
                       style={{
                         width: 70,
                         height: 70,
-                        borderRadius: 10,
+                        borderRadius: Radii.md,
                         borderWidth: 1,
                         borderColor: Colors.glassBorder,
                       }}
@@ -515,7 +515,7 @@ export default function LogIssueModal({
                         right: -6,
                         width: 20,
                         height: 20,
-                        borderRadius: 10,
+                        borderRadius: Radii.pill,
                         backgroundColor: Colors.deepRed,
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -532,7 +532,7 @@ export default function LogIssueModal({
                     style={{
                       width: 70,
                       height: 70,
-                      borderRadius: 10,
+                      borderRadius: Radii.md,
                       borderWidth: 1,
                       borderColor: Colors.glassBorder,
                       borderStyle: 'dashed',
@@ -542,7 +542,7 @@ export default function LogIssueModal({
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="camera-outline" size={24} color={Colors.steelBlue} />
+                    <Ionicons name="camera-outline" size={IconSize.lg} color={Colors.steelBlue} />
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -647,7 +647,7 @@ export default function LogIssueModal({
                     style={{
                       paddingVertical: Spacing.md,
                       paddingHorizontal: Spacing.lg,
-                      borderRadius: 12,
+                      borderRadius: Radii.md,
                       backgroundColor: !form.resolvedServiceId ? Colors.primary + '20' : Colors.surface1,
                       borderWidth: 1,
                       borderColor: !form.resolvedServiceId ? Colors.primary : Colors.glassBorder,
@@ -670,7 +670,7 @@ export default function LogIssueModal({
                       style={{
                         paddingVertical: Spacing.md,
                         paddingHorizontal: Spacing.lg,
-                        borderRadius: 12,
+                        borderRadius: Radii.md,
                         backgroundColor: form.resolvedServiceId === service.id ? Colors.primary + '20' : Colors.surface1,
                         borderWidth: 1,
                         borderColor: form.resolvedServiceId === service.id ? Colors.primary : Colors.glassBorder,
@@ -766,7 +766,7 @@ export default function LogIssueModal({
                     <View key={entry.id || idx} style={{ flexDirection: 'row', marginBottom: isLast ? 0 : Spacing.md }}>
                       {/* Timeline line */}
                       <View style={{ alignItems: 'center', width: 32 }}>
-                        <Ionicons name={icon} size={14} color={Colors.textSecondary} />
+                        <Ionicons name={icon} size={IconSize.xs} color={Colors.textSecondary} />
                         {!isLast && (
                           <View style={{ 
                             width: 1, 

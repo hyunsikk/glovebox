@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Spacing, Shared } from '../theme';
+import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { usePurchases } from '../lib/PurchaseContext';
 
 // Every benefit listed here is actually gated behind the Pro entitlement.
@@ -69,7 +69,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
             car story pro
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Ionicons name="close" size={26} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+            <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
           </TouchableOpacity>
         </View>
 
@@ -77,7 +77,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
           {/* Hero */}
           <View style={{ alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.xl }}>
             <View style={{
-              width: 72, height: 72, borderRadius: 22,
+              width: 72, height: 72, borderRadius: Radii.pill,
               backgroundColor: Colors.primary + '1A',
               borderWidth: 1, borderColor: Colors.primary + '40',
               justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.lg,
@@ -103,14 +103,14 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
                 }}
               >
                 <View style={{
-                  width: 40, height: 40, borderRadius: 12,
+                  width: 40, height: 40, borderRadius: Radii.pill,
                   backgroundColor: Colors.success + '18',
                   justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md,
                 }}>
-                  <Ionicons name={b.icon} size={20} color={Colors.success} />
+                  <Ionicons name={b.icon} size={IconSize.md} color={Colors.success} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[Typography.h2, { color: Colors.textPrimary, fontSize: 16 }]}>{b.title}</Text>
+                  <Text style={[Typography.h2, { color: Colors.textPrimary }]}>{b.title}</Text>
                   <Text style={[Typography.caption, { color: Colors.textSecondary }]}>{b.sub}</Text>
                 </View>
               </View>
@@ -126,7 +126,7 @@ export default function PaywallModal({ visible, onClose, context = 'default' }) 
 
         {/* Footer CTA */}
         <View style={{ paddingHorizontal: Spacing.horizontalLarge, paddingBottom: Spacing.xxl, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.glassBorder }}>
-          <TouchableOpacity style={[Shared.buttonPrimary, { height: 54, opacity: isPro ? 0.6 : 1 }]} onPress={handleUnlock} disabled={busy || isPro} activeOpacity={0.85}>
+          <TouchableOpacity style={[Shared.buttonPrimary, { opacity: isPro ? 0.6 : 1 }]} onPress={handleUnlock} disabled={busy || isPro} activeOpacity={0.85}>
             {busy ? (
               <ActivityIndicator color={Colors.pearlWhite} />
             ) : (

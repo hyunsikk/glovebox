@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Colors, Spacing, Typography, Shared } from '../theme';
+import { Colors, Spacing, Typography, Shared, Radii, IconSize } from '../theme';
 import DatePickerField from './DatePickerField';
 import { useSettings } from '../lib/SettingsContext';
 import { ImageStorage } from '../lib/storage';
@@ -331,7 +331,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
             borderBottomColor: Colors.glassBorder,
           }}>
             <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
+              <Ionicons name="close" size={IconSize.lg} color={Colors.textSecondary} accessibilityRole="button" accessibilityLabel="Close" />
             </TouchableOpacity>
             <Text style={[Typography.h2, { color: Colors.textPrimary }]}>
               {isEditing ? 'Edit Entry' : 'Log Fuel'}
@@ -357,7 +357,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     justifyContent: 'center',
                     backgroundColor: type === ft.key ? Colors.primary + '20' : Colors.surface1,
                     paddingVertical: Spacing.md,
-                    borderRadius: 16,
+                    borderRadius: Radii.lg,
                     borderWidth: 1,
                     borderColor: type === ft.key ? Colors.primary + '60' : Colors.glassBorder,
                   }}
@@ -366,7 +366,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     setType(ft.key);
                   }}
                 >
-                  <MaterialCommunityIcons name={ft.icon} size={18} color={type === ft.key ? Colors.primary : Colors.textSecondary} style={{ marginRight: Spacing.xs }} />
+                  <MaterialCommunityIcons name={ft.icon} size={IconSize.md} color={type === ft.key ? Colors.primary : Colors.textSecondary} style={{ marginRight: Spacing.xs }} />
                   <Text style={[Typography.body, {
                     color: type === ft.key ? Colors.primary : Colors.textSecondary,
                     fontFamily: type === ft.key ? 'Nunito_600SemiBold' : 'Nunito_500Medium',
@@ -442,11 +442,11 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                 alignItems: 'center',
               }}
             >
-              <Ionicons 
-                name={costMode === 'per_unit' ? 'chevron-up' : 'chevron-down'} 
-                size={14} 
-                color={Colors.primary} 
-                style={{ marginRight: 4 }} 
+              <Ionicons
+                name={costMode === 'per_unit' ? 'chevron-up' : 'chevron-down'}
+                size={IconSize.xs}
+                color={Colors.primary}
+                style={{ marginRight: 4 }}
               />
               <Text style={[Typography.caption, { color: Colors.primary }]}>
                 {costMode === 'per_unit' ? 'hide details' : type === 'fuel' ? 'add gallons & price per gallon' : 'add kWh & cost per kWh'}
@@ -513,7 +513,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   <View style={{
                     backgroundColor: Colors.primary + '10',
                     padding: Spacing.md,
-                    borderRadius: 12,
+                    borderRadius: Radii.md,
                     borderWidth: 1,
                     borderColor: Colors.primary + '20',
                     marginBottom: Spacing.lg,
@@ -537,7 +537,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   justifyContent: 'space-between',
                   backgroundColor: Colors.surface1,
                   padding: Spacing.md,
-                  borderRadius: 12,
+                  borderRadius: Radii.md,
                   borderWidth: 1,
                   borderColor: Colors.glassBorder,
                   marginBottom: Spacing.lg,
@@ -581,7 +581,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                         style={{
                           paddingHorizontal: Spacing.md,
                           paddingVertical: Spacing.sm,
-                          borderRadius: 16,
+                          borderRadius: Radii.lg,
                           backgroundColor: isSelected ? Colors.warning + '20' : Colors.surface1,
                           borderWidth: 1,
                           borderColor: isSelected ? Colors.warning + '60' : Colors.glassBorder,
@@ -621,7 +621,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                         style={{
                           paddingHorizontal: Spacing.md,
                           paddingVertical: Spacing.sm,
-                          borderRadius: 16,
+                          borderRadius: Radii.lg,
                           backgroundColor: isSelected ? Colors.success + '20' : Colors.surface1,
                           borderWidth: 1,
                           borderColor: isSelected ? Colors.success + '60' : Colors.glassBorder,
@@ -648,7 +648,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
               justifyContent: 'space-between',
               backgroundColor: Colors.surface1,
               padding: Spacing.md,
-              borderRadius: 12,
+              borderRadius: Radii.md,
               borderWidth: 1,
               borderColor: updateOdometer ? Colors.primary + '40' : Colors.glassBorder,
               marginBottom: Spacing.lg,
@@ -720,7 +720,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       style={{
                         width: 70,
                         height: 70,
-                        borderRadius: 10,
+                        borderRadius: Radii.md,
                         borderWidth: 1,
                         borderColor: Colors.glassBorder,
                       }}
@@ -734,7 +734,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                         right: -6,
                         width: 20,
                         height: 20,
-                        borderRadius: 10,
+                        borderRadius: Radii.pill,
                         backgroundColor: Colors.deepRed,
                         justifyContent: 'center',
                         alignItems: 'center',
@@ -751,7 +751,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     style={{
                       width: 70,
                       height: 70,
-                      borderRadius: 10,
+                      borderRadius: Radii.md,
                       borderWidth: 1,
                       borderColor: Colors.glassBorder,
                       borderStyle: 'dashed',
@@ -761,7 +761,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="camera-outline" size={24} color={Colors.steelBlue} />
+                    <Ionicons name="camera-outline" size={IconSize.lg} color={Colors.steelBlue} />
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -787,7 +787,7 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                 }}
                 onPress={handleDelete}
               >
-                <Ionicons name="trash-outline" size={18} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
+                <Ionicons name="trash-outline" size={IconSize.md} color={Colors.deepRed} style={{ marginRight: Spacing.sm }} />
                 <Text style={[Typography.body, { color: Colors.deepRed }]}>Delete Entry</Text>
               </TouchableOpacity>
             )}
