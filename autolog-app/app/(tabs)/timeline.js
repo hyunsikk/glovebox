@@ -8,6 +8,8 @@ import { ServiceStorage, VehicleStorage, FuelStorage, IssueStorage, SnapshotStor
 import { getThumbnailUri } from '../../lib/imageUtils';
 import LogServiceModal from '../../components/LogServiceModal';
 import EditServiceModal from '../../components/EditServiceModal';
+import LogFuelModal from '../../components/LogFuelModal';
+import LogIssueModal from '../../components/LogIssueModal';
 import { shareSnapshot } from '../../lib/shareSnapshot';
 import { useSettings } from '../../lib/SettingsContext';
 
@@ -221,12 +223,16 @@ const ServiceCard = ({ service, vehicle, onEdit, servicePhotos = [] }) => {
   );
 };
 
-const FuelCard = ({ fuelLog, vehicle, photos = [] }) => {
+const FuelCard = ({ fuelLog, vehicle, photos = [], onEdit }) => {
   const { formatCost, formatDistance, formatVolume } = useSettings();
   const isFuel = fuelLog.type !== 'ev_charge';
 
   return (
-    <View style={[Shared.card, { marginBottom: Spacing.md }]}>
+    <TouchableOpacity
+      style={[Shared.card, { marginBottom: Spacing.md }]}
+      onPress={() => onEdit(fuelLog)}
+      activeOpacity={0.9}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {/* Icon */}
         <View style={{
@@ -290,11 +296,11 @@ const FuelCard = ({ fuelLog, vehicle, photos = [] }) => {
           </Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
-const IssueCard = ({ issue, vehicle, photos = [] }) => {
+const IssueCard = ({ issue, vehicle, photos = [], onEdit }) => {
   const { formatCost } = useSettings();
   const severityColors = {
     minor: '#3B82F6',
@@ -309,7 +315,11 @@ const IssueCard = ({ issue, vehicle, photos = [] }) => {
   };
 
   return (
-    <View style={[Shared.card, { marginBottom: Spacing.md }]}>
+    <TouchableOpacity
+      style={[Shared.card, { marginBottom: Spacing.md }]}
+      onPress={() => onEdit(issue)}
+      activeOpacity={0.9}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {/* Icon */}
         <View style={{
@@ -412,7 +422,7 @@ const IssueCard = ({ issue, vehicle, photos = [] }) => {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -760,6 +770,10 @@ export default function TimelineScreen() {
   const [showLogServiceModal, setShowLogServiceModal] = useState(false);
   const [showEditServiceModal, setShowEditServiceModal] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
+  const [showLogFuelModal, setShowLogFuelModal] = useState(false);
+  const [editingFuelLog, setEditingFuelLog] = useState(null);
+  const [showLogIssueModal, setShowLogIssueModal] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(null);
   const [fuelLogs, setFuelLogs] = useState([]);
   const [servicePhotosMap, setServicePhotosMap] = useState({});
   const [fuelPhotosMap, setFuelPhotosMap] = useState({});
@@ -928,8 +942,8 @@ export default function TimelineScreen() {
 
   const renderEntry = (entry) => {
     const vehicle = vehicles.find(v => v.id === entry.vehicleId);
-    if (entry._type === 'fuel') return <FuelCard fuelLog={entry} vehicle={vehicle} photos={fuelPhotosMap[entry.id] || []} />;
-    if (entry._type === 'issue') return <IssueCard issue={entry} vehicle={vehicle} photos={issuePhotosMap[entry.id] || []} />;
+    if (entry._type === 'fuel') return <FuelCard fuelLog={entry} vehicle={vehicle} photos={fuelPhotosMap[entry.id] || []} onEdit={handleEditFuel} />;
+    if (entry._type === 'issue') return <IssueCard issue={entry} vehicle={vehicle} photos={issuePhotosMap[entry.id] || []} onEdit={handleEditIssue} />;
     if (entry._type === 'snapshot') return <SnapshotCard snapshot={entry} vehicle={vehicle} />;
     return (
       <ServiceCard
@@ -960,6 +974,51 @@ export default function TimelineScreen() {
 
   const handleServiceUpdated = () => {
     loadData();
+  };
+
+  const handleEditFuel = (fuelLog) => {
+    Haptics.selectionAsync();
+    setEditingFuelLog(fuelLog);
+    setShowLogFuelModal(true);
+  };
+
+  // Mirror of VehicleDetailModal's handleSaveFuelLog, but refreshes the whole
+  // timeline (all vehicles) rather than a single vehicle's logs.
+  const handleSaveFuelLog = async (logData) => {
+    try {
+      let result = null;
+      if (logData._delete) {
+        await FuelStorage.delete(logData.id);
+      } else if (logData.id) {
+        await FuelStorage.update(logData.id, logData);
+        result = { id: logData.id };
+      } else {
+        result = await FuelStorage.add(logData);
+      }
+      if (logData._updateOdometer && logData.odometer > 0 && logData.vehicleId) {
+        await VehicleStorage.update(logData.vehicleId, { currentMileage: logData.odometer });
+      }
+      await loadData();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return result;
+    } catch (error) {
+      console.error('Error saving fuel log:', error);
+      Alert.alert('Error', 'Failed to save fuel log');
+      return null;
+    }
+  };
+
+  const handleEditIssue = (issue) => {
+    Haptics.selectionAsync();
+    setEditingIssue(issue);
+    setShowLogIssueModal(true);
+  };
+
+  const handleIssueLogged = async () => {
+    await loadData();
+    setShowLogIssueModal(false);
+    setEditingIssue(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   if (loading) {
@@ -1056,6 +1115,23 @@ export default function TimelineScreen() {
         onClose={() => setShowEditServiceModal(false)}
         service={selectedService}
         onServiceUpdated={handleServiceUpdated}
+      />
+
+      <LogFuelModal
+        visible={showLogFuelModal}
+        onClose={() => { setShowLogFuelModal(false); setEditingFuelLog(null); }}
+        onSave={handleSaveFuelLog}
+        vehicle={vehicles.find(v => v.id === editingFuelLog?.vehicleId)}
+        editLog={editingFuelLog}
+      />
+
+      <LogIssueModal
+        visible={showLogIssueModal}
+        onClose={() => { setShowLogIssueModal(false); setEditingIssue(null); }}
+        onIssueLogged={handleIssueLogged}
+        vehicles={vehicles}
+        selectedVehicle={vehicles.find(v => v.id === editingIssue?.vehicleId)}
+        editingIssue={editingIssue}
       />
     </View>
   );

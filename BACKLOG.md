@@ -27,7 +27,15 @@ surfaced between releases. Keep it in git so commits/PRs can reference IDs.
 
 ### B-001 — Fuel and Issue logs not openable from History tab
 
-- **Status**: open
+- **Status**: done (fix implemented + tests green; commit pending)
+- **Root cause**: in `timeline.js`, `ServiceCard` was a `TouchableOpacity`
+  (`onPress -> onEdit`), but `FuelCard` and `IssueCard` had plain `View` roots
+  with no tap handler at all — so taps were inert. Not a routing bug.
+- **Fix**: wrapped `FuelCard` / `IssueCard` roots in `TouchableOpacity` and wired
+  them to `LogFuelModal` / `LogIssueModal` in edit mode, mirroring
+  `VehicleDetailModal.js`'s `handleSaveFuelLog` / `handleIssueLogged` (refreshing
+  the whole timeline via `loadData()` instead of one vehicle's logs). Snapshots
+  left non-tappable (no edit screen exists; out of scope for B-001).
 - **Priority**: High (regression in a core surface — discovered on 2.2.0 build awaiting review)
 - **Reported**: 2026-05-26 (Hyun, phone test of 2.2.0)
 - **Repro**: Open the History tab → tap a fuel log entry → nothing happens.
