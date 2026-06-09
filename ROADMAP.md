@@ -1,6 +1,6 @@
 # Car Story — Roadmap
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-06-09_
 
 ## Product thesis
 
@@ -21,21 +21,31 @@ won't use Google Sheets (unusable on mobile) or subscription/cloud apps (privacy
 
 Goal: a polished, trustworthy app + a *repeatable* way to sell it.
 
-1. **Address the two cons** (no engine refactor; clean module boundaries only):
-   - **iCloud backup** — implement the iCloud Documents (ubiquity container) adapter
-     behind the existing seam in `lib/backup.js` (`loadICloudAdapter`). Approach B: own
-     small Swift Expo module + entitlement + config plugin. Backup blob already includes
-     photos (base64), so it must be file-based, not key-value.
-     - Harden: make `restoreFromBackup` non-destructive (snapshot local first).
-     - Wire the first-launch "Restore from iCloud?" prompt (`shouldOfferRestore` exists).
-     - Apple-side prereqs (Hyun): enable iCloud capability, create container
-       `iCloud.dev.teamam.glovebox`.
-   - **Feedback / bug channel** — Settings row → `mailto:` prefilled with app version +
-     build + device + OS. Plus a "Help / FAQ" link to a support page.
-   - **Support URL page** on `carstory-data` GitHub Pages (App Review needs it anyway).
+**Status (2026-06-09): the two cons are addressed and shipping.** 2.2.0 (iCloud
+backup + feedback channel) was approved and auto-released; 2.2.1 (build 43) folds
+in the device-only iCloud hardening below + B-001, was device-verified on
+TestFlight, and is in App Store review.
 
-2. **New submission** (not the 2026-05-20 build — iCloud isn't in it):
-   - Ship the Phase-1 features first, then resubmit **once**.
+1. **Address the two cons** (no engine refactor; clean module boundaries only):
+   - ✅ **iCloud backup** — Swift Expo module + entitlement + config plugin behind
+     the `loadICloudAdapter` seam (file-based; blob includes base64 photos).
+     `restoreFromBackup` is non-destructive; the first-launch "Restore?" prompt is
+     wired. Apple-side (container `iCloud.dev.teamam.glovebox` + capability) was
+     already set up — proven by store build #42. **Device-verified in 2.2.1** after
+     fixing device-only bugs: `.icloud` placeholder listing (broke cross-device
+     restore), unreliable background auto-backup (now immediate + held by an iOS
+     background task), a restore-prompt sync retry, and a longer download timeout
+     for large photo backups.
+   - ✅ **Feedback / bug channel** — Settings → Report a bug / Send feedback
+     (`mailto:` prefilled with version/build/device/OS) + Help & FAQ link.
+   - ✅ **Support URL page** — live on `carstory-data` GitHub Pages.
+   - Also shipped in 2.2.1: app-wide UI consistency pass (design tokens: Radii /
+     IconSize / Typography.micro / figure) + Settings polish (unified toggles,
+     tighter cards).
+
+2. **New submission** — ✅ 2.2.0 resubmitted, approved, auto-released. 2.2.1
+   (build 43) in review now. Resubmission discipline still applies: batch fixes,
+   don't churn review.
    - Improved ASO + screenshots selling the pros: offline-first, privacy/no-account,
      iCloud backup, no subscription, photos, recall alerts.
 

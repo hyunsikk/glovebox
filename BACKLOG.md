@@ -1,6 +1,6 @@
 # Car Story — Backlog
 
-_Last updated: 2026-05-26_
+_Last updated: 2026-06-09_
 
 Lightweight, single-source backlog for bugs, polish items, and small ideas
 surfaced between releases. Keep it in git so commits/PRs can reference IDs.
@@ -17,9 +17,7 @@ surfaced between releases. Keep it in git so commits/PRs can reference IDs.
 
 ## Open (snapshot)
 
-| ID    | Title                                                                  | Type | Priority | Source / date          |
-| ----- | ---------------------------------------------------------------------- | ---- | -------- | ---------------------- |
-| B-001 | Fuel and Issue logs not openable from History tab (service logs work) | Bug  | High     | Phone test, 2026-05-26 |
+_None._ (B-001 shipped in 2.2.1 — see Recently closed.)
 
 ---
 
@@ -27,7 +25,7 @@ surfaced between releases. Keep it in git so commits/PRs can reference IDs.
 
 ### B-001 — Fuel and Issue logs not openable from History tab
 
-- **Status**: done (fix implemented + tests green; commit pending)
+- **Status**: done — shipped in 2.2.1 (commit `04d3317`, build 43, device-verified via TestFlight 2026-06-09)
 - **Root cause**: in `timeline.js`, `ServiceCard` was a `TouchableOpacity`
   (`onPress -> onEdit`), but `FuelCard` and `IssueCard` had plain `View` roots
   with no tap handler at all — so taps were inert. Not a routing bug.
@@ -71,4 +69,5 @@ _None yet._
 
 ## Recently closed
 
-_None yet._
+- **B-001** — Fuel/Issue logs not openable from History tab. Fixed (`04d3317`),
+  shipped in **2.2.1** (build 43), device-verified via TestFlight 2026-06-09.
