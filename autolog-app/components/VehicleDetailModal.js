@@ -10,9 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AppSwitch from './AppSwitch';
 import * as Haptics from 'expo-haptics';
 import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
 import { VehicleStorage, ServiceStorage, ImageStorage, FuelStorage, IssueStorage, SnapshotStorage, ReminderStorage } from '../lib/storage';
@@ -939,12 +939,9 @@ const MaintenanceReminders = ({ vehicleId }) => {
             </View>
             
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Switch
+              <AppSwitch
                 value={reminder.enabled}
                 onValueChange={(enabled) => handleToggleReminder(reminder.id, enabled)}
-                trackColor={{ false: Colors.surface3, true: Colors.primary + '40' }}
-                thumbColor={reminder.enabled ? Colors.primary : Colors.textSecondary}
-                ios_backgroundColor={Colors.surface3}
                 style={{ marginRight: Spacing.sm }}
               />
               

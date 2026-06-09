@@ -9,10 +9,10 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
-  Switch,
   Image,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AppSwitch from './AppSwitch';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, Typography, Shared, Radii, IconSize } from '../theme';
 import DatePickerField from './DatePickerField';
@@ -548,14 +548,12 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                       needed for MPG calculation
                     </Text>
                   </View>
-                  <Switch
+                  <AppSwitch
                     value={fullTank}
                     onValueChange={(val) => {
                       Haptics.selectionAsync();
                       setFullTank(val);
                     }}
-                    trackColor={{ false: Colors.surface1, true: Colors.primary + '60' }}
-                    thumbColor={fullTank ? Colors.primary : Colors.textSecondary}
                   />
                 </View>
 
@@ -659,14 +657,12 @@ export default function LogFuelModal({ visible, onClose, onSave, vehicle, editLo
                   {vehicle?.currentMileage ? `Currently ${vehicle.currentMileage.toLocaleString()} mi` : 'Set vehicle mileage'}
                 </Text>
               </View>
-              <Switch
+              <AppSwitch
                 value={updateOdometer}
                 onValueChange={(val) => {
                   Haptics.selectionAsync();
                   setUpdateOdometer(val);
                 }}
-                trackColor={{ false: Colors.surface1, true: Colors.primary + '60' }}
-                thumbColor={updateOdometer ? Colors.primary : Colors.textSecondary}
               />
             </View>
 

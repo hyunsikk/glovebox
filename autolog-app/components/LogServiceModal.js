@@ -11,9 +11,9 @@ import {
   Platform,
   Image,
   Animated,
-  Switch,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AppSwitch from './AppSwitch';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Shared, Radii, IconSize } from '../theme';
@@ -734,14 +734,12 @@ export default function LogServiceModal({ visible, onClose, onServiceLogged, pre
             {selectedVehicle?.currentMileage ? `Currently ${selectedVehicle.currentMileage.toLocaleString()} mi` : 'Set vehicle mileage'}
           </Text>
         </View>
-        <Switch
+        <AppSwitch
           value={updateOdometer}
           onValueChange={(val) => {
             Haptics.selectionAsync();
             setUpdateOdometer(val);
           }}
-          trackColor={{ false: Colors.surface1, true: Colors.primary + '60' }}
-          thumbColor={updateOdometer ? Colors.primary : Colors.textSecondary}
         />
       </View>
 

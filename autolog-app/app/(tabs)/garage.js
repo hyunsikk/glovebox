@@ -25,7 +25,6 @@ import { HealthScoreDialSmall } from '../../components/HealthScoreDial';
 import PaywallModal from '../../components/PaywallModal';
 import { usePurchases } from '../../lib/PurchaseContext';
 import { useTheme } from '../../lib/ThemeContext';
-import { Modal, Switch } from 'react-native';
 
 const VehicleCard = ({ vehicle, onPress, onToggleFavorite, showFavorite }) => {
   const { formatDistance } = useSettings();

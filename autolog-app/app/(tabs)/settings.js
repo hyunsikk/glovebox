@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Switch, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +9,7 @@ import { Colors, Typography, Spacing, Shared, Radii } from '../../theme';
 import { useTheme } from '../../lib/ThemeContext';
 import { usePurchases } from '../../lib/PurchaseContext';
 import PaywallModal from '../../components/PaywallModal';
+import AppSwitch from '../../components/AppSwitch';
 import { VehicleStorage, ServiceStorage, FuelStorage } from '../../lib/storage';
 import { checkForUpdate, getDataMeta } from '../../lib/vehicleDB';
 import { escapeHtml } from '../../lib/htmlUtils';
@@ -465,21 +466,20 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         appearance
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <SettingRow
           icon="moon-outline"
           label="dark mode"
           colors={colors}
           last
           rightElement={
-            <Switch
+            <AppSwitch
               value={isDark}
               onValueChange={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 toggleTheme();
               }}
-              trackColor={{ false: colors.glassBorder, true: colors.primary + '60' }}
-              thumbColor={isDark ? colors.primary : '#f4f3f4'}
+              colors={colors}
             />
           }
         />
@@ -489,7 +489,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         units
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <View style={{ paddingVertical: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
             <RowIcon icon="speedometer-outline" colors={colors} />
@@ -514,7 +514,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         your data
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <SettingRow
           icon="download-outline"
           label="export data"
@@ -536,7 +536,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         reports
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.glassBorder }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm }}>
             <RowIcon icon="car-outline" colors={colors} />
@@ -607,7 +607,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         vehicle database
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <RowIcon icon="server-outline" colors={colors} />
           <View style={{ flex: 1 }}>
@@ -634,12 +634,12 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         backup
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <SettingRow
           icon={backup.iCloud ? 'cloud-done-outline' : 'save-outline'}
           label="auto-backup"
           value={backup.lastBackupAt ? `last: ${new Date(backup.lastBackupAt).toLocaleString()}` : 'not backed up yet'}
-          rightElement={<Switch value={backup.autoEnabled} onValueChange={handleToggleAutoBackup} trackColor={{ true: colors.primary }} />}
+          rightElement={<AppSwitch value={backup.autoEnabled} onValueChange={handleToggleAutoBackup} colors={colors} />}
           colors={colors}
         />
         <View style={{ paddingTop: Spacing.md }}>
@@ -687,7 +687,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         car story pro
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         {isPro ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <RowIcon icon="star" colors={colors} color={colors.success} />
@@ -720,7 +720,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         support
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <SettingRow
           icon="bug-outline"
           label="Report a bug"
@@ -746,7 +746,7 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
       <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: Spacing.xl, marginBottom: Spacing.sm, textTransform: 'uppercase', letterSpacing: 1 }]}>
         about
       </Text>
-      <View style={[Shared.card]}>
+      <View style={[Shared.card, { paddingVertical: Spacing.sm }]}>
         <SettingRow
           icon="car-sport-outline"
           label="Car Story"
