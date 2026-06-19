@@ -760,6 +760,10 @@ th{font-weight:600;color:#4a4a4a;background:#f9f8f5}
         your records stay on your device. we don't run servers or collect your data.
       </Text>
 
+      <Text style={[Typography.small, { color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.sm }]}>
+        Built-in schedules and costs are general estimates — a starting point to verify, not professional advice.
+      </Text>
+
       <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} context={paywallContext} />
     </ScrollView>
   );
